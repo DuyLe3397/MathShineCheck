@@ -13,13 +13,12 @@ import {
 export class ImageService {
   private firestore = inject(Firestore);
 
-  compressImage(file: File): Promise<string> {
+  compressImage(file: File, maxDim = 1920, quality = 0.88): Promise<string> {
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
       reader.onload = () => {
         const img = new Image();
         img.onload = () => {
-          const maxDim = 800;
           let w = img.width;
           let h = img.height;
           if (w > maxDim || h > maxDim) {
@@ -36,7 +35,7 @@ export class ImageService {
           canvas.height = h;
           const ctx = canvas.getContext('2d')!;
           ctx.drawImage(img, 0, 0, w, h);
-          resolve(canvas.toDataURL('image/jpeg', 0.6));
+          resolve(canvas.toDataURL('image/jpeg', quality));
         };
         img.onerror = reject;
         img.src = reader.result as string;

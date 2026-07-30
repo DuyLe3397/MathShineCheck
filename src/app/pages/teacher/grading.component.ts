@@ -115,13 +115,6 @@ import { Submission, Grade, SubmissionComment } from '../../models';
         transition: all 0.2s;
         text-align: center;
       }
-      .btn-draw {
-        background: #2563eb;
-        color: #fff;
-      }
-      .btn-draw:hover {
-        background: #1d4ed8;
-      }
       .btn-upload {
         background: #f59e0b;
         color: #fff;
@@ -137,13 +130,13 @@ import { Submission, Grade, SubmissionComment } from '../../models';
         padding: 0.75rem 1rem;
         border-top: 1px solid #f1f5f9;
       }
-       .comment-item {
-          display: flex;
-          gap: 0.5rem;
-          padding: 0.4rem;
-          border-bottom: 1px solid #f1f5f9;
-          font-size: 0.85rem;
-        }
+      .comment-item {
+        display: flex;
+        gap: 0.5rem;
+        padding: 0.4rem;
+        border-bottom: 1px solid #f1f5f9;
+        font-size: 0.85rem;
+      }
       .comment-item:last-child {
         border-bottom: none;
       }
@@ -369,100 +362,6 @@ import { Submission, Grade, SubmissionComment } from '../../models';
         cursor: pointer;
         font-weight: 600;
       }
-
-      .draw-overlay {
-        position: fixed;
-        top: 0;
-        left: 0;
-        right: 0;
-        bottom: 0;
-        background: #fff;
-        z-index: 9999;
-        display: flex;
-        flex-direction: column;
-      }
-      .draw-toolbar {
-        display: flex;
-        align-items: center;
-        gap: 10px;
-        padding: 0.6rem 1rem;
-        background: #1e293b;
-        color: #fff;
-        flex-shrink: 0;
-        flex-wrap: wrap;
-      }
-      .draw-toolbar button {
-        padding: 6px 14px;
-        border: 1.5px solid #475569;
-        border-radius: 6px;
-        background: transparent;
-        color: #fff;
-        cursor: pointer;
-        font-size: 0.82rem;
-        font-weight: 600;
-        transition: all 0.2s;
-      }
-      .draw-toolbar button.active {
-        background: #2563eb;
-        border-color: #2563eb;
-      }
-      .draw-toolbar button:hover {
-        border-color: #60a5fa;
-      }
-      .draw-toolbar .sep {
-        width: 1px;
-        height: 28px;
-        background: #475569;
-        margin: 0 4px;
-      }
-      .draw-toolbar input[type='color'] {
-        width: 32px;
-        height: 32px;
-        border: none;
-        border-radius: 4px;
-        cursor: pointer;
-        padding: 0;
-        background: none;
-      }
-      .draw-toolbar select {
-        padding: 4px 8px;
-        border-radius: 4px;
-        border: 1px solid #475569;
-        background: #334155;
-        color: #fff;
-        font-size: 0.8rem;
-        outline: none;
-      }
-      .draw-canvas-wrap {
-        flex: 1;
-        overflow: hidden;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        background: #e2e8f0;
-        position: relative;
-      }
-      .draw-canvas-wrap canvas {
-        max-width: 100%;
-        max-height: 100%;
-      }
-      .draw-toolbar .btn-close-draw {
-        margin-left: auto;
-        background: #ef4444;
-        border-color: #ef4444;
-      }
-      .draw-toolbar .btn-close-draw:hover {
-        background: #dc2626;
-      }
-      .draw-toolbar .btn-save-draw {
-        background: #16a34a;
-        border-color: #16a34a;
-      }
-      .draw-toolbar .btn-save-draw:hover {
-        background: #15803d;
-      }
-
-
     `,
   ],
   template: `
@@ -496,7 +395,9 @@ import { Submission, Grade, SubmissionComment } from '../../models';
       <div class="image-card">
         <img [src]="currentImageUrl" alt="Bài làm" />
         <div class="image-actions">
-          <button class="action-btn btn-draw" (click)="openDrawer()">Vẽ</button>
+          <button class="action-btn" (click)="downloadSubmission()">
+            Tải bài làm
+          </button>
           <label
             class="action-btn btn-upload"
             style="display:block;text-align:center;cursor:pointer;"
@@ -530,24 +431,24 @@ import { Submission, Grade, SubmissionComment } from '../../models';
               <i>I</i>
             </button>
           </div>
-                          @for (c of imageComments(); track c.id) {
-                            <div class="comment-item">
-                              <div class="comment-avatar">
-                                @if (c.authorAvatarUrl) {
-                                  <img [src]="c.authorAvatarUrl" alt="" />
-                                } @else {
-                                  <span class="comment-avatar-placeholder">👤</span>
-                                }
-                              </div>
-                              <div class="comment-body">
-                                <div class="comment-author">{{ c.authorName }}</div>
-                                 <div class="comment-content">{{ c.content }}</div>
-                                 <div class="comment-time">
-                                   {{ c.createdAt | date: 'dd/MM/yyyy HH:mm' }}
-                                 </div>
-                                </div>
-                              </div>
-                           }
+          @for (c of imageComments(); track c.id) {
+            <div class="comment-item">
+              <div class="comment-avatar">
+                @if (c.authorAvatarUrl) {
+                  <img [src]="c.authorAvatarUrl" alt="" />
+                } @else {
+                  <span class="comment-avatar-placeholder">👤</span>
+                }
+              </div>
+              <div class="comment-body">
+                <div class="comment-author">{{ c.authorName }}</div>
+                <div class="comment-content">{{ c.content }}</div>
+                <div class="comment-time">
+                  {{ c.createdAt | date: 'dd/MM/yyyy HH:mm' }}
+                </div>
+              </div>
+            </div>
+          }
           @if (imageComments().length === 0) {
             <div style="color:#94a3b8;font-size:0.82rem;padding:0.3rem 0;">
               Chưa có bình luận cho ảnh này
@@ -613,48 +514,6 @@ import { Submission, Grade, SubmissionComment } from '../../models';
         <button class="btn-back" (click)="goBack()">Quay lại</button>
       </div>
     </div>
-
-    @if (drawingMode) {
-      <div class="draw-overlay">
-        <div class="draw-toolbar">
-          <button
-            [class.active]="drawTool === 'pen'"
-            (click)="drawTool = 'pen'; setDrawCursor()"
-          >
-            🖊 Bút
-          </button>
-          <button
-            [class.active]="drawTool === 'eraser'"
-            (click)="drawTool = 'eraser'; setDrawCursor()"
-          >
-            🧹 Xóa
-          </button>
-          <div class="sep"></div>
-          <input
-            type="color"
-            [ngModel]="drawColor"
-            (ngModelChange)="drawColor = $event; updateBrush()"
-          />
-          <select
-            [ngModel]="drawSize"
-            (ngModelChange)="drawSize = $event; updateBrush()"
-          >
-            <option [value]="2">2px</option>
-            <option [value]="4">4px</option>
-            <option [value]="6">6px</option>
-            <option [value]="10">10px</option>
-            <option [value]="16">16px</option>
-          </select>
-          <button (click)="clearDraw()">🗑 Xóa hết</button>
-          <div class="sep"></div>
-          <button class="btn-save-draw" (click)="saveDraw()">💾 Lưu</button>
-          <button class="btn-close-draw" (click)="closeDraw()">✕ Đóng</button>
-        </div>
-        <div class="draw-canvas-wrap">
-          <canvas #drawCanvas></canvas>
-        </div>
-      </div>
-    }
   `,
 })
 export class GradingComponent implements OnInit {
@@ -664,16 +523,13 @@ export class GradingComponent implements OnInit {
   private imageService = inject(ImageService);
   private authService = inject(AuthService);
 
-  @ViewChild('drawCanvas', { static: false })
-  drawCanvasRef!: ElementRef<HTMLCanvasElement>;
-
   submissionId = '';
   submission: Submission | null = null;
   currentPage = 0;
   totalPages = 0;
   loading = true;
-   saving = false;
-   showSuccess = false;
+  saving = false;
+  showSuccess = false;
 
   scoreValue: number | null = null;
   overallComment = '';
@@ -685,14 +541,6 @@ export class GradingComponent implements OnInit {
   imageCommentsMap = signal<Record<number, SubmissionComment[]>>({});
   boldActive = false;
   italicActive = false;
-  drawingMode = false;
-  drawTool: 'pen' | 'eraser' = 'pen';
-  drawColor = '#ef4444';
-  drawSize = 4;
-  private ctx: CanvasRenderingContext2D | null = null;
-  private isDrawing = false;
-  private lastX = 0;
-  private lastY = 0;
 
   ngOnInit(): void {
     this.submissionId = this.route.snapshot.paramMap.get('submissionId') || '';
@@ -822,159 +670,28 @@ export class GradingComponent implements OnInit {
     }
   }
 
-  openDrawer(): void {
-    this.drawingMode = true;
-    setTimeout(() => this.initDrawCanvas(), 50);
+  downloadSubmission(): void {
+    const link = document.createElement('a');
+    link.href = this.currentImageUrl;
+    link.download = `bai_lam_${this.submission?.studentId || ''}_${this.currentPage + 1}.jpg`;
+    link.click();
   }
 
-  closeDraw(): void {
-    this.drawingMode = false;
-    this.ctx = null;
-  }
-
-  private initDrawCanvas(): void {
-    const canvas = this.drawCanvasRef?.nativeElement;
-    if (!canvas || !this.currentImageUrl) return;
-
-    const img = new Image();
-    img.onload = () => {
-      const maxW = window.innerWidth - 40;
-      const maxH = window.innerHeight - 90;
-      let w = img.width;
-      let h = img.height;
-      if (w > maxW || h > maxH) {
-        const ratio = Math.min(maxW / w, maxH / h);
-        w = Math.round(w * ratio);
-        h = Math.round(h * ratio);
-      }
-      canvas.width = w;
-      canvas.height = h;
-
-      this.ctx = canvas.getContext('2d')!;
-      this.ctx.drawImage(img, 0, 0, w, h);
-      this.setupDrawEvents();
-      this.updateBrush();
-    };
-    img.src = this.currentImageUrl;
-  }
-
-  private setupDrawEvents(): void {
-    const canvas = this.drawCanvasRef.nativeElement;
-    if (!canvas) return;
-
-    const getPos = (e: MouseEvent | Touch) => {
-      const rect = canvas.getBoundingClientRect();
-      return { x: e.clientX - rect.left, y: e.clientY - rect.top };
-    };
-
-    canvas.onmousedown = (e: MouseEvent) => {
-      this.isDrawing = true;
-      const p = getPos(e);
-      this.lastX = p.x;
-      this.lastY = p.y;
-    };
-    canvas.onmousemove = (e: MouseEvent) => {
-      if (!this.isDrawing || !this.ctx) return;
-      const p = getPos(e);
-      this.ctx.beginPath();
-      this.ctx.moveTo(this.lastX, this.lastY);
-      this.ctx.lineTo(p.x, p.y);
-      this.ctx.stroke();
-      this.lastX = p.x;
-      this.lastY = p.y;
-    };
-    canvas.onmouseup = () => {
-      this.isDrawing = false;
-    };
-    canvas.onmouseleave = () => {
-      this.isDrawing = false;
-    };
-
-    canvas.ontouchstart = (e: TouchEvent) => {
-      e.preventDefault();
-      this.isDrawing = true;
-      const t = e.touches[0];
-      const p = getPos(t);
-      this.lastX = p.x;
-      this.lastY = p.y;
-    };
-    canvas.ontouchmove = (e: TouchEvent) => {
-      e.preventDefault();
-      if (!this.isDrawing || !this.ctx) return;
-      const t = e.touches[0];
-      const p = getPos(t);
-      this.ctx.beginPath();
-      this.ctx.moveTo(this.lastX, this.lastY);
-      this.ctx.lineTo(p.x, p.y);
-      this.ctx.stroke();
-      this.lastX = p.x;
-      this.lastY = p.y;
-    };
-    canvas.ontouchend = () => {
-      this.isDrawing = false;
-    };
-  }
-
-  updateBrush(): void {
-    if (!this.ctx) return;
-    if (this.drawTool === 'pen') {
-      this.ctx.strokeStyle = this.drawColor;
-      this.ctx.globalCompositeOperation = 'source-over';
-    } else {
-      this.ctx.strokeStyle = '#ffffff';
-      this.ctx.globalCompositeOperation = 'destination-out';
-    }
-    this.ctx.lineWidth = this.drawSize;
-    this.ctx.lineCap = 'round';
-    this.ctx.lineJoin = 'round';
-  }
-
-  setDrawCursor(): void {
-    this.updateBrush();
-  }
-
-  clearDraw(): void {
-    const canvas = this.drawCanvasRef?.nativeElement;
-    if (!canvas || !this.ctx || !this.currentImageUrl) return;
-    const img = new Image();
-    img.onload = () => {
-      this.ctx!.clearRect(0, 0, canvas.width, canvas.height);
-      this.ctx!.drawImage(img, 0, 0, canvas.width, canvas.height);
-    };
-    img.src = this.currentImageUrl;
-  }
-
-  async saveDraw(): Promise<void> {
-    const canvas = this.drawCanvasRef?.nativeElement;
-    if (!canvas || !this.submission) return;
-
-    this.ctx?.globalCompositeOperation?.toString();
-    const dataUrl = canvas.toDataURL('image/png');
-    if (!dataUrl || dataUrl.length < 100) return;
-
-    const imageId = this.submission.imageIds[this.currentPage];
-    if (imageId) {
-      await this.imageService.updateSubmissionImage(imageId, dataUrl);
-      this.currentImageUrl = dataUrl;
-    }
-    this.closeDraw();
-  }
-
-  onImageUploaded(event: Event): void {
+  async onImageUploaded(event: Event): Promise<void> {
     const input = event.target as HTMLInputElement;
     const file = input?.files?.[0];
     if (!file || !this.submission) return;
 
-    const reader = new FileReader();
-    reader.onload = async () => {
-      const base64Data = reader.result as string;
-      const imageId = this.submission!.imageIds[this.currentPage];
+    try {
+      const compressed = await this.imageService.compressImage(file);
+      const imageId = this.submission.imageIds[this.currentPage];
       if (imageId) {
-        await this.imageService.updateSubmissionImage(imageId, base64Data);
-        this.currentImageUrl = base64Data;
+        await this.imageService.updateSubmissionImage(imageId, compressed);
+        this.currentImageUrl = compressed;
       }
-    };
-    reader.readAsDataURL(file);
+    } catch (e) {
+      console.error('Upload failed:', e);
+    }
     input.value = '';
   }
 
@@ -1019,5 +736,4 @@ export class GradingComponent implements OnInit {
       this.router.navigate(['/teacher/assignments']);
     }
   }
-
 }
