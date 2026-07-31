@@ -77,6 +77,7 @@ export interface SubmissionComment {
   authorAvatarUrl?: string;
   authorRole: 'teacher' | 'student';
   content: string;
+  imageUrl?: string;
   createdAt: string;
   reactions?: Record<string, string>;
 }
@@ -89,6 +90,7 @@ export interface Discussion {
   authorAvatarUrl?: string;
   title?: string;
   content: string;
+  imageUrl?: string;
   createdAt: string;
   lastReplyAt?: string;
 }
@@ -100,6 +102,7 @@ export interface DiscussionReply {
   authorName: string;
   authorAvatarUrl?: string;
   content: string;
+  imageUrl?: string;
   createdAt: string;
   reactions?: Record<string, string>;
 }
@@ -125,10 +128,12 @@ export interface AppNotification {
 export interface TeacherNotification {
   id: string;
   teacherId: string;
-  type: 'discussion' | 'submission';
+  type: 'discussion' | 'submission' | 'new_submission';
   discussionId?: string;
   replyId?: string;
   submissionId?: string;
+  commentId?: string;
+  assignmentId?: string;
   imageIndex?: number;
   authorName: string;
   content: string;

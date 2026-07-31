@@ -6,6 +6,7 @@ import { FirestoreService } from '../../services/firestore.service';
 import { AuthService } from '../../services/auth.service';
 import { NavbarComponent } from '../../shared/components/navbar.component';
 import { TeacherNotificationBellComponent } from '../../shared/components/teacher-notification-bell.component';
+import { ImageService } from '../../services/image.service';
 import { Group, SchoolClass, Discussion, DiscussionReply } from '../../models';
 
 interface DiscussionWithReplies extends Discussion {
@@ -17,7 +18,13 @@ interface DiscussionWithReplies extends Discussion {
 @Component({
   selector: 'app-teacher-discussions',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterModule, NavbarComponent, TeacherNotificationBellComponent],
+  imports: [
+    CommonModule,
+    FormsModule,
+    RouterModule,
+    NavbarComponent,
+    TeacherNotificationBellComponent,
+  ],
   styles: [
     `
       :host {
@@ -403,7 +410,61 @@ interface DiscussionWithReplies extends Discussion {
         }
       }
 
-
+      .reply-image {
+        max-width: 200px;
+        max-height: 200px;
+        border-radius: 8px;
+        margin-top: 0.4rem;
+        cursor: zoom-in;
+        display: block;
+        border: 1px solid #e2e8f0;
+      }
+      .reply-img-btn {
+        cursor: pointer;
+        font-size: 1.1rem;
+        line-height: 1;
+        padding: 4px;
+        border-radius: 4px;
+        transition: background 0.15s;
+      }
+      .reply-img-btn:hover {
+        background: #e2e8f0;
+      }
+      .reply-img-preview {
+        cursor: pointer;
+        font-size: 0.8rem;
+        color: #16a34a;
+        font-weight: 600;
+      }
+      .lightbox {
+        position: fixed;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.92);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 9999;
+        cursor: zoom-out;
+        padding: 1rem;
+      }
+      .lightbox img {
+        max-width: 100%;
+        max-height: 100%;
+        object-fit: contain;
+        border-radius: 4px;
+      }
+      .item-menu { position: relative; margin-left: auto; flex-shrink: 0; }
+      .menu-btn { background: none; border: none; cursor: pointer; font-size: 1.1rem; padding: 0 4px; color: #94a3b8; border-radius: 4px; }
+      .menu-btn:hover { background: #f1f5f9; color: #1e293b; }
+      .menu-popup { position: absolute; right: 100%; margin-right: 4px; top: 50%; transform: translateY(-50%); background: #fff; border: 1px solid #e2e8f0; border-radius: 8px; box-shadow: 0 4px 16px rgba(0,0,0,0.15); z-index: 50; min-width: 110px; overflow: hidden; }
+      .menu-overlay { position: fixed; inset: 0; z-index: 40; }
+      .menu-popup button { display: block; width: calc(100% - 8px); margin: 2px 4px; padding: 8px 12px; border: 1px solid transparent; border-radius: 8px; background: none; text-align: left; cursor: pointer; font-size: 0.85rem; color: #334155; }
+      .menu-popup button:hover { background: #f8fafc; border-color: #2563eb; box-shadow: 0 3px 12px rgba(37, 99, 235, 0.2); }
+      .edit-area { display: flex; flex-direction: column; gap: 6px; padding: 6px 0; }
+      .edit-input { width: 100%; padding: 6px 10px; border: 1px solid #e2e8f0; border-radius: 6px; font-size: 0.85rem; }
+      .edit-actions { display: flex; gap: 6px; }
+      .edit-save { background: #2563eb; color: #fff; border: none; border-radius: 6px; padding: 5px 14px; cursor: pointer; font-size: 0.82rem; }
+      .edit-cancel { background: #f1f5f9; color: #64748b; border: none; border-radius: 6px; padding: 5px 14px; cursor: pointer; font-size: 0.82rem; }
     `,
   ],
   template: `
@@ -490,9 +551,31 @@ interface DiscussionWithReplies extends Discussion {
                   <button class="form-btn btn-cancel" (click)="cancelNew()">
                     Hủy
                   </button>
+                  <label
+                    class="reply-img-btn"
+                    (click)="$event.stopPropagation()"
+                  >
+                    🖇️
+                    <input
+                      type="file"
+                      accept="image/*"
+                      hidden
+                      (change)="onNewDiscussionImageSelected($event)"
+                    />
+                  </label>
+                  @if (newDiscussionImage()) {
+                    <span
+                      class="reply-img-preview"
+                      (click)="
+                        clearNewDiscussionImage(); $event.stopPropagation()
+                      "
+                      title="Xóa ảnh"
+                      >{{ newDiscussionImageName() }} ✓</span
+                    >
+                  }
                   <button
                     class="form-btn btn-post"
-                    [disabled]="!newContent"
+                    [disabled]="!newContent && !newDiscussionImage()"
                     (click)="createNewDiscussion()"
                   >
                     Đăng
@@ -520,34 +603,93 @@ interface DiscussionWithReplies extends Discussion {
                   (click)="toggleDiscussion(d)"
                 >
                   <div class="discussion-header">
-                    <div>
-                      <div class="discussion-title">{{ d.content }}</div>
-                      <div class="discussion-meta">
-                        <div
-                          style="width:24px;height:24px;border-radius:50%;overflow:hidden;background:#f1f5f9;display:flex;align-items:center;justify-content:center;flex-shrink:0;"
-                        >
-                          @if (d.authorAvatarUrl) {
-                            <img
-                              [src]="d.authorAvatarUrl"
-                              alt=""
-                              style="width:100%;height:100%;object-fit:cover;"
-                            />
-                          } @else {
-                            <span style="font-size:0.8rem;color:#94a3b8;"
-                              >👤</span
-                            >
-                          }
+                    @if (editingId() === d.id) {
+                      <div class="edit-area" (click)="$event.stopPropagation()">
+                        <input
+                          class="edit-input"
+                          [(ngModel)]="editContent"
+                          placeholder="Nội dung..."
+                        />
+                        <label class="reply-img-btn">
+                          🖇️
+                          <input
+                            type="file"
+                            accept="image/*"
+                            hidden
+                            (change)="onEditImageSelected($event)"
+                          />
+                        </label>
+                        @if (editImage()) {
+                          <span class="reply-img-preview"
+                            >{{ editImageName() }} ✓</span
+                          >
+                        }
+                        <div class="edit-actions">
+                          <button
+                            class="edit-save"
+                            (click)="saveEdit(d)"
+                          >
+                            Lưu
+                          </button>
+                          <button class="edit-cancel" (click)="cancelEdit()">
+                            Hủy
+                          </button>
                         </div>
-                        <span>{{ d.authorName }}</span>
-                        <span>{{
-                          d.createdAt | date: 'dd/MM/yyyy HH:mm'
-                        }}</span>
                       </div>
-                    </div>
+                    } @else {
+                      <div>
+                        <div class="discussion-title">{{ d.content }}</div>
+                        @if (d.imageUrl) {
+                          <img
+                            [src]="d.imageUrl"
+                            class="reply-image"
+                            (click)="
+                              zoomedImage.set(d.imageUrl);
+                              $event.stopPropagation()
+                            "
+                          />
+                        }
+                        <div class="discussion-meta">
+                          <div
+                            style="width:24px;height:24px;border-radius:50%;overflow:hidden;background:#f1f5f9;display:flex;align-items:center;justify-content:center;flex-shrink:0;"
+                          >
+                            @if (d.authorAvatarUrl) {
+                              <img
+                                [src]="d.authorAvatarUrl"
+                                alt=""
+                                style="width:100%;height:100%;object-fit:cover;"
+                              />
+                            } @else {
+                              <span style="font-size:0.8rem;color:#94a3b8;"
+                                >👤</span
+                              >
+                            }
+                          </div>
+                          <span>{{ d.authorName }}</span>
+                          <span>{{
+                            d.createdAt | date: 'dd/MM/yyyy HH:mm'
+                          }}</span>
+                        </div>
+                      </div>
+                    }
+                    @if (isOwnerOf(d)) {
+                      <div class="item-menu" (click)="$event.stopPropagation()">
+                        <button
+                          class="menu-btn"
+                          (click)="toggleMenu(d.id)"
+                        >
+                          ⋮
+                        </button>
+                        @if (openMenuId() === d.id) {
+                          <div class="menu-popup">
+                            <button (click)="startEdit(d)">{{ menuLabel(d).edit }}</button>
+                            <button (click)="deleteItem(d)">{{ menuLabel(d).del }}</button>
+                          </div>
+                        }
+                      </div>
+                    }
                   </div>
-                  <span class="reply-count"
-                    >{{ d.replies.length }} trả lời</span
-                  >
+                  <span class="reply-count">{{ d.replies.length }} trả lời</span>
                 </div>
 
                 @if (d.expanded) {
@@ -566,17 +708,113 @@ interface DiscussionWithReplies extends Discussion {
                         </div>
                         <div class="reply-body">
                           <div class="reply-author">{{ reply.authorName }}</div>
-                          <div class="reply-content">{{ reply.content }}</div>
+                          @if (editingId() === reply.id) {
+                            <div class="edit-area" (click)="$event.stopPropagation()">
+                              <input
+                                class="edit-input"
+                                [(ngModel)]="editContent"
+                                placeholder="Nội dung..."
+                              />
+                              <label class="reply-img-btn">
+                                🖇️
+                                <input
+                                  type="file"
+                                  accept="image/*"
+                                  hidden
+                                  (change)="onEditImageSelected($event)"
+                                />
+                              </label>
+                              @if (editImage()) {
+                                <span class="reply-img-preview"
+                                  >{{ editImageName() }} ✓</span
+                                >
+                              }
+                              <div class="edit-actions">
+                                <button
+                                  class="edit-save"
+                                  (click)="saveEdit(reply)"
+                                >
+                                  Lưu
+                                </button>
+                                <button class="edit-cancel" (click)="cancelEdit()">
+                                  Hủy
+                                </button>
+                              </div>
+                            </div>
+                          } @else {
+                            <div class="reply-content">{{ reply.content }}</div>
+                            @if (reply.imageUrl) {
+                              <img
+                                [src]="reply.imageUrl"
+                                class="reply-image"
+                                (click)="
+                                  zoomedImage.set(reply.imageUrl);
+                                  $event.stopPropagation()
+                                "
+                              />
+                            }
+                          }
                           <div class="reply-time">
                             {{ reply.createdAt | date: 'dd/MM/yyyy HH:mm' }}
                           </div>
                         </div>
+                        @if (isOwnerOf(reply)) {
+                          <div class="item-menu" (click)="$event.stopPropagation()">
+                            <button
+                              class="menu-btn"
+                              (click)="toggleMenu(reply.id)"
+                            >
+                              ⋮
+                            </button>
+                            @if (openMenuId() === reply.id) {
+                              <div class="menu-popup">
+                                <button (click)="startEdit(reply)">{{ menuLabel(reply).edit }}</button>
+                                <button (click)="deleteItem(reply)">{{ menuLabel(reply).del }}</button>
+                              </div>
+                            }
+                          </div>
+                        }
                       </div>
                     }
 
                     <div class="reply-form">
-                      <input class="reply-input" type="text" placeholder="Viết phản hồi..." [ngModel]="replyTexts()[d.id] || ''" (ngModelChange)="updateReplyText(d.id, $event)" (click)="$event.stopPropagation()" />
-                      <button class="reply-send" [disabled]="!replyTexts()[d.id]" (click)="sendReply(d); $event.stopPropagation()">Gửi</button>
+                      <input
+                        class="reply-input"
+                        type="text"
+                        placeholder="Viết phản hồi..."
+                        [ngModel]="replyTexts()[d.id] || ''"
+                        (ngModelChange)="updateReplyText(d.id, $event)"
+                        (click)="$event.stopPropagation()"
+                      />
+                      <label
+                        class="reply-img-btn"
+                        (click)="$event.stopPropagation()"
+                      >
+                        🖇️
+                        <input
+                          type="file"
+                          accept="image/*"
+                          hidden
+                          (change)="onReplyImageSelected($event, d.id)"
+                        />
+                      </label>
+                      @if (replyImages()[d.id]) {
+                        <span
+                          class="reply-img-preview"
+                          (click)="
+                            clearReplyImage(d.id); $event.stopPropagation()
+                          "
+                          title="Xóa ảnh"
+                          >{{ replyImageNames()[d.id] }} ✓</span
+                        >
+                      }
+                      <button
+                        class="reply-send"
+                        [disabled]="!replyTexts()[d.id] && !replyImages()[d.id]"
+                        (click)="sendReply(d); $event.stopPropagation()"
+                      >
+                        Gửi
+                      </button>
                     </div>
                   </div>
                 }
@@ -590,11 +828,22 @@ interface DiscussionWithReplies extends Discussion {
         </div>
       </main>
     </div>
+
+    @if (openMenuId()) {
+      <div class="menu-overlay" (click)="openMenuId.set('')"></div>
+    }
+
+    @if (zoomedImage()) {
+      <div class="lightbox" (click)="zoomedImage.set(null)">
+        <img [src]="zoomedImage()" alt="" (click)="$event.stopPropagation()" />
+      </div>
+    }
   `,
 })
 export class TeacherDiscussionsComponent implements OnInit {
   private authService = inject(AuthService);
   private firestoreService = inject(FirestoreService);
+  private imageService = inject(ImageService);
   private router = inject(Router);
   private route = inject(ActivatedRoute);
 
@@ -612,7 +861,17 @@ export class TeacherDiscussionsComponent implements OnInit {
   showForm = signal(false);
   newGroupId = '';
   newContent = '';
+  newDiscussionImage = signal('');
+  newDiscussionImageName = signal('');
   replyTexts = signal<Record<string, string>>({});
+  replyImages = signal<Record<string, string>>({});
+  replyImageNames = signal<Record<string, string>>({});
+  zoomedImage = signal<string | null>(null);
+  openMenuId = signal('');
+  editingId = signal('');
+  editContent = signal('');
+  editImage = signal('');
+  editImageName = signal('');
   private pendingDiscussionId = '';
   private pendingReplyId = '';
 
@@ -623,7 +882,8 @@ export class TeacherDiscussionsComponent implements OnInit {
       return;
     }
 
-    this.pendingDiscussionId = this.route.snapshot.queryParamMap.get('discussion') || '';
+    this.pendingDiscussionId =
+      this.route.snapshot.queryParamMap.get('discussion') || '';
     this.pendingReplyId = this.route.snapshot.queryParamMap.get('reply') || '';
 
     this.firestoreService.getClasses().subscribe((classesData) => {
@@ -633,15 +893,17 @@ export class TeacherDiscussionsComponent implements OnInit {
     this.firestoreService.getAllGroups().subscribe((groupsData) => {
       this.allGroups = groupsData;
       if (this.pendingDiscussionId) {
-        this.firestoreService.getDiscussion(this.pendingDiscussionId).subscribe((d) => {
-          if (!d) return;
-          const group = this.allGroups.find((g) => g.id === d.groupId);
-          if (!group) return;
-          const cls = this.classes.find((c) => c.id === group.classId);
-          if (cls) this.selectedClassId = cls.id;
-          this.selectedGroupId = group.id;
-          this.onGroupChange();
-        });
+        this.firestoreService
+          .getDiscussion(this.pendingDiscussionId)
+          .subscribe((d) => {
+            if (!d) return;
+            const group = this.allGroups.find((g) => g.id === d.groupId);
+            if (!group) return;
+            const cls = this.classes.find((c) => c.id === group.classId);
+            if (cls) this.selectedClassId = cls.id;
+            this.selectedGroupId = group.id;
+            this.onGroupChange();
+          });
       }
     });
 
@@ -722,8 +984,11 @@ export class TeacherDiscussionsComponent implements OnInit {
             this.pendingReplyId
           ) {
             setTimeout(() => {
-              const el = document.getElementById('reply-' + this.pendingReplyId);
-              if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+              const el = document.getElementById(
+                'reply-' + this.pendingReplyId,
+              );
+              if (el)
+                el.scrollIntoView({ behavior: 'smooth', block: 'center' });
               this.pendingDiscussionId = '';
               this.pendingReplyId = '';
             }, 400);
@@ -740,6 +1005,95 @@ export class TeacherDiscussionsComponent implements OnInit {
     );
   }
 
+  isOwnerOf(item: any): boolean {
+    return item.authorId === this.currentUid;
+  }
+
+  toggleMenu(id: string): void {
+    this.openMenuId.update((c) => (c === id ? '' : id));
+  }
+
+  menuLabel(item: any): { edit: string; del: string } {
+    if (item.discussionId)
+      return { edit: 'Sửa bình luận', del: 'Xóa bình luận' };
+    return { edit: 'Sửa câu hỏi', del: 'Xóa câu hỏi' };
+  }
+
+  startEdit(item: any): void {
+    this.editingId.set(item.id);
+    this.editContent.set(item.content || '');
+    this.editImage.set('');
+    this.editImageName.set('');
+    this.openMenuId.set('');
+  }
+
+  cancelEdit(): void {
+    this.editingId.set('');
+    this.editContent.set('');
+    this.editImage.set('');
+    this.editImageName.set('');
+  }
+
+  async onEditImageSelected(event: Event): Promise<void> {
+    const input = event.target as HTMLInputElement;
+    const file = input?.files?.[0];
+    if (!file) return;
+    try {
+      const compressed = await this.imageService.compressImage(file);
+      this.editImage.set(compressed);
+      this.editImageName.set(file.name);
+    } catch {}
+    input.value = '';
+  }
+
+  async saveEdit(item: any): Promise<void> {
+    const content = this.editContent() || '';
+    const imageUrl = this.editImage() || item.imageUrl || '';
+    if (item.discussionId) {
+      await this.firestoreService.updateDiscussionReply(item.id, {
+        content,
+        imageUrl,
+      });
+      this.discussions.update((list) =>
+        list.map((d) => ({
+          ...d,
+          replies: d.replies.map((r) =>
+            r.id === item.id ? { ...r, content, imageUrl } : r,
+          ),
+        })),
+      );
+    } else {
+      await this.firestoreService.updateDiscussion(item.id, {
+        content,
+        imageUrl,
+      });
+      this.discussions.update((list) =>
+        list.map((x) =>
+          x.id === item.id ? { ...x, content, imageUrl } : x,
+        ),
+      );
+    }
+    this.cancelEdit();
+  }
+
+  async deleteItem(item: any): Promise<void> {
+    if (item.discussionId) {
+      if (!confirm('Xóa bình luận này?')) return;
+      await this.firestoreService.deleteDiscussionReply(item.id);
+      this.discussions.update((list) =>
+        list.map((d) => ({
+          ...d,
+          replies: d.replies.filter((r) => r.id !== item.id),
+        })),
+      );
+    } else {
+      if (!confirm('Xóa câu hỏi này?')) return;
+      await this.firestoreService.deleteDiscussionCascade(item.id);
+      this.discussions.update((list) => list.filter((x) => x.id !== item.id));
+    }
+    this.cancelEdit();
+  }
+
   updateReplyText(discussionId: string, value: string): void {
     this.replyTexts.update((current) => ({
       ...current,
@@ -749,7 +1103,8 @@ export class TeacherDiscussionsComponent implements OnInit {
 
   async sendReply(d: DiscussionWithReplies): Promise<void> {
     const content = this.replyTexts()[d.id];
-    if (!content) return;
+    const imageUrl = this.replyImages()[d.id];
+    if (!content && !imageUrl) return;
     const profile = this.authService.currentProfile;
 
     await this.firestoreService.addReply({
@@ -757,10 +1112,12 @@ export class TeacherDiscussionsComponent implements OnInit {
       authorId: this.currentUid,
       authorName: profile?.fullName || 'Giáo viên',
       authorAvatarUrl: profile?.avatarUrl || '',
-      content,
+      content: content || '',
+      imageUrl: imageUrl || '',
     });
 
     this.updateReplyText(d.id, '');
+    this.clearReplyImage(d.id);
 
     this.firestoreService.getRepliesByDiscussion(d.id).subscribe((replies) => {
       this.discussions.update((current) =>
@@ -769,8 +1126,40 @@ export class TeacherDiscussionsComponent implements OnInit {
     });
   }
 
+  async onReplyImageSelected(
+    event: Event,
+    discussionId: string,
+  ): Promise<void> {
+    const input = event.target as HTMLInputElement;
+    const file = input?.files?.[0];
+    if (!file) return;
+    try {
+      const compressed = await this.imageService.compressImage(file);
+      this.replyImages.update((m) => ({ ...m, [discussionId]: compressed }));
+      this.replyImageNames.update((m) => ({ ...m, [discussionId]: file.name }));
+    } catch {}
+    input.value = '';
+  }
+
+  clearReplyImage(discussionId: string): void {
+    this.replyImages.update((m) => {
+      const next = { ...m };
+      delete next[discussionId];
+      return next;
+    });
+    this.replyImageNames.update((m) => {
+      const next = { ...m };
+      delete next[discussionId];
+      return next;
+    });
+  }
+
   async createNewDiscussion(): Promise<void> {
-    if (!this.selectedGroupId || !this.newContent) return;
+    if (
+      !this.selectedGroupId ||
+      (!this.newContent && !this.newDiscussionImage())
+    )
+      return;
     const profile = this.authService.currentProfile;
     const groupId = this.selectedGroupId;
 
@@ -781,11 +1170,31 @@ export class TeacherDiscussionsComponent implements OnInit {
       authorAvatarUrl: profile?.avatarUrl || '',
       title: '',
       content: this.newContent,
+      imageUrl: this.newDiscussionImage() || '',
     });
 
     this.newContent = '';
+    this.newDiscussionImage.set('');
+    this.newDiscussionImageName.set('');
     this.showForm.set(false);
     this.loadDiscussions();
+  }
+
+  async onNewDiscussionImageSelected(event: Event): Promise<void> {
+    const input = event.target as HTMLInputElement;
+    const file = input?.files?.[0];
+    if (!file) return;
+    try {
+      const compressed = await this.imageService.compressImage(file);
+      this.newDiscussionImage.set(compressed);
+      this.newDiscussionImageName.set(file.name);
+    } catch {}
+    input.value = '';
+  }
+
+  clearNewDiscussionImage(): void {
+    this.newDiscussionImage.set('');
+    this.newDiscussionImageName.set('');
   }
 
   cancelNew(): void {

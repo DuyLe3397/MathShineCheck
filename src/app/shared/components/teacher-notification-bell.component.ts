@@ -155,8 +155,8 @@ import { TeacherNotification } from '../../models';
             (click)="openNotification(n)"
           >
             <div>
-              <span class="notif-item-type" [class.type-discussion]="n.type === 'discussion'" [class.type-submission]="n.type === 'submission'">
-                {{ n.type === 'discussion' ? '💬 Thảo luận' : '📝 Bài làm' }}
+              <span class="notif-item-type" [class.type-discussion]="n.type === 'discussion'" [class.type-submission]="n.type === 'submission' || n.type === 'new_submission'">
+                {{ n.type === 'discussion' ? '💬 Thảo luận' : n.type === 'new_submission' ? '📤 Nộp bài' : '📝 Bình luận bài' }}
               </span>
             </div>
             <div class="notif-item-author">{{ n.authorName }}</div>
@@ -207,6 +207,8 @@ export class TeacherNotificationBellComponent implements OnInit {
       this.router.navigate(['/teacher/grade', n.submissionId], {
         queryParams: { comment: n.imageIndex ?? 0 },
       });
+    } else if (n.type === 'new_submission' && n.assignmentId) {
+      this.router.navigate(['/teacher/assignments', n.assignmentId]);
     } else if (n.type === 'discussion' && n.discussionId) {
       this.router.navigate(['/teacher/discussions'], {
         queryParams: { discussion: n.discussionId, reply: n.replyId || '' },

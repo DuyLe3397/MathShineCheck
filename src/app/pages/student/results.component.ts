@@ -315,6 +315,32 @@ import { Grade, Submission, SubmissionComment } from '../../models';
         border-radius: 4px;
         box-shadow: 0 4px 30px rgba(0, 0, 0, 0.5);
       }
+      .reply-image {
+        max-width: 200px;
+        max-height: 200px;
+        border-radius: 8px;
+        margin-top: 0.4rem;
+        cursor: zoom-in;
+        display: block;
+        border: 1px solid #e2e8f0;
+      }
+      .reply-img-btn {
+        cursor: pointer;
+        font-size: 1.1rem;
+        line-height: 1;
+        padding: 4px;
+        border-radius: 4px;
+        transition: background 0.15s;
+      }
+      .reply-img-btn:hover {
+        background: #e2e8f0;
+      }
+      .reply-img-preview {
+        cursor: pointer;
+        font-size: 0.8rem;
+        color: #16a34a;
+        font-weight: 600;
+      }
 
       .profile-overlay {
         position: fixed;
@@ -408,6 +434,18 @@ import { Grade, Submission, SubmissionComment } from '../../models';
         color: #94a3b8;
         font-size: 0.85rem;
       }
+      .item-menu { position: relative; margin-left: auto; flex-shrink: 0; }
+      .menu-btn { background: none; border: none; cursor: pointer; font-size: 1.1rem; padding: 0 4px; color: #94a3b8; border-radius: 4px; }
+      .menu-btn:hover { background: #f1f5f9; color: #1e293b; }
+      .menu-popup { position: absolute; right: 100%; margin-right: 4px; top: 50%; transform: translateY(-50%); background: #fff; border: 1px solid #e2e8f0; border-radius: 8px; box-shadow: 0 4px 16px rgba(0,0,0,0.15); z-index: 50; min-width: 110px; overflow: hidden; }
+      .menu-overlay { position: fixed; inset: 0; z-index: 40; }
+      .menu-popup button { display: block; width: calc(100% - 8px); margin: 2px 4px; padding: 8px 12px; border: 1px solid transparent; border-radius: 8px; background: none; text-align: left; cursor: pointer; font-size: 0.85rem; color: #334155; }
+      .menu-popup button:hover { background: #f8fafc; border-color: #2563eb; box-shadow: 0 3px 12px rgba(37, 99, 235, 0.2); }
+      .edit-area { display: flex; flex-direction: column; gap: 6px; padding: 6px 0; }
+      .edit-input { width: 100%; padding: 6px 10px; border: 1px solid #e2e8f0; border-radius: 6px; font-size: 0.85rem; }
+      .edit-actions { display: flex; gap: 6px; }
+      .edit-save { background: #2563eb; color: #fff; border: none; border-radius: 6px; padding: 5px 14px; cursor: pointer; font-size: 0.82rem; }
+      .edit-cancel { background: #f1f5f9; color: #64748b; border: none; border-radius: 6px; padding: 5px 14px; cursor: pointer; font-size: 0.82rem; }
     `,
   ],
   template: `
@@ -514,11 +552,69 @@ import { Grade, Submission, SubmissionComment } from '../../models';
                                     : 'Bạn')
                               }}
                             </div>
-                            <div class="comment-content">{{ c.content }}</div>
+                            @if (editingId() === c.id) {
+                              <div class="edit-area" (click)="$event.stopPropagation()">
+                                <input
+                                  class="edit-input"
+                                  [(ngModel)]="editContent"
+                                  placeholder="Nội dung..."
+                                />
+                                <label class="reply-img-btn">
+                                  🖇️
+                                  <input
+                                    type="file"
+                                    accept="image/*"
+                                    hidden
+                                    (change)="onEditImageSelected($event)"
+                                  />
+                                </label>
+                                @if (editImage()) {
+                                  <span class="reply-img-preview"
+                                    >{{ editImageName() }} ✓</span
+                                  >
+                                }
+                                <div class="edit-actions">
+                                  <button
+                                    class="edit-save"
+                                    (click)="saveEdit(c)"
+                                  >
+                                    Lưu
+                                  </button>
+                                  <button class="edit-cancel" (click)="cancelEdit()">
+                                    Hủy
+                                  </button>
+                                </div>
+                              </div>
+                            } @else {
+                              <div class="comment-content">{{ c.content }}</div>
+                              @if (c.imageUrl) {
+                                <img
+                                  [src]="c.imageUrl"
+                                  class="reply-image"
+                                  (click)="
+                                    zoomedImage.set(c.imageUrl);
+                                    $event.stopPropagation()
+                                  "
+                                />
+                              }
+                            }
                             <div class="comment-time">
                               {{ c.createdAt | date: 'dd/MM/yyyy HH:mm' }}
                             </div>
                           </div>
+                          @if (isOwnerOf(c)) {
+                            <div class="item-menu" (click)="$event.stopPropagation()">
+                              <button class="menu-btn" (click)="toggleMenu(c.id)">
+                                ⋮
+                              </button>
+                              @if (openMenuId() === c.id) {
+                                <div class="menu-popup">
+                                  <button (click)="startEdit(c)">Sửa bình luận</button>
+                                  <button (click)="deleteItem(c)">Xóa bình luận</button>
+                                </div>
+                              }
+                            </div>
+                          }
                         </div>
                       }
                     </div>
@@ -531,9 +627,33 @@ import { Grade, Submission, SubmissionComment } from '../../models';
                         [ngModel]="newComments()[$index] || ''"
                         (ngModelChange)="updateNewComment($index, $event)"
                       />
+                      <label
+                        class="reply-img-btn"
+                        (click)="$event.stopPropagation()"
+                      >
+                        🖇️
+                        <input
+                          type="file"
+                          accept="image/*"
+                          hidden
+                          (change)="onCommentImageSelected($event, $index)"
+                        />
+                      </label>
+                      @if (commentImages()[$index]) {
+                        <span
+                          class="reply-img-preview"
+                          (click)="
+                            clearCommentImage($index); $event.stopPropagation()
+                          "
+                          title="Xóa ảnh"
+                          >{{ commentImageNames()[$index] }} ✓</span
+                        >
+                      }
                       <button
                         class="send-btn"
-                        [disabled]="!newComments()[$index]"
+                        [disabled]="
+                          !newComments()[$index] && !commentImages()[$index]
+                        "
                         (click)="sendComment(i)"
                       >
                         Gửi
@@ -547,6 +667,10 @@ import { Grade, Submission, SubmissionComment } from '../../models';
         }
       }
     </div>
+
+    @if (openMenuId()) {
+      <div class="menu-overlay" (click)="openMenuId.set('')"></div>
+    }
 
     @if (zoomedImage()) {
       <div class="lightbox" (click)="closeZoom()">
@@ -616,9 +740,17 @@ export class ResultsComponent implements OnInit {
   } | null>(null);
   loadingProfile = signal(false);
   expandedComments = signal<Set<number>>(new Set());
+  commentImages = signal<Record<number, string>>({});
+  commentImageNames = signal<Record<number, string>>({});
+  openMenuId = signal('');
+  editingId = signal('');
+  editContent = signal('');
+  editImage = signal('');
+  editImageName = signal('');
   imagesLoading = signal(true);
   submission = signal<Submission | null>(null);
   assignmentId = '';
+  profile = this.authService.currentProfile;
 
   ngOnInit(): void {
     const submissionId = this.route.snapshot.paramMap.get('submissionId');
@@ -697,7 +829,8 @@ export class ResultsComponent implements OnInit {
     const sub = this.submission();
     const profile = this.authService.currentProfile;
     const content = this.newComments()[imageIndex];
-    if (!sub || !profile || !content) return;
+    const imageUrl = this.commentImages()[imageIndex];
+    if (!sub || !profile || (!content && !imageUrl)) return;
 
     await this.firestoreService.addComment({
       submissionId: sub.id,
@@ -706,11 +839,41 @@ export class ResultsComponent implements OnInit {
       authorName: profile.fullName,
       authorAvatarUrl: profile.avatarUrl || '',
       authorRole: 'student',
-      content,
+      content: content || '',
+      imageUrl: imageUrl || '',
     });
 
     this.updateNewComment(imageIndex, '');
+    this.clearCommentImage(imageIndex);
     this.loadComments();
+  }
+
+  async onCommentImageSelected(
+    event: Event,
+    imageIndex: number,
+  ): Promise<void> {
+    const input = event.target as HTMLInputElement;
+    const file = input?.files?.[0];
+    if (!file) return;
+    try {
+      const compressed = await this.imageService.compressImage(file);
+      this.commentImages.update((m) => ({ ...m, [imageIndex]: compressed }));
+      this.commentImageNames.update((m) => ({ ...m, [imageIndex]: file.name }));
+    } catch {}
+    input.value = '';
+  }
+
+  clearCommentImage(imageIndex: number): void {
+    this.commentImages.update((m) => {
+      const next = { ...m };
+      delete next[imageIndex];
+      return next;
+    });
+    this.commentImageNames.update((m) => {
+      const next = { ...m };
+      delete next[imageIndex];
+      return next;
+    });
   }
 
   private loadAvatarForComments(comments: SubmissionComment[]): void {
@@ -829,5 +992,71 @@ export class ResultsComponent implements OnInit {
       else next.add(index);
       return next;
     });
+  }
+
+  isOwnerOf(item: any): boolean {
+    return item.authorId === this.profile?.uid;
+  }
+
+  toggleMenu(id: string): void {
+    this.openMenuId.update((c) => (c === id ? '' : id));
+  }
+
+  startEdit(item: any): void {
+    this.editingId.set(item.id);
+    this.editContent.set(item.content || '');
+    this.editImage.set('');
+    this.editImageName.set('');
+    this.openMenuId.set('');
+  }
+
+  cancelEdit(): void {
+    this.editingId.set('');
+    this.editContent.set('');
+    this.editImage.set('');
+    this.editImageName.set('');
+  }
+
+  async onEditImageSelected(event: Event): Promise<void> {
+    const input = event.target as HTMLInputElement;
+    const file = input?.files?.[0];
+    if (!file) return;
+    try {
+      const compressed = await this.imageService.compressImage(file);
+      this.editImage.set(compressed);
+      this.editImageName.set(file.name);
+    } catch {}
+    input.value = '';
+  }
+
+  async saveEdit(c: SubmissionComment): Promise<void> {
+    const content = this.editContent() || '';
+    const imageUrl = this.editImage() || c.imageUrl || '';
+    await this.firestoreService.updateComment(c.id, { content, imageUrl });
+    this.commentsMap.update((map) => {
+      const next: Record<number, SubmissionComment[]> = {};
+      Object.keys(map).forEach((key) => {
+        const idx = Number(key);
+        next[idx] = map[idx].map((x) =>
+          x.id === c.id ? { ...x, content, imageUrl } : x,
+        );
+      });
+      return next;
+    });
+    this.cancelEdit();
+  }
+
+  async deleteItem(c: SubmissionComment): Promise<void> {
+    if (!confirm('Xóa bình luận này?')) return;
+    await this.firestoreService.deleteComment(c.id);
+    this.commentsMap.update((map) => {
+      const next: Record<number, SubmissionComment[]> = {};
+      Object.keys(map).forEach((key) => {
+        const idx = Number(key);
+        next[idx] = map[idx].filter((x) => x.id !== c.id);
+      });
+      return next;
+    });
+    this.cancelEdit();
   }
 }

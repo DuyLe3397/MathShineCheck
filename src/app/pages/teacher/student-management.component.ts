@@ -11,7 +11,13 @@ import { SchoolClass, Group, Student } from '../../models';
 @Component({
   selector: 'app-student-management',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterModule, NavbarComponent, TeacherNotificationBellComponent],
+  imports: [
+    CommonModule,
+    FormsModule,
+    RouterModule,
+    NavbarComponent,
+    TeacherNotificationBellComponent,
+  ],
   styles: [
     `
       :host {
@@ -613,10 +619,12 @@ export class StudentManagementComponent implements OnInit {
 
   executeDelete(): void {
     if (!this.deleteTarget) return;
-    this.firestoreService.deleteStudent(this.deleteTarget.uid).then(() => {
-      this.deleteTarget = null;
-      this.loadStudents();
-    });
+    this.firestoreService
+      .deleteStudentCascade(this.deleteTarget.uid)
+      .then(() => {
+        this.deleteTarget = null;
+        this.loadStudents();
+      });
   }
 
   getGroupName(groupId: string): string {

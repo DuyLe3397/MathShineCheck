@@ -525,7 +525,7 @@ export class GroupManagementComponent implements OnInit {
 
   executeDelete(): void {
     if (!this.deleteTarget) return;
-    this.firestoreService.deleteGroup(this.deleteTarget.id).then(() => {
+    this.firestoreService.deleteGroupCascade(this.deleteTarget.id).then(() => {
       this.deleteTarget = null;
       this.loadGroups();
     });

@@ -491,7 +491,7 @@ export class ClassManagementComponent implements OnInit {
 
   executeDelete(): void {
     if (!this.deleteTarget) return;
-    this.firestoreService.deleteClass(this.deleteTarget.id).then(() => {
+    this.firestoreService.deleteClassCascade(this.deleteTarget.id).then(() => {
       this.deleteTarget = null;
       this.loadClasses();
     });

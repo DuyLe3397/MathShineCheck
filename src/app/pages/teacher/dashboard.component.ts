@@ -11,7 +11,13 @@ import { Assignment, Submission, Grade } from '../../models';
 @Component({
   selector: 'app-teacher-dashboard',
   standalone: true,
-  imports: [CommonModule, RouterModule, RouterLink, NavbarComponent, TeacherNotificationBellComponent],
+  imports: [
+    CommonModule,
+    RouterModule,
+    RouterLink,
+    NavbarComponent,
+    TeacherNotificationBellComponent,
+  ],
   styles: [
     `
       :host {
@@ -243,13 +249,24 @@ import { Assignment, Submission, Grade } from '../../models';
           <teacher-notification-bell />
         </nav>
         <div class="sidebar-footer">
-          <div class="user-info" style="display:flex;align-items:center;gap:10px;">
+          <div
+            class="user-info"
+            style="display:flex;align-items:center;gap:10px;"
+          >
             @if (userAvatar) {
-              <div style="width:36px;height:36px;border-radius:50%;overflow:hidden;background:#334155;flex-shrink:0;">
-                <img [src]="userAvatar" alt="" style="width:100%;height:100%;object-fit:cover;" />
+              <div
+                style="width:36px;height:36px;border-radius:50%;overflow:hidden;background:#334155;flex-shrink:0;"
+              >
+                <img
+                  [src]="userAvatar"
+                  alt=""
+                  style="width:100%;height:100%;object-fit:cover;"
+                />
               </div>
             } @else {
-              <div style="width:36px;height:36px;border-radius:50%;background:#334155;display:flex;align-items:center;justify-content:center;font-size:1rem;color:#94a3b8;flex-shrink:0;">
+              <div
+                style="width:36px;height:36px;border-radius:50%;background:#334155;display:flex;align-items:center;justify-content:center;font-size:1rem;color:#94a3b8;flex-shrink:0;"
+              >
                 {{ userFullName.charAt(0) || 'G' }}
               </div>
             }
@@ -325,9 +342,12 @@ export class TeacherDashboardComponent implements OnInit {
       this.userFullName = profile.fullName;
       this.userSubject = profile.subject || '';
       if (profile.uid) {
-        this.firestoreService.getDocById('teachers', profile.uid).then((doc) => {
-          if (doc?.avatarUrl) this.userAvatar = doc.avatarUrl;
-        }).catch(() => {});
+        this.firestoreService
+          .getDocById('teachers', profile.uid)
+          .then((doc) => {
+            if (doc?.avatarUrl) this.userAvatar = doc.avatarUrl;
+          })
+          .catch(() => {});
       }
     }
 

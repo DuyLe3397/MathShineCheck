@@ -3,7 +3,6 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RouterModule, ActivatedRoute, Router } from '@angular/router';
 import { FirestoreService } from '../../services/firestore.service';
-import { ImageService } from '../../services/image.service';
 import { AuthService } from '../../services/auth.service';
 import { NavbarComponent } from '../../shared/components/navbar.component';
 import { TeacherNotificationBellComponent } from '../../shared/components/teacher-notification-bell.component';
@@ -483,7 +482,6 @@ export class AssignmentDetailComponent implements OnInit {
   private route = inject(ActivatedRoute);
   private router = inject(Router);
   private firestoreService = inject(FirestoreService);
-  private imageService = inject(ImageService);
   private authService = inject(AuthService);
 
   assignmentId = '';
@@ -636,17 +634,11 @@ export class AssignmentDetailComponent implements OnInit {
   async deleteSubmission(row: StudentSubmissionRow): Promise<void> {
     if (!row.submission) return;
     const sub = row.submission;
-    const msg = `Xóa bài nộp lần ${sub.attemptNumber || '?'} của ${row.student.fullName}?\nẢnh, điểm, nhận xét của lần này sẽ mất hết.`;
+    const msg = `Xóa bài nộp lần ${sub.attemptNumber || '?'} của ${row.student.fullName}?\nẢnh, điểm, nhận xét, thông báo của lần này sẽ mất hết.`;
     if (!confirm(msg)) return;
 
     try {
-      if (sub.imageIds?.length) {
-        await this.imageService.deleteSubmissionImages(sub.imageIds);
-      }
-      await this.firestoreService.deleteCommentsBySubmission(sub.id);
-      await this.firestoreService.deleteGrade(sub.id);
-      await this.firestoreService.deleteSubmission(sub.id);
-
+      await this.firestoreService.deleteSubmissionFull(sub.id);
       row.submission = null;
       row.grade = null;
       row.status = 'Chưa nộp';

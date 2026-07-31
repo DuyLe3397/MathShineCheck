@@ -18,6 +18,7 @@ import {
 } from '@angular/fire/firestore';
 import { from, Observable } from 'rxjs';
 import { map } from 'rxjs/operators';
+import { ImageService } from './image.service';
 import {
   SchoolClass,
   Group,
@@ -36,6 +37,7 @@ import {
 @Injectable({ providedIn: 'root' })
 export class FirestoreService {
   private firestore = inject(Firestore);
+  private imageService = inject(ImageService);
 
   // ==================== CLASSES ====================
   getClasses(
@@ -65,6 +67,135 @@ export class FirestoreService {
 
   async deleteClass(id: string): Promise<void> {
     await deleteDoc(doc(this.firestore, 'classes', id));
+  }
+
+  // ==================== CASCADE DELETE ====================
+  private async deleteNotificationsBySubmission(
+    submissionId: string,
+  ): Promise<void> {
+    const snap = await getDocs(
+      query(
+        collection(this.firestore, 'teacherNotifications'),
+        where('submissionId', '==', submissionId),
+      ),
+    );
+    snap.forEach((d) => deleteDoc(d.ref));
+  }
+
+  private async deleteNotificationsByDiscussion(
+    discussionId: string,
+  ): Promise<void> {
+    const snap = await getDocs(
+      query(
+        collection(this.firestore, 'teacherNotifications'),
+        where('discussionId', '==', discussionId),
+      ),
+    );
+    snap.forEach((d) => deleteDoc(d.ref));
+  }
+
+  private async deleteDiscussionReplies(discussionId: string): Promise<void> {
+    const snap = await getDocs(
+      query(
+        collection(this.firestore, 'discussionReplies'),
+        where('discussionId', '==', discussionId),
+      ),
+    );
+    snap.forEach((d) => deleteDoc(d.ref));
+  }
+
+  async deleteSubmissionFull(submissionId: string): Promise<void> {
+    const sub = await this.getSubmission(submissionId);
+    if (sub?.imageIds?.length) {
+      await this.imageService.deleteSubmissionImages(sub.imageIds);
+    }
+    await this.deleteCommentsBySubmission(submissionId);
+    await this.deleteGrade(submissionId);
+    await this.deleteNotificationsBySubmission(submissionId);
+    await this.deleteSubmission(submissionId);
+  }
+
+  async deleteAssignmentCascade(id: string): Promise<void> {
+    const snap = await getDocs(
+      query(
+        collection(this.firestore, 'submissions'),
+        where('assignmentId', '==', id),
+      ),
+    );
+    for (const d of snap.docs) {
+      await this.deleteSubmissionFull(d.id);
+    }
+    await this.deleteAssignment(id);
+  }
+
+  async deleteDiscussionCascade(discussionId: string): Promise<void> {
+    await this.deleteDiscussionReplies(discussionId);
+    await this.deleteNotificationsByDiscussion(discussionId);
+    await deleteDoc(doc(this.firestore, 'discussions', discussionId));
+  }
+
+  async deleteStudentCascade(uid: string): Promise<void> {
+    const snap = await getDocs(
+      query(
+        collection(this.firestore, 'submissions'),
+        where('studentId', '==', uid),
+      ),
+    );
+    for (const d of snap.docs) {
+      await this.deleteSubmissionFull(d.id);
+    }
+    const commentSnap = await getDocs(
+      query(
+        collection(this.firestore, 'comments'),
+        where('authorId', '==', uid),
+      ),
+    );
+    commentSnap.forEach((d) => deleteDoc(d.ref));
+    await this.deleteStudent(uid);
+  }
+
+  async deleteGroupCascade(groupId: string): Promise<void> {
+    const assignmentSnap = await getDocs(
+      query(
+        collection(this.firestore, 'assignments'),
+        where('groupId', '==', groupId),
+      ),
+    );
+    for (const d of assignmentSnap.docs) {
+      await this.deleteAssignmentCascade(d.id);
+    }
+    const discSnap = await getDocs(
+      query(
+        collection(this.firestore, 'discussions'),
+        where('groupId', '==', groupId),
+      ),
+    );
+    for (const d of discSnap.docs) {
+      await this.deleteDiscussionCascade(d.id);
+    }
+    const studentSnap = await getDocs(
+      query(
+        collection(this.firestore, 'students'),
+        where('groupId', '==', groupId),
+      ),
+    );
+    for (const d of studentSnap.docs) {
+      await this.deleteStudentCascade(d.id);
+    }
+    await this.deleteGroup(groupId);
+  }
+
+  async deleteClassCascade(classId: string): Promise<void> {
+    const groupSnap = await getDocs(
+      query(
+        collection(this.firestore, 'groups'),
+        where('classId', '==', classId),
+      ),
+    );
+    for (const d of groupSnap.docs) {
+      await this.deleteGroupCascade(d.id);
+    }
+    await this.deleteClass(classId);
   }
 
   // ==================== GROUPS ====================
@@ -311,7 +442,63 @@ export class FirestoreService {
       status: 'submitted',
       submittedAt: new Date().toISOString(),
     });
+    if (data.assignmentId) {
+      await this.notifyTeachersNewSubmission(
+        ref.id,
+        data.studentId || '',
+        data.assignmentId,
+      );
+    }
     return ref.id;
+  }
+
+  private async notifyTeachersNewSubmission(
+    submissionId: string,
+    studentId: string,
+    assignmentId: string,
+  ): Promise<void> {
+    try {
+      let authorName = studentId;
+      let content = assignmentId;
+      try {
+        const student = await getDoc(
+          doc(this.firestore, 'students', studentId),
+        );
+        if (student.exists())
+          authorName = (student.data() as any)['fullName'] || studentId;
+      } catch {}
+      try {
+        const assignment = await getDoc(
+          doc(this.firestore, 'assignments', assignmentId),
+        );
+        if (assignment.exists())
+          content = (assignment.data() as any)['title'] || assignmentId;
+      } catch {}
+
+      const teacherIds = await this.getAllTeacherIds();
+      for (const tid of teacherIds) {
+        await addDoc(collection(this.firestore, 'teacherNotifications'), {
+          teacherId: tid,
+          type: 'new_submission',
+          submissionId,
+          assignmentId,
+          authorName,
+          content,
+          createdAt: new Date().toISOString(),
+          isRead: false,
+        });
+      }
+    } catch (e) {}
+  }
+
+  async markNotificationsReadBySubmission(submissionId: string): Promise<void> {
+    const snap = await getDocs(
+      query(
+        collection(this.firestore, 'teacherNotifications'),
+        where('submissionId', '==', submissionId),
+      ),
+    );
+    snap.forEach((d) => updateDoc(d.ref, { isRead: true }));
   }
 
   async updateSubmissionStatus(id: string, status: string): Promise<void> {
@@ -423,6 +610,7 @@ export class FirestoreService {
     if (data.submissionId) {
       await this.notifyTeachersSubmissionComment(
         data.submissionId,
+        ref.id,
         data.authorName || '',
         data.content || '',
         data.imageIndex,
@@ -432,8 +620,49 @@ export class FirestoreService {
     return ref.id;
   }
 
+  async updateComment(
+    id: string,
+    data: Partial<SubmissionComment>,
+  ): Promise<void> {
+    await updateDoc(doc(this.firestore, 'comments', id), data as any);
+  }
+
+  async deleteComment(id: string): Promise<void> {
+    const snap = await getDocs(
+      query(
+        collection(this.firestore, 'teacherNotifications'),
+        where('commentId', '==', id),
+      ),
+    );
+    snap.forEach((d) => deleteDoc(d.ref));
+    await deleteDoc(doc(this.firestore, 'comments', id));
+  }
+
+  async updateDiscussionReply(
+    id: string,
+    data: Partial<DiscussionReply>,
+  ): Promise<void> {
+    await updateDoc(doc(this.firestore, 'discussionReplies', id), data as any);
+  }
+
+  async deleteDiscussionReply(id: string): Promise<void> {
+    const snap = await getDocs(
+      query(
+        collection(this.firestore, 'teacherNotifications'),
+        where('replyId', '==', id),
+      ),
+    );
+    snap.forEach((d) => deleteDoc(d.ref));
+    await deleteDoc(doc(this.firestore, 'discussionReplies', id));
+  }
+
+  async updateDiscussion(id: string, data: Partial<Discussion>): Promise<void> {
+    await updateDoc(doc(this.firestore, 'discussions', id), data as any);
+  }
+
   private async notifyTeachersSubmissionComment(
     submissionId: string,
+    commentId: string,
     authorName: string,
     content: string,
     imageIndex?: number,
@@ -447,6 +676,7 @@ export class FirestoreService {
           teacherId: tid,
           type: 'submission',
           submissionId,
+          commentId,
           imageIndex: imageIndex ?? 0,
           authorName,
           content,
@@ -528,7 +758,37 @@ export class FirestoreService {
       ...data,
       createdAt: new Date().toISOString(),
     });
+    await this.notifyTeachersNewDiscussion(
+      ref.id,
+      data.authorName || '',
+      data.content || '',
+      data.authorId,
+    );
     return ref.id;
+  }
+
+  private async notifyTeachersNewDiscussion(
+    discussionId: string,
+    authorName: string,
+    content: string,
+    authorId?: string,
+  ): Promise<void> {
+    try {
+      const teacherIds = await this.getAllTeacherIds();
+      for (const tid of teacherIds) {
+        if (tid === authorId) continue;
+        await addDoc(collection(this.firestore, 'teacherNotifications'), {
+          teacherId: tid,
+          type: 'discussion',
+          discussionId,
+          replyId: '',
+          authorName,
+          content,
+          createdAt: new Date().toISOString(),
+          isRead: false,
+        });
+      }
+    } catch (e) {}
   }
 
   getDiscussion(id: string): Observable<Discussion | null> {

@@ -350,7 +350,7 @@ interface PendingRequest {
                 <span class="badge-completed"> hoàn thành 10/10 </span>
               } @else if (item.attempts.length > 0) {
                 <span class="badge-improving">
-                  điểm tối đa đạt được là {{ item.bestScore ?? '?' }}/10
+                  Điểm tối đa đạt được là {{ item.bestScore ?? '?' }}/10
                 </span>
               } @else {
                 <span class="status-badge status-not-submitted">

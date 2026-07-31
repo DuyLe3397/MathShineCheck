@@ -648,7 +648,7 @@ export class AssignmentManagementComponent implements OnInit {
 
   executeDelete(): void {
     if (!this.deleteTarget) return;
-    this.firestoreService.deleteAssignment(this.deleteTarget.id).then(() => {
+    this.firestoreService.deleteAssignmentCascade(this.deleteTarget.id).then(() => {
       this.deleteTarget = null;
       this.loadAssignments();
     });

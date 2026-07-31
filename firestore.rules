@@ -62,20 +62,21 @@ service cloud.firestore {
       allow read: if true;
       allow create: if true;
       allow update: if true;
-      allow delete: if isTeacher();
+      allow delete: if true;
     }
 
     match /discussions/{id} {
       allow read: if true;
       allow create: if true;
-      allow update: if request.auth == null
-        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['lastReplyAt']);
+      allow update: if true;
+      allow delete: if true;
     }
 
     match /discussionReplies/{id} {
       allow read: if true;
       allow create: if true;
       allow update: if true;
+      allow delete: if true;
     }
 
     match /permissions/{id} {
