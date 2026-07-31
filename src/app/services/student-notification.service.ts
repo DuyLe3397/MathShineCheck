@@ -14,7 +14,7 @@ export class StudentNotificationService {
 
   markTabVisited(tab: keyof BadgeCounts): void {
     this.lastVisited[tab] = Date.now();
-    this.badgeCounts.update(c => ({ ...c, [tab]: 0 }));
+    this.badgeCounts.update((c) => ({ ...c, [tab]: 0 }));
   }
 
   getLastVisited(tab: keyof BadgeCounts): number {
@@ -22,6 +22,6 @@ export class StudentNotificationService {
   }
 
   updateBadge(tab: keyof BadgeCounts, count: number): void {
-    this.badgeCounts.update(c => ({ ...c, [tab]: count }));
+    this.badgeCounts.update((c) => ({ ...c, [tab]: count }));
   }
 }

@@ -1,10 +1,11 @@
 import { Component, inject, OnInit, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { RouterModule, Router } from '@angular/router';
+import { RouterModule, Router, ActivatedRoute } from '@angular/router';
 import { FirestoreService } from '../../services/firestore.service';
 import { AuthService } from '../../services/auth.service';
 import { NavbarComponent } from '../../shared/components/navbar.component';
+import { TeacherNotificationBellComponent } from '../../shared/components/teacher-notification-bell.component';
 import { Group, SchoolClass, Discussion, DiscussionReply } from '../../models';
 
 interface DiscussionWithReplies extends Discussion {
@@ -16,7 +17,7 @@ interface DiscussionWithReplies extends Discussion {
 @Component({
   selector: 'app-teacher-discussions',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterModule, NavbarComponent],
+  imports: [CommonModule, FormsModule, RouterModule, NavbarComponent, TeacherNotificationBellComponent],
   styles: [
     `
       :host {
@@ -421,6 +422,7 @@ interface DiscussionWithReplies extends Discussion {
             >Thảo luận</a
           >
           <a class="nav-item" routerLink="/teacher/statistics">Thống kê</a>
+          <teacher-notification-bell />
         </nav>
         <div class="sidebar-footer">
           <div class="user-info">
@@ -554,7 +556,7 @@ interface DiscussionWithReplies extends Discussion {
                       <div class="no-replies">Chưa có phản hồi</div>
                     }
                     @for (reply of d.replies; track reply.id) {
-                      <div class="reply-item">
+                      <div class="reply-item" [id]="'reply-' + reply.id">
                         <div class="reply-avatar">
                           @if (reply.authorAvatarUrl) {
                             <img [src]="reply.authorAvatarUrl" alt="" />
@@ -594,6 +596,7 @@ export class TeacherDiscussionsComponent implements OnInit {
   private authService = inject(AuthService);
   private firestoreService = inject(FirestoreService);
   private router = inject(Router);
+  private route = inject(ActivatedRoute);
 
   profile = this.authService.currentProfile;
   currentUid = this.authService.currentUser?.uid || '';
@@ -610,6 +613,8 @@ export class TeacherDiscussionsComponent implements OnInit {
   newGroupId = '';
   newContent = '';
   replyTexts = signal<Record<string, string>>({});
+  private pendingDiscussionId = '';
+  private pendingReplyId = '';
 
   ngOnInit(): void {
     const profile = this.authService.currentProfile;
@@ -618,12 +623,26 @@ export class TeacherDiscussionsComponent implements OnInit {
       return;
     }
 
+    this.pendingDiscussionId = this.route.snapshot.queryParamMap.get('discussion') || '';
+    this.pendingReplyId = this.route.snapshot.queryParamMap.get('reply') || '';
+
     this.firestoreService.getClasses().subscribe((classesData) => {
       this.classes = classesData;
     });
 
     this.firestoreService.getAllGroups().subscribe((groupsData) => {
       this.allGroups = groupsData;
+      if (this.pendingDiscussionId) {
+        this.firestoreService.getDiscussion(this.pendingDiscussionId).subscribe((d) => {
+          if (!d) return;
+          const group = this.allGroups.find((g) => g.id === d.groupId);
+          if (!group) return;
+          const cls = this.classes.find((c) => c.id === group.classId);
+          if (cls) this.selectedClassId = cls.id;
+          this.selectedGroupId = group.id;
+          this.onGroupChange();
+        });
+      }
     });
 
     this.loading.set(false);
@@ -672,10 +691,21 @@ export class TeacherDiscussionsComponent implements OnInit {
         this.discussions.set(items);
         this.loadAllReplies(items);
         this.loading.set(false);
+
+        if (this.pendingDiscussionId) {
+          this.discussions.update((current) =>
+            current.map((item) =>
+              item.id === this.pendingDiscussionId
+                ? { ...item, expanded: true }
+                : item,
+            ),
+          );
+        }
       });
   }
 
   private loadAllReplies(items: DiscussionWithReplies[]): void {
+    let completed = 0;
     items.forEach((d) => {
       this.firestoreService
         .getRepliesByDiscussion(d.id)
@@ -685,6 +715,19 @@ export class TeacherDiscussionsComponent implements OnInit {
               item.id === d.id ? { ...item, replies } : item,
             ),
           );
+          completed++;
+          if (
+            completed === items.length &&
+            this.pendingDiscussionId &&
+            this.pendingReplyId
+          ) {
+            setTimeout(() => {
+              const el = document.getElementById('reply-' + this.pendingReplyId);
+              if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+              this.pendingDiscussionId = '';
+              this.pendingReplyId = '';
+            }, 400);
+          }
         });
     });
   }

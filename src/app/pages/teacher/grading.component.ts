@@ -413,7 +413,7 @@ import { Submission, Grade, SubmissionComment } from '../../models';
         </div>
       </div>
 
-      <div class="image-card" style="padding:0.75rem 1rem;">
+      <div class="image-card" style="padding:0.75rem 1rem;" id="comments-section">
         <div class="comment-section" style="border-top:none;padding:0;">
           <div class="comment-toolbar">
             <button
@@ -564,6 +564,14 @@ export class GradingComponent implements OnInit {
     this.totalPages = submission.imageIds.length;
     this.currentPage = 0;
 
+    const commentParam = this.route.snapshot.queryParamMap.get('comment');
+    if (commentParam) {
+      const idx = parseInt(commentParam, 10);
+      if (!isNaN(idx) && idx >= 0 && idx < this.totalPages) {
+        this.currentPage = idx;
+      }
+    }
+
     this.firestoreService
       .getGradeBySubmission(this.submissionId)
       .subscribe((grade) => {
@@ -578,9 +586,16 @@ export class GradingComponent implements OnInit {
     );
     this.studentName = student?.fullName || '';
 
-    await this.loadImage(0);
+    await this.loadImage(this.currentPage);
     this.loadComments();
     this.loading = false;
+
+    if (commentParam) {
+      setTimeout(() => {
+        const el = document.getElementById('comments-section');
+        if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }, 400);
+    }
   }
 
   async loadImage(pageIndex: number): Promise<void> {

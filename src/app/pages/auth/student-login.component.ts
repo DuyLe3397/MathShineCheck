@@ -131,9 +131,21 @@ import { SchoolClass, Group } from '../../models';
               id="fullName"
               name="fullName"
               type="text"
-              placeholder="Nhập họ tên đầy đủ của học sinh"
+              placeholder="Nhập họ tên đầy đủ"
               [(ngModel)]="fullName"
               (ngModelChange)="fullName = $event.toUpperCase()"
+              required
+            />
+          </div>
+          <div class="form-group">
+            <label for="phone">Số điện thoại</label>
+            <input
+              id="phone"
+              name="phone"
+              type="tel"
+              placeholder="Nhập số điện thoại"
+              [(ngModel)]="phone"
+              (keypress)="onPhoneKeyPress($event)"
               required
             />
           </div>
@@ -183,6 +195,7 @@ export class StudentLoginComponent implements OnInit {
   classes: SchoolClass[] = [];
   groups: Group[] = [];
   fullName = '';
+  phone = '';
   className = '';
   groupId = '';
   loading = false;
@@ -192,6 +205,20 @@ export class StudentLoginComponent implements OnInit {
     this.firestoreService
       .getClasses('server')
       .subscribe((classes) => (this.classes = classes));
+  }
+
+  onPhoneKeyPress(event: KeyboardEvent): void {
+    const char = event.key;
+    if (
+      !/^[0-9]$/.test(char) &&
+      char !== 'Backspace' &&
+      char !== 'Delete' &&
+      char !== 'Tab' &&
+      char !== 'ArrowLeft' &&
+      char !== 'ArrowRight'
+    ) {
+      event.preventDefault();
+    }
   }
 
   onClassChange(): void {
@@ -209,7 +236,7 @@ export class StudentLoginComponent implements OnInit {
     this.errorMessage = '';
     this.loading = true;
     this.authService
-      .getStudentByInfo(this.fullName, this.className, this.groupId)
+      .getStudentByInfo(this.fullName, this.className, this.groupId, this.phone)
       .subscribe({
         next: (student) => {
           this.loading = false;
@@ -218,7 +245,7 @@ export class StudentLoginComponent implements OnInit {
             this.router.navigate(['/student/home']);
           } else {
             this.errorMessage =
-              'Không tìm thấy học sinh. Kiểm tra lại Họ tên, Lớp và Nhóm.';
+              'Không tìm thấy học sinh. Kiểm tra lại Họ tên, SĐT, Lớp và Nhóm.';
           }
         },
         error: () => {

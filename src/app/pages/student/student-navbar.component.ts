@@ -63,6 +63,19 @@ import { StudentNotificationService } from '../../services/student-notification.
         border: 2px solid #fff;
         animation: notification-pulse 1.5s ease-in-out infinite;
       }
+      .nav-badge {
+        position: absolute;
+        top: -4px;
+        right: -8px;
+        background: #ef4444;
+        color: #fff;
+        font-weight: 800;
+        font-size: 0.65rem;
+        padding: 1px 5px;
+        border-radius: 8px;
+        line-height: 1.3;
+        border: 2px solid #fff;
+      }
 
       .badge-count {
         position: absolute;
@@ -199,7 +212,7 @@ import { StudentNotificationService } from '../../services/student-notification.
       >
         <span class="nav-label">Thảo luận</span>
         @if (badgeCounts().discussions > 0) {
-          <span class="badge-dot"></span>
+          <span class="nav-badge">+{{ badgeCounts().discussions }}</span>
         }
       </a>
 

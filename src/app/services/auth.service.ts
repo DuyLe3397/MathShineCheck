@@ -145,13 +145,14 @@ export class AuthService {
     this.profileDoneSubject.next(true);
   }
 
-  getStudentByInfo(fullName: string, className: string, groupId: string): Observable<any> {
-    const q = query(
-      collection(this.firestore, 'students'),
+  getStudentByInfo(fullName: string, className: string, groupId: string, phone?: string): Observable<any> {
+    const conditions = [
       where('fullName', '==', fullName),
       where('className', '==', className),
       where('groupId', '==', groupId),
-    );
+    ];
+    if (phone) conditions.push(where('phone', '==', phone));
+    const q = query(collection(this.firestore, 'students'), ...conditions);
     return from(getDocs(q)).pipe(
       map(snapshot => snapshot.empty ? null : ({ id: snapshot.docs[0].id, ...snapshot.docs[0].data() })),
     );

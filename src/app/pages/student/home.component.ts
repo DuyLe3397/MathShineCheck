@@ -246,6 +246,17 @@ interface PendingRequest {
       .btn-view-attempt:hover {
         background: #eff6ff;
       }
+      .comment-badge {
+        display: inline-block;
+        margin-left: 4px;
+        background: #ef4444;
+        color: #fff;
+        font-weight: 800;
+        font-size: 0.72rem;
+        padding: 1px 5px;
+        border-radius: 8px;
+        line-height: 1.3;
+      }
       .btn-new-attempt {
         display: block;
         width: 100%;
@@ -351,7 +362,7 @@ interface PendingRequest {
             @for (attempt of item.attempts; track attempt.submissionId) {
               <div class="attempt-row">
                 <span class="attempt-label">
-                  KQ chấm BTVN lần {{ attempt.attemptNumber }}:
+                  Kết quả chấm BTVN lần {{ attempt.attemptNumber }}:
                   @if (attempt.status === 'graded' && attempt.score != null) {
                     @if (attempt.score === 10) {
                       <span class="attempt-score-green">
@@ -371,6 +382,11 @@ interface PendingRequest {
                   (click)="viewAttempt($event, attempt.submissionId)"
                 >
                   Xem
+                  @if (unreadCommentCounts()[attempt.submissionId]) {
+                    <span class="comment-badge"
+                      >+{{ unreadCommentCounts()[attempt.submissionId] }}</span
+                    >
+                  }
                 </button>
               </div>
             }
@@ -400,6 +416,7 @@ export class StudentHomeComponent implements OnInit {
   profile = this.authService.currentProfile;
 
   loading = signal(true);
+  unreadCommentCounts = signal<Record<string, number>>({});
   assignments = signal<AssignmentWithAttempts[]>([]);
   pendingRequests = signal<PendingRequest[]>([]);
   groupName = signal('');
@@ -504,6 +521,7 @@ export class StudentHomeComponent implements OnInit {
         }
 
         this.assignments.set(items);
+        this.loadUnreadCommentCounts(items);
         this.loading.set(false);
         this.loadPendingRequests();
       },
@@ -550,6 +568,34 @@ export class StudentHomeComponent implements OnInit {
           });
       });
       this.pendingRequests.set(requests);
+    });
+  }
+
+  private loadUnreadCommentCounts(items: AssignmentWithAttempts[]): void {
+    const counts: Record<string, number> = {};
+    let completed = 0;
+    const allSubIds = items.flatMap((a) =>
+      a.attempts.map((att) => att.submissionId),
+    );
+    if (allSubIds.length === 0) return;
+    allSubIds.forEach((subId) => {
+      this.firestoreService.getSubmission(subId).then((sub) => {
+        const lastSeen = sub?.lastCommentSeenAt
+          ? new Date(sub.lastCommentSeenAt).getTime()
+          : 0;
+        this.firestoreService
+          .getCommentsBySubmission(subId)
+          .subscribe((comments) => {
+            const unread = comments.filter(
+              (c) => new Date(c.createdAt).getTime() > lastSeen,
+            ).length;
+            if (unread > 0) counts[subId] = unread;
+            completed++;
+            if (completed === allSubIds.length) {
+              this.unreadCommentCounts.set(counts);
+            }
+          });
+      });
     });
   }
 

@@ -5,6 +5,7 @@ import { Router, RouterModule } from '@angular/router';
 import { FirestoreService } from '../../services/firestore.service';
 import { AuthService } from '../../services/auth.service';
 import { NavbarComponent } from '../../shared/components/navbar.component';
+import { TeacherNotificationBellComponent } from '../../shared/components/teacher-notification-bell.component';
 import { SchoolClass, Group, Student, Assignment, Grade } from '../../models';
 import { forkJoin, map, switchMap, of } from 'rxjs';
 
@@ -17,7 +18,7 @@ interface StudentGradeRow {
 @Component({
   selector: 'app-statistics',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterModule, NavbarComponent],
+  imports: [CommonModule, FormsModule, RouterModule, NavbarComponent, TeacherNotificationBellComponent],
   styles: [
     `
       :host {
@@ -357,6 +358,7 @@ interface StudentGradeRow {
           <a class="nav-item active" routerLink="/teacher/statistics"
             >Thống kê</a
           >
+          <teacher-notification-bell />
         </nav>
         <div class="sidebar-footer">
           <div class="user-info">

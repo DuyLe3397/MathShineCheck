@@ -5,12 +5,13 @@ import { Router, RouterModule } from '@angular/router';
 import { FirestoreService } from '../../services/firestore.service';
 import { AuthService } from '../../services/auth.service';
 import { NavbarComponent } from '../../shared/components/navbar.component';
+import { TeacherNotificationBellComponent } from '../../shared/components/teacher-notification-bell.component';
 import { SchoolClass, Group, Student } from '../../models';
 
 @Component({
   selector: 'app-student-management',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterModule, NavbarComponent],
+  imports: [CommonModule, FormsModule, RouterModule, NavbarComponent, TeacherNotificationBellComponent],
   styles: [
     `
       :host {
@@ -373,6 +374,7 @@ import { SchoolClass, Group, Student } from '../../models';
           <a class="nav-item" routerLink="/teacher/assignments">Bài tập</a>
           <a class="nav-item" routerLink="/teacher/discussions">Thảo luận</a>
           <a class="nav-item" routerLink="/teacher/statistics">Thống kê</a>
+          <teacher-notification-bell />
         </nav>
         <div class="sidebar-footer">
           <div class="user-info">

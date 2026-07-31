@@ -12,6 +12,7 @@ export interface Student {
   className: string;
   groupId: string;
   username: string;
+  phone?: string;
   mustChangePassword: boolean;
   createdAt: string;
   lastHomeSeenAt?: string;
@@ -53,6 +54,7 @@ export interface Submission {
   attemptNumber?: number;
   status: 'submitted' | 'grading' | 'graded';
   submittedAt: string;
+  lastCommentSeenAt?: string;
 }
 
 export interface Grade {
@@ -118,6 +120,20 @@ export interface AppNotification {
   refId: string;
   isRead: boolean;
   createdAt: string;
+}
+
+export interface TeacherNotification {
+  id: string;
+  teacherId: string;
+  type: 'discussion' | 'submission';
+  discussionId?: string;
+  replyId?: string;
+  submissionId?: string;
+  imageIndex?: number;
+  authorName: string;
+  content: string;
+  createdAt: string;
+  isRead: boolean;
 }
 
 export type UserRole = 'teacher' | 'student';

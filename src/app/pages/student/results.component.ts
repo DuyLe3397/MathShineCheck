@@ -637,6 +637,11 @@ export class ResultsComponent implements OnInit {
       this.assignmentId = sub.assignmentId;
       this.loadGrade(sub);
       this.loadSubmissionImages(sub);
+      this.firestoreService
+        .updateSubmission(submissionId, {
+          lastCommentSeenAt: new Date().toISOString(),
+        })
+        .catch(() => {});
     });
   }
 

@@ -4,13 +4,14 @@ import { Router, RouterModule, RouterLink } from '@angular/router';
 import { FirestoreService } from '../../services/firestore.service';
 import { AuthService } from '../../services/auth.service';
 import { NavbarComponent } from '../../shared/components/navbar.component';
+import { TeacherNotificationBellComponent } from '../../shared/components/teacher-notification-bell.component';
 import { combineLatest, forkJoin, map, switchMap } from 'rxjs';
 import { Assignment, Submission, Grade } from '../../models';
 
 @Component({
   selector: 'app-teacher-dashboard',
   standalone: true,
-  imports: [CommonModule, RouterModule, RouterLink, NavbarComponent],
+  imports: [CommonModule, RouterModule, RouterLink, NavbarComponent, TeacherNotificationBellComponent],
   styles: [
     `
       :host {
@@ -239,6 +240,7 @@ import { Assignment, Submission, Grade } from '../../models';
           <a class="nav-item" routerLink="/teacher/discussions">Thảo luận</a>
           <a class="nav-item" routerLink="/teacher/statistics">Thống kê</a>
           <a class="nav-item" routerLink="/teacher/profile">Hồ sơ</a>
+          <teacher-notification-bell />
         </nav>
         <div class="sidebar-footer">
           <div class="user-info" style="display:flex;align-items:center;gap:10px;">

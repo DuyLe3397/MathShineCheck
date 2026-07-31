@@ -3,8 +3,10 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RouterModule, ActivatedRoute, Router } from '@angular/router';
 import { FirestoreService } from '../../services/firestore.service';
+import { ImageService } from '../../services/image.service';
 import { AuthService } from '../../services/auth.service';
 import { NavbarComponent } from '../../shared/components/navbar.component';
+import { TeacherNotificationBellComponent } from '../../shared/components/teacher-notification-bell.component';
 import { Assignment, Student, Submission, Grade } from '../../models';
 import { forkJoin, map, switchMap, of } from 'rxjs';
 
@@ -19,7 +21,7 @@ interface StudentSubmissionRow {
 @Component({
   selector: 'app-assignment-detail',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterModule, NavbarComponent],
+  imports: [CommonModule, FormsModule, RouterModule, NavbarComponent, TeacherNotificationBellComponent],
   styles: [
     `
       :host {
@@ -193,6 +195,15 @@ interface StudentSubmissionRow {
         }
       }
 
+      .btn-danger {
+        background: #ef4444;
+        color: #fff;
+
+        &:hover {
+          background: #dc2626;
+        }
+      }
+
       .btn-outline {
         background: transparent;
         border: 1px solid #cbd5e1;
@@ -342,6 +353,7 @@ interface StudentSubmissionRow {
           <a class="nav-item" routerLink="/teacher/discussions">Thảo luận</a>
           <a class="nav-item" routerLink="/teacher/statistics">Thống kê</a>
           <a class="nav-item" routerLink="/teacher/profile">Hồ sơ cá nhân</a>
+          <teacher-notification-bell />
         </nav>
         <div class="sidebar-footer">
           <div class="user-info">
@@ -438,6 +450,14 @@ interface StudentSubmissionRow {
                     >
                       {{ row.status === 'Đã chấm' ? 'Sửa điểm' : 'Chấm bài' }}
                     </button>
+                    <button
+                      class="btn btn-danger btn-sm"
+                      *ngIf="row.submission"
+                      (click)="deleteSubmission(row)"
+                      style="margin-left:4px;"
+                    >
+                      Xóa
+                    </button>
                     <span
                       *ngIf="!row.submission"
                       style="color: #94a3b8; font-size: 0.85rem;"
@@ -463,6 +483,7 @@ export class AssignmentDetailComponent implements OnInit {
   private route = inject(ActivatedRoute);
   private router = inject(Router);
   private firestoreService = inject(FirestoreService);
+  private imageService = inject(ImageService);
   private authService = inject(AuthService);
 
   assignmentId = '';
@@ -610,6 +631,28 @@ export class AssignmentDetailComponent implements OnInit {
       }
     }
     this.rows = rows;
+  }
+
+  async deleteSubmission(row: StudentSubmissionRow): Promise<void> {
+    if (!row.submission) return;
+    const sub = row.submission;
+    const msg = `Xóa bài nộp lần ${sub.attemptNumber || '?'} của ${row.student.fullName}?\nẢnh, điểm, nhận xét của lần này sẽ mất hết.`;
+    if (!confirm(msg)) return;
+
+    try {
+      if (sub.imageIds?.length) {
+        await this.imageService.deleteSubmissionImages(sub.imageIds);
+      }
+      await this.firestoreService.deleteCommentsBySubmission(sub.id);
+      await this.firestoreService.deleteGrade(sub.id);
+      await this.firestoreService.deleteSubmission(sub.id);
+
+      row.submission = null;
+      row.grade = null;
+      row.status = 'Chưa nộp';
+    } catch (err: any) {
+      alert('Lỗi khi xóa: ' + (err.message || ''));
+    }
   }
 
   gradeSubmission(submissionId: string): void {
