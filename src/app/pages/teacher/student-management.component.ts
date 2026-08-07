@@ -282,6 +282,12 @@ import { SchoolClass, Group, Student } from '../../models';
         }
       }
 
+      .td-actions {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+      }
+
       .empty-state {
         text-align: center;
         padding: 40px 20px;
@@ -380,6 +386,7 @@ import { SchoolClass, Group, Student } from '../../models';
           <a class="nav-item" routerLink="/teacher/assignments">Bài tập</a>
           <a class="nav-item" routerLink="/teacher/discussions">Thảo luận</a>
           <a class="nav-item" routerLink="/teacher/statistics">Thống kê</a>
+          <a class="nav-item" routerLink="/teacher/profile">Hồ sơ</a>
           <teacher-notification-bell />
         </nav>
         <div class="sidebar-footer">
@@ -477,9 +484,17 @@ import { SchoolClass, Group, Student } from '../../models';
                   <td>{{ s.className }}</td>
                   <td>{{ getGroupName(s.groupId) }}</td>
                   <td>
-                    <button class="btn btn-danger" (click)="confirmDelete(s)">
-                      Xóa
-                    </button>
+                    <div class="td-actions">
+                      <button
+                        class="btn btn-outline"
+                        (click)="startRename(s)"
+                      >
+                        Đổi tên
+                      </button>
+                      <button class="btn btn-danger" (click)="confirmDelete(s)">
+                        Xóa
+                      </button>
+                    </div>
                   </td>
                 </tr>
               </tbody>
@@ -507,6 +522,30 @@ import { SchoolClass, Group, Student } from '../../models';
         </div>
       </div>
     </div>
+
+    <div class="dialog-overlay" *ngIf="renameTarget" (click)="cancelRename()">
+      <div class="dialog" (click)="$event.stopPropagation()">
+        <h3>Đổi tên học sinh</h3>
+        <div class="form-group">
+          <label>Họ tên mới</label>
+          <input
+            class="form-input"
+            [(ngModel)]="renameFullName"
+            placeholder="Nhập họ tên mới..."
+          />
+        </div>
+        <div class="dialog-actions">
+          <button class="btn btn-outline" (click)="cancelRename()">Hủy</button>
+          <button
+            class="btn btn-primary"
+            [disabled]="!renameFullName.trim() || renaming"
+            (click)="saveRename()"
+          >
+            {{ renaming ? 'Đang lưu...' : 'Lưu' }}
+          </button>
+        </div>
+      </div>
+    </div>
   `,
 })
 export class StudentManagementComponent implements OnInit {
@@ -523,6 +562,9 @@ export class StudentManagementComponent implements OnInit {
   loading = false;
   saving = false;
   deleteTarget: Student | null = null;
+  renameTarget: Student | null = null;
+  renameFullName = '';
+  renaming = false;
 
   newStudent = { fullName: '' };
 
@@ -624,6 +666,34 @@ export class StudentManagementComponent implements OnInit {
       .then(() => {
         this.deleteTarget = null;
         this.loadStudents();
+      });
+  }
+
+  startRename(s: Student): void {
+    this.renameTarget = s;
+    this.renameFullName = s.fullName;
+  }
+
+  cancelRename(): void {
+    this.renameTarget = null;
+    this.renameFullName = '';
+  }
+
+  saveRename(): void {
+    if (!this.renameTarget || !this.renameFullName.trim()) return;
+    this.renaming = true;
+    this.firestoreService
+      .updateStudent(this.renameTarget.uid, {
+        fullName: this.renameFullName.trim().toUpperCase(),
+      })
+      .then(() => {
+        this.renameTarget = null;
+        this.renameFullName = '';
+        this.renaming = false;
+        this.loadStudents();
+      })
+      .catch(() => {
+        this.renaming = false;
       });
   }
 

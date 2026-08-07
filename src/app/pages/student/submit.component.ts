@@ -388,11 +388,8 @@ export class SubmitComponent implements OnInit {
           return updated;
         });
 
-        const imageId = await this.imageService.saveSubmissionImage(
-          '',
-          profile.uid,
-          compressed,
-          i,
+        const imageId = await this.retry(() =>
+          this.imageService.saveSubmissionImage('', profile.uid, compressed, i),
         );
         imageIds.push(imageId);
 
@@ -403,19 +400,47 @@ export class SubmitComponent implements OnInit {
         });
       }
 
-      await this.firestoreService.createSubmission({
-        assignmentId,
-        studentId: profile.uid,
-        imageIds,
-        attemptNumber: this.attemptNumber(),
-        status: 'submitted',
-      });
+      await this.retry(() =>
+        this.firestoreService.createSubmission({
+          assignmentId,
+          studentId: profile.uid,
+          imageIds,
+          attemptNumber: this.attemptNumber(),
+          status: 'submitted',
+        }),
+      );
 
       this.router.navigate(['/student/home']);
     } catch (err: any) {
-      this.errorMsg.set('Có lỗi xảy ra khi nộp bài. Vui lòng thử lại.');
+      const msg = err?.message || '';
+      if (/size|limit|large/i.test(msg)) {
+        this.errorMsg.set(
+          'Ảnh quá lớn, hệ thống không lưu được. Vui lòng thử lại với ảnh khác.',
+        );
+      } else if (/network|unavailable|offline|internet|temporal/i.test(msg)) {
+        this.errorMsg.set(
+          'Mất kết nối mạng. Vui lòng kiểm tra Wifi/4G và thử lại.',
+        );
+      } else {
+        this.errorMsg.set('Có lỗi xảy ra khi nộp bài. Vui lòng thử lại.');
+      }
       this.submitting.set(false);
     }
+  }
+
+  private async retry<T>(fn: () => Promise<T>, attempts = 2): Promise<T> {
+    let lastErr: any;
+    for (let i = 0; i < attempts; i++) {
+      try {
+        return await fn();
+      } catch (err) {
+        lastErr = err;
+        if (i < attempts - 1) {
+          await new Promise((r) => setTimeout(r, 1500));
+        }
+      }
+    }
+    throw lastErr;
   }
 
   goBack(): void {

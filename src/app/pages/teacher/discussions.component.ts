@@ -453,18 +453,96 @@ interface DiscussionWithReplies extends Discussion {
         object-fit: contain;
         border-radius: 4px;
       }
-      .item-menu { position: relative; margin-left: auto; flex-shrink: 0; }
-      .menu-btn { background: none; border: none; cursor: pointer; font-size: 1.1rem; padding: 0 4px; color: #94a3b8; border-radius: 4px; }
-      .menu-btn:hover { background: #f1f5f9; color: #1e293b; }
-      .menu-popup { position: absolute; right: 100%; margin-right: 4px; top: 50%; transform: translateY(-50%); background: #fff; border: 1px solid #e2e8f0; border-radius: 8px; box-shadow: 0 4px 16px rgba(0,0,0,0.15); z-index: 50; min-width: 110px; overflow: hidden; }
-      .menu-overlay { position: fixed; inset: 0; z-index: 40; }
-      .menu-popup button { display: block; width: calc(100% - 8px); margin: 2px 4px; padding: 8px 12px; border: 1px solid transparent; border-radius: 8px; background: none; text-align: left; cursor: pointer; font-size: 0.85rem; color: #334155; }
-      .menu-popup button:hover { background: #f8fafc; border-color: #2563eb; box-shadow: 0 3px 12px rgba(37, 99, 235, 0.2); }
-      .edit-area { display: flex; flex-direction: column; gap: 6px; padding: 6px 0; }
-      .edit-input { width: 100%; padding: 6px 10px; border: 1px solid #e2e8f0; border-radius: 6px; font-size: 0.85rem; }
-      .edit-actions { display: flex; gap: 6px; }
-      .edit-save { background: #2563eb; color: #fff; border: none; border-radius: 6px; padding: 5px 14px; cursor: pointer; font-size: 0.82rem; }
-      .edit-cancel { background: #f1f5f9; color: #64748b; border: none; border-radius: 6px; padding: 5px 14px; cursor: pointer; font-size: 0.82rem; }
+      .item-menu {
+        position: relative;
+        margin-left: auto;
+        flex-shrink: 0;
+      }
+      .menu-btn {
+        background: none;
+        border: none;
+        cursor: pointer;
+        font-size: 1.1rem;
+        padding: 0 4px;
+        color: #94a3b8;
+        border-radius: 4px;
+      }
+      .menu-btn:hover {
+        background: #f1f5f9;
+        color: #1e293b;
+      }
+      .menu-popup {
+        position: absolute;
+        right: 100%;
+        margin-right: 4px;
+        top: 50%;
+        transform: translateY(-50%);
+        background: #fff;
+        border: 1px solid #e2e8f0;
+        border-radius: 8px;
+        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+        z-index: 50;
+        min-width: 110px;
+        overflow: hidden;
+      }
+      .menu-overlay {
+        position: fixed;
+        inset: 0;
+        z-index: 40;
+      }
+      .menu-popup button {
+        display: block;
+        width: calc(100% - 8px);
+        margin: 2px 4px;
+        padding: 8px 12px;
+        border: 1px solid transparent;
+        border-radius: 8px;
+        background: none;
+        text-align: left;
+        cursor: pointer;
+        font-size: 0.85rem;
+        color: #334155;
+      }
+      .menu-popup button:hover {
+        background: #f8fafc;
+        border-color: #2563eb;
+        box-shadow: 0 3px 12px rgba(37, 99, 235, 0.2);
+      }
+      .edit-area {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+        padding: 6px 0;
+      }
+      .edit-input {
+        width: 100%;
+        padding: 6px 10px;
+        border: 1px solid #e2e8f0;
+        border-radius: 6px;
+        font-size: 0.85rem;
+      }
+      .edit-actions {
+        display: flex;
+        gap: 6px;
+      }
+      .edit-save {
+        background: #2563eb;
+        color: #fff;
+        border: none;
+        border-radius: 6px;
+        padding: 5px 14px;
+        cursor: pointer;
+        font-size: 0.82rem;
+      }
+      .edit-cancel {
+        background: #f1f5f9;
+        color: #64748b;
+        border: none;
+        border-radius: 6px;
+        padding: 5px 14px;
+        cursor: pointer;
+        font-size: 0.82rem;
+      }
     `,
   ],
   template: `
@@ -483,6 +561,7 @@ interface DiscussionWithReplies extends Discussion {
             >Thảo luận</a
           >
           <a class="nav-item" routerLink="/teacher/statistics">Thống kê</a>
+          <a class="nav-item" routerLink="/teacher/profile">Hồ sơ</a>
           <teacher-notification-bell />
         </nav>
         <div class="sidebar-footer">
@@ -625,10 +704,7 @@ interface DiscussionWithReplies extends Discussion {
                           >
                         }
                         <div class="edit-actions">
-                          <button
-                            class="edit-save"
-                            (click)="saveEdit(d)"
-                          >
+                          <button class="edit-save" (click)="saveEdit(d)">
                             Lưu
                           </button>
                           <button class="edit-cancel" (click)="cancelEdit()">
@@ -674,22 +750,25 @@ interface DiscussionWithReplies extends Discussion {
                     }
                     @if (isOwnerOf(d)) {
                       <div class="item-menu" (click)="$event.stopPropagation()">
-                        <button
-                          class="menu-btn"
-                          (click)="toggleMenu(d.id)"
-                        >
+                        <button class="menu-btn" (click)="toggleMenu(d.id)">
                           ⋮
                         </button>
                         @if (openMenuId() === d.id) {
                           <div class="menu-popup">
-                            <button (click)="startEdit(d)">{{ menuLabel(d).edit }}</button>
-                            <button (click)="deleteItem(d)">{{ menuLabel(d).del }}</button>
+                            <button (click)="startEdit(d)">
+                              {{ menuLabel(d).edit }}
+                            </button>
+                            <button (click)="deleteItem(d)">
+                              {{ menuLabel(d).del }}
+                            </button>
                           </div>
                         }
                       </div>
                     }
                   </div>
-                  <span class="reply-count">{{ d.replies.length }} trả lời</span>
+                  <span class="reply-count"
+                    >{{ d.replies.length }} trả lời</span
+                  >
                 </div>
 
                 @if (d.expanded) {
@@ -709,7 +788,10 @@ interface DiscussionWithReplies extends Discussion {
                         <div class="reply-body">
                           <div class="reply-author">{{ reply.authorName }}</div>
                           @if (editingId() === reply.id) {
-                            <div class="edit-area" (click)="$event.stopPropagation()">
+                            <div
+                              class="edit-area"
+                              (click)="$event.stopPropagation()"
+                            >
                               <input
                                 class="edit-input"
                                 [(ngModel)]="editContent"
@@ -736,7 +818,10 @@ interface DiscussionWithReplies extends Discussion {
                                 >
                                   Lưu
                                 </button>
-                                <button class="edit-cancel" (click)="cancelEdit()">
+                                <button
+                                  class="edit-cancel"
+                                  (click)="cancelEdit()"
+                                >
                                   Hủy
                                 </button>
                               </div>
@@ -759,7 +844,10 @@ interface DiscussionWithReplies extends Discussion {
                           </div>
                         </div>
                         @if (isOwnerOf(reply)) {
-                          <div class="item-menu" (click)="$event.stopPropagation()">
+                          <div
+                            class="item-menu"
+                            (click)="$event.stopPropagation()"
+                          >
                             <button
                               class="menu-btn"
                               (click)="toggleMenu(reply.id)"
@@ -768,8 +856,12 @@ interface DiscussionWithReplies extends Discussion {
                             </button>
                             @if (openMenuId() === reply.id) {
                               <div class="menu-popup">
-                                <button (click)="startEdit(reply)">{{ menuLabel(reply).edit }}</button>
-                                <button (click)="deleteItem(reply)">{{ menuLabel(reply).del }}</button>
+                                <button (click)="startEdit(reply)">
+                                  {{ menuLabel(reply).edit }}
+                                </button>
+                                <button (click)="deleteItem(reply)">
+                                  {{ menuLabel(reply).del }}
+                                </button>
                               </div>
                             }
                           </div>
@@ -1068,9 +1160,7 @@ export class TeacherDiscussionsComponent implements OnInit {
         imageUrl,
       });
       this.discussions.update((list) =>
-        list.map((x) =>
-          x.id === item.id ? { ...x, content, imageUrl } : x,
-        ),
+        list.map((x) => (x.id === item.id ? { ...x, content, imageUrl } : x)),
       );
     }
     this.cancelEdit();

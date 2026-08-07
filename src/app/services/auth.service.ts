@@ -55,6 +55,15 @@ export class AuthService {
         }, 800);
       }
     });
+
+    // Safety net: never leave the app stuck on "loading" if profile lookup
+    // hangs (e.g. slow mobile network). After 5s with no profile, resolve
+    // as "not logged in" so guards redirect to role-select instead of hanging.
+    setTimeout(() => {
+      if (!this.currentProfile) {
+        this.profileDoneSubject.next(true);
+      }
+    }, 5000);
   }
 
   private async tryLoadTeacherProfile(uid: string, attempt: number): Promise<void> {

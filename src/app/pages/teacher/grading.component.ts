@@ -51,6 +51,21 @@ import { Submission, Grade, SubmissionComment } from '../../models';
         opacity: 0.85;
         margin-left: auto;
       }
+      .profile-link {
+        color: #fff;
+        text-decoration: none;
+        font-size: 0.85rem;
+        font-weight: 600;
+        padding: 6px 12px;
+        border: 1.5px solid rgba(255, 255, 255, 0.5);
+        border-radius: 8px;
+        white-space: nowrap;
+        transition: all 0.2s;
+      }
+      .profile-link:hover {
+        background: rgba(255, 255, 255, 0.15);
+        border-color: #fff;
+      }
       .container {
         padding: 1rem;
         max-width: 900px;
@@ -101,7 +116,7 @@ import { Submission, Grade, SubmissionComment } from '../../models';
         display: flex;
         gap: 10px;
         padding: 0.75rem 1rem;
-        border-top: 1px solid #e2e8f0;
+        border-bottom: 1px solid #e2e8f0;
         background: #f8fafc;
       }
       .action-btn {
@@ -362,38 +377,238 @@ import { Submission, Grade, SubmissionComment } from '../../models';
         cursor: pointer;
         font-weight: 600;
       }
-      .reply-image { max-width: 200px; max-height: 200px; border-radius: 8px; margin-top: 0.4rem; cursor: zoom-in; display: block; border: 1px solid #e2e8f0; }
-      .reply-img-btn { cursor: pointer; font-size: 1.1rem; line-height: 1; padding: 4px; border-radius: 4px; transition: background 0.15s; }
-      .reply-img-btn:hover { background: #e2e8f0; }
-      .reply-img-preview { cursor: pointer; font-size: 0.8rem; color: #16a34a; font-weight: 600; }
-      .lightbox { position: fixed; inset: 0; background: rgba(0,0,0,0.92); display: flex; align-items: center; justify-content: center; z-index: 9999; cursor: zoom-out; padding: 1rem; }
-      .lightbox img { max-width: 100%; max-height: 100%; object-fit: contain; border-radius: 4px; }
-      .item-menu { position: relative; margin-left: auto; flex-shrink: 0; }
-      .menu-btn { background: none; border: none; cursor: pointer; font-size: 1.1rem; padding: 0 4px; color: #94a3b8; border-radius: 4px; }
-      .menu-btn:hover { background: #f1f5f9; color: #1e293b; }
-      .menu-popup { position: absolute; right: 100%; margin-right: 4px; top: 50%; transform: translateY(-50%); background: #fff; border: 1px solid #e2e8f0; border-radius: 8px; box-shadow: 0 4px 16px rgba(0,0,0,0.15); z-index: 50; min-width: 110px; overflow: hidden; }
-      .menu-overlay { position: fixed; inset: 0; z-index: 40; }
-      .menu-popup button { display: block; width: calc(100% - 8px); margin: 2px 4px; padding: 8px 12px; border: 1px solid transparent; border-radius: 8px; background: none; text-align: left; cursor: pointer; font-size: 0.85rem; color: #334155; }
-      .menu-popup button:hover { background: #f8fafc; border-color: #2563eb; box-shadow: 0 3px 12px rgba(37, 99, 235, 0.2); }
-      .edit-area { display: flex; flex-direction: column; gap: 6px; padding: 6px 0; }
-      .edit-input { width: 100%; padding: 6px 10px; border: 1px solid #e2e8f0; border-radius: 6px; font-size: 0.85rem; }
-      .edit-actions { display: flex; gap: 6px; }
-      .edit-save { background: #2563eb; color: #fff; border: none; border-radius: 6px; padding: 5px 14px; cursor: pointer; font-size: 0.82rem; }
-      .edit-cancel { background: #f1f5f9; color: #64748b; border: none; border-radius: 6px; padding: 5px 14px; cursor: pointer; font-size: 0.82rem; }
-      .draw-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: #fff; z-index: 9999; display: flex; flex-direction: column; }
-      .draw-toolbar { display: flex; align-items: center; gap: 10px; padding: 0.6rem 1rem; background: #1e293b; color: #fff; flex-shrink: 0; flex-wrap: wrap; }
-      .draw-toolbar button { padding: 6px 14px; border: 1.5px solid #475569; border-radius: 6px; background: transparent; color: #fff; cursor: pointer; font-size: 0.82rem; font-weight: 600; transition: all 0.2s; }
-      .draw-toolbar button.active { background: #2563eb; border-color: #2563eb; }
-      .draw-toolbar button:hover { border-color: #60a5fa; }
-      .draw-toolbar .sep { width: 1px; height: 28px; background: #475569; margin: 0 4px; }
-      .draw-toolbar input[type='color'] { width: 32px; height: 32px; border: none; border-radius: 4px; cursor: pointer; padding: 0; background: none; }
-      .draw-toolbar select { padding: 4px 8px; border-radius: 4px; border: 1px solid #475569; background: #334155; color: #fff; font-size: 0.8rem; outline: none; }
-      .draw-canvas-wrap { flex: 1; overflow: hidden; display: flex; align-items: center; justify-content: center; background: #e2e8f0; position: relative; }
-      .draw-canvas-wrap canvas { max-width: 100%; max-height: 100%; }
-      .draw-toolbar .btn-close-draw { margin-left: auto; background: #ef4444; border-color: #ef4444; }
-      .draw-toolbar .btn-close-draw:hover { background: #dc2626; }
-      .draw-toolbar .btn-save-draw { background: #16a34a; border-color: #16a34a; }
-      .draw-toolbar .btn-save-draw:hover { background: #15803d; }
+      .reply-image {
+        max-width: 200px;
+        max-height: 200px;
+        border-radius: 8px;
+        margin-top: 0.4rem;
+        cursor: zoom-in;
+        display: block;
+        border: 1px solid #e2e8f0;
+      }
+      .reply-img-btn {
+        cursor: pointer;
+        font-size: 1.1rem;
+        line-height: 1;
+        padding: 4px;
+        border-radius: 4px;
+        transition: background 0.15s;
+      }
+      .reply-img-btn:hover {
+        background: #e2e8f0;
+      }
+      .reply-img-preview {
+        cursor: pointer;
+        font-size: 0.8rem;
+        color: #16a34a;
+        font-weight: 600;
+      }
+      .lightbox {
+        position: fixed;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.92);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 9999;
+        cursor: zoom-out;
+        padding: 1rem;
+      }
+      .lightbox img {
+        max-width: 100%;
+        max-height: 100%;
+        object-fit: contain;
+        border-radius: 4px;
+      }
+      .item-menu {
+        position: relative;
+        margin-left: auto;
+        flex-shrink: 0;
+      }
+      .menu-btn {
+        background: none;
+        border: none;
+        cursor: pointer;
+        font-size: 1.1rem;
+        padding: 0 4px;
+        color: #94a3b8;
+        border-radius: 4px;
+      }
+      .menu-btn:hover {
+        background: #f1f5f9;
+        color: #1e293b;
+      }
+      .menu-popup {
+        position: absolute;
+        right: 100%;
+        margin-right: 4px;
+        top: 50%;
+        transform: translateY(-50%);
+        background: #fff;
+        border: 1px solid #e2e8f0;
+        border-radius: 8px;
+        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+        z-index: 50;
+        min-width: 110px;
+        overflow: hidden;
+      }
+      .menu-overlay {
+        position: fixed;
+        inset: 0;
+        z-index: 40;
+      }
+      .menu-popup button {
+        display: block;
+        width: calc(100% - 8px);
+        margin: 2px 4px;
+        padding: 8px 12px;
+        border: 1px solid transparent;
+        border-radius: 8px;
+        background: none;
+        text-align: left;
+        cursor: pointer;
+        font-size: 0.85rem;
+        color: #334155;
+      }
+      .menu-popup button:hover {
+        background: #f8fafc;
+        border-color: #2563eb;
+        box-shadow: 0 3px 12px rgba(37, 99, 235, 0.2);
+      }
+      .edit-area {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+        padding: 6px 0;
+      }
+      .edit-input {
+        width: 100%;
+        padding: 6px 10px;
+        border: 1px solid #e2e8f0;
+        border-radius: 6px;
+        font-size: 0.85rem;
+      }
+      .edit-actions {
+        display: flex;
+        gap: 6px;
+      }
+      .edit-save {
+        background: #2563eb;
+        color: #fff;
+        border: none;
+        border-radius: 6px;
+        padding: 5px 14px;
+        cursor: pointer;
+        font-size: 0.82rem;
+      }
+      .edit-cancel {
+        background: #f1f5f9;
+        color: #64748b;
+        border: none;
+        border-radius: 6px;
+        padding: 5px 14px;
+        cursor: pointer;
+        font-size: 0.82rem;
+      }
+      .draw-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: #fff;
+        z-index: 9999;
+        display: flex;
+        flex-direction: column;
+      }
+      .draw-toolbar {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 0.6rem 1rem;
+        background: #1e293b;
+        color: #fff;
+        flex-shrink: 0;
+        flex-wrap: wrap;
+      }
+      .draw-toolbar button {
+        padding: 6px 14px;
+        border: 1.5px solid #475569;
+        border-radius: 6px;
+        background: transparent;
+        color: #fff;
+        cursor: pointer;
+        font-size: 0.82rem;
+        font-weight: 600;
+        transition: all 0.2s;
+      }
+      .draw-toolbar button.active {
+        background: #2563eb;
+        border-color: #2563eb;
+      }
+      .draw-toolbar button:hover {
+        border-color: #60a5fa;
+      }
+      .draw-toolbar button:disabled {
+        opacity: 0.4;
+        cursor: not-allowed;
+      }
+      .draw-toolbar .sep {
+        width: 1px;
+        height: 28px;
+        background: #475569;
+        margin: 0 4px;
+      }
+      .draw-toolbar input[type='color'] {
+        width: 32px;
+        height: 32px;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        padding: 0;
+        background: none;
+      }
+      .draw-toolbar select {
+        padding: 4px 8px;
+        border-radius: 4px;
+        border: 1px solid #475569;
+        background: #334155;
+        color: #fff;
+        font-size: 0.8rem;
+        outline: none;
+      }
+      .draw-canvas-wrap {
+        flex: 1;
+        overflow: hidden;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: #e2e8f0;
+        position: relative;
+      }
+      .draw-canvas-wrap canvas {
+        max-width: 100%;
+        max-height: 100%;
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+      }
+      .draw-toolbar .btn-close-draw {
+        margin-left: auto;
+        background: #ef4444;
+        border-color: #ef4444;
+      }
+      .draw-toolbar .btn-close-draw:hover {
+        background: #dc2626;
+      }
+      .draw-toolbar .btn-save-draw {
+        background: #16a34a;
+        border-color: #16a34a;
+      }
+      .draw-toolbar .btn-save-draw:hover {
+        background: #15803d;
+      }
     `,
   ],
   template: `
@@ -401,6 +616,7 @@ import { Submission, Grade, SubmissionComment } from '../../models';
       <button class="back-btn" (click)="goBack()">←</button>
       <h2>Chấm bài</h2>
       <span class="sub">{{ studentName }}</span>
+      <a class="profile-link" routerLink="/teacher/profile">Hồ sơ</a>
     </div>
 
     <div class="container" *ngIf="!loading && submission">
@@ -425,7 +641,6 @@ import { Submission, Grade, SubmissionComment } from '../../models';
       </div>
 
       <div class="image-card">
-        <img [src]="currentImageUrl" alt="Bài làm" />
         <div class="image-actions">
           <button class="action-btn" (click)="openDrawer()">Vẽ</button>
           <button class="action-btn" (click)="downloadSubmission()">
@@ -444,9 +659,14 @@ import { Submission, Grade, SubmissionComment } from '../../models';
             />
           </label>
         </div>
+        <img [src]="currentImageUrl" alt="Bài làm" />
       </div>
 
-      <div class="image-card" style="padding:0.75rem 1rem;" id="comments-section">
+      <div
+        class="image-card"
+        style="padding:0.75rem 1rem;"
+        id="comments-section"
+      >
         <div class="comment-section" style="border-top:none;padding:0;">
           <div class="comment-toolbar">
             <button
@@ -508,7 +728,11 @@ import { Submission, Grade, SubmissionComment } from '../../models';
                 } @else {
                   <div class="comment-content">{{ c.content }}</div>
                   @if (c.imageUrl) {
-                    <img [src]="c.imageUrl" class="reply-image" (click)="zoomedImage.set(c.imageUrl)" />
+                    <img
+                      [src]="c.imageUrl"
+                      class="reply-image"
+                      (click)="zoomedImage.set(c.imageUrl)"
+                    />
                   }
                 }
                 <div class="comment-time">
@@ -517,9 +741,7 @@ import { Submission, Grade, SubmissionComment } from '../../models';
               </div>
               @if (isOwnerOf(c)) {
                 <div class="item-menu" (click)="$event.stopPropagation()">
-                  <button class="menu-btn" (click)="toggleMenu(c.id)">
-                    ⋮
-                  </button>
+                  <button class="menu-btn" (click)="toggleMenu(c.id)">⋮</button>
                   @if (openMenuId() === c.id) {
                     <div class="menu-popup">
                       <button (click)="startEdit(c)">Sửa bình luận</button>
@@ -544,10 +766,20 @@ import { Submission, Grade, SubmissionComment } from '../../models';
             ></textarea>
             <label class="reply-img-btn">
               🖇️
-              <input type="file" accept="image/*" hidden (change)="onCommentImageSelected($event)" />
+              <input
+                type="file"
+                accept="image/*"
+                hidden
+                (change)="onCommentImageSelected($event)"
+              />
             </label>
             @if (commentImage()) {
-              <span class="reply-img-preview" (click)="clearCommentImage()" title="Xóa ảnh">{{ commentImageName() }} ✓</span>
+              <span
+                class="reply-img-preview"
+                (click)="clearCommentImage()"
+                title="Xóa ảnh"
+                >{{ commentImageName() }} ✓</span
+              >
             }
             <button
               class="send-btn"
@@ -644,13 +876,23 @@ import { Submission, Grade, SubmissionComment } from '../../models';
             <option [value]="6">6px</option>
             <option [value]="10">10px</option>
             <option [value]="16">16px</option>
+            <option [value]="24">24px</option>
+            <option [value]="32">32px</option>
+            <option [value]="50">50px</option>
+            <option [value]="80">80px</option>
+            <option [value]="100">100px</option>
           </select>
+          <button [disabled]="!canUndo()" (click)="undoDraw()">Undo</button>
+          <button [disabled]="!canRedo()" (click)="redoDraw()">Redo</button>
+          <button (click)="rotateImage(1)">↻ Xoay 90°</button>
+          <button (click)="rotateImage(-1)">↺ Xoay -90°</button>
           <button (click)="clearDraw()">Xóa hết</button>
           <div class="sep"></div>
           <button class="btn-save-draw" (click)="saveDraw()">💾 Lưu</button>
           <button class="btn-close-draw" (click)="closeDraw()">✕ Đóng</button>
         </div>
         <div class="draw-canvas-wrap">
+          <canvas #baseCanvas></canvas>
           <canvas #drawCanvas></canvas>
         </div>
       </div>
@@ -689,13 +931,20 @@ export class GradingComponent implements OnInit {
 
   @ViewChild('drawCanvas', { static: false })
   drawCanvasRef!: ElementRef<HTMLCanvasElement>;
+  @ViewChild('baseCanvas', { static: false })
+  baseCanvasRef!: ElementRef<HTMLCanvasElement>;
   drawingMode = false;
   drawTool: 'pen' | 'eraser' = 'pen';
   drawColor = '#ef4444';
   drawSize = 2;
   private ctx: CanvasRenderingContext2D | null = null;
   private isDrawing = false;
-  private points: { x: number; y: number }[] = [];
+  private lastPoint: { x: number; y: number } | null = null;
+  private lastMid: { x: number; y: number } | null = null;
+  private undoStack: ImageData[] = [];
+  private redoStack: ImageData[] = [];
+  canUndo = signal(false);
+  canRedo = signal(false);
 
   openMenuId = signal('');
   editingId = signal('');
@@ -833,15 +1082,22 @@ export class GradingComponent implements OnInit {
   }
 
   private initDrawCanvas(): void {
-    const canvas = this.drawCanvasRef?.nativeElement;
-    if (!canvas || !this.currentImageUrl) return;
+    const drawCanvas = this.drawCanvasRef?.nativeElement;
+    const baseCanvas = this.baseCanvasRef?.nativeElement;
+    if (!drawCanvas || !baseCanvas || !this.currentImageUrl) return;
 
     const img = new Image();
     img.onload = () => {
-      canvas.width = img.width;
-      canvas.height = img.height;
-      this.ctx = canvas.getContext('2d')!;
-      this.ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+      baseCanvas.width = img.width;
+      baseCanvas.height = img.height;
+      const baseCtx = baseCanvas.getContext('2d')!;
+      baseCtx.clearRect(0, 0, baseCanvas.width, baseCanvas.height);
+      baseCtx.drawImage(img, 0, 0, baseCanvas.width, baseCanvas.height);
+
+      drawCanvas.width = img.width;
+      drawCanvas.height = img.height;
+      this.ctx = drawCanvas.getContext('2d')!;
+      this.ctx.clearRect(0, 0, drawCanvas.width, drawCanvas.height);
       this.setupDrawEvents();
       this.updateBrush();
     };
@@ -862,30 +1118,45 @@ export class GradingComponent implements OnInit {
 
     const startDraw = (pos: { x: number; y: number }) => {
       this.isDrawing = true;
-      this.points = [pos];
+      this.lastPoint = pos;
+      this.lastMid = pos;
+      if (this.ctx) {
+        const canvas = this.drawCanvasRef.nativeElement;
+        this.undoStack.push(
+          this.ctx.getImageData(0, 0, canvas.width, canvas.height),
+        );
+        if (this.undoStack.length > 20) this.undoStack.shift();
+        this.canUndo.set(this.undoStack.length > 0);
+        this.redoStack = [];
+        this.canRedo.set(false);
+        this.ctx.beginPath();
+        this.ctx.arc(pos.x, pos.y, this.ctx.lineWidth / 2, 0, Math.PI * 2);
+        this.ctx.fill();
+      }
     };
     const moveDraw = (pos: { x: number; y: number }) => {
-      if (!this.isDrawing || !this.ctx) return;
-      this.points.push(pos);
-      if (this.points.length < 2) return;
-      const p0 = this.points[this.points.length - 2];
-      const p1 = this.points[this.points.length - 1];
-      const mid = { x: (p0.x + p1.x) / 2, y: (p0.y + p1.y) / 2 };
+      if (!this.isDrawing || !this.ctx || !this.lastPoint || !this.lastMid)
+        return;
+      const newMid = {
+        x: (this.lastPoint.x + pos.x) / 2,
+        y: (this.lastPoint.y + pos.y) / 2,
+      };
       this.ctx.beginPath();
-      this.ctx.moveTo(p0.x, p0.y);
-      this.ctx.quadraticCurveTo(p0.x, p0.y, mid.x, mid.y);
+      this.ctx.moveTo(this.lastMid.x, this.lastMid.y);
+      this.ctx.quadraticCurveTo(
+        this.lastPoint.x,
+        this.lastPoint.y,
+        newMid.x,
+        newMid.y,
+      );
       this.ctx.stroke();
-      this.points = [p1];
+      this.lastPoint = pos;
+      this.lastMid = newMid;
     };
     const endDraw = () => {
-      if (this.isDrawing && this.ctx && this.points.length) {
-        this.ctx.beginPath();
-        this.ctx.moveTo(this.points[0].x, this.points[0].y);
-        this.ctx.lineTo(this.points[0].x + 0.01, this.points[0].y + 0.01);
-        this.ctx.stroke();
-      }
       this.isDrawing = false;
-      this.points = [];
+      this.lastPoint = null;
+      this.lastMid = null;
     };
 
     canvas.onmousedown = (e) => startDraw(getPos(e));
@@ -908,9 +1179,11 @@ export class GradingComponent implements OnInit {
     if (!this.ctx) return;
     if (this.drawTool === 'pen') {
       this.ctx.strokeStyle = this.drawColor;
+      this.ctx.fillStyle = this.drawColor;
       this.ctx.globalCompositeOperation = 'source-over';
     } else {
       this.ctx.strokeStyle = '#ffffff';
+      this.ctx.fillStyle = '#ffffff';
       this.ctx.globalCompositeOperation = 'destination-out';
     }
     this.ctx.lineWidth = this.drawSize;
@@ -918,27 +1191,84 @@ export class GradingComponent implements OnInit {
     this.ctx.lineJoin = 'round';
   }
 
-  clearDraw(): void {
+  undoDraw(): void {
     const canvas = this.drawCanvasRef?.nativeElement;
-    if (!canvas || !this.ctx || !this.currentImageUrl) return;
+    if (!canvas || !this.ctx || this.undoStack.length === 0) return;
+    this.redoStack.push(
+      this.ctx.getImageData(0, 0, canvas.width, canvas.height),
+    );
+    const state = this.undoStack.pop()!;
+    this.ctx.putImageData(state, 0, 0);
+    this.canUndo.set(this.undoStack.length > 0);
+    this.canRedo.set(true);
+  }
+
+  redoDraw(): void {
+    const canvas = this.drawCanvasRef?.nativeElement;
+    if (!canvas || !this.ctx || this.redoStack.length === 0) return;
+    this.undoStack.push(
+      this.ctx.getImageData(0, 0, canvas.width, canvas.height),
+    );
+    const state = this.redoStack.pop()!;
+    this.ctx.putImageData(state, 0, 0);
+    this.canUndo.set(true);
+    this.canRedo.set(this.redoStack.length > 0);
+  }
+
+  async rotateImage(direction: number = 1): Promise<void> {
+    if (!this.submission) return;
+    const imageId = this.submission.imageIds[this.currentPage];
+    if (!imageId || !this.currentImageUrl) return;
+
     const img = new Image();
-    img.onload = () => {
-      this.ctx!.clearRect(0, 0, canvas.width, canvas.height);
-      this.ctx!.drawImage(img, 0, 0, canvas.width, canvas.height);
+    img.onload = async () => {
+      const canvas = document.createElement('canvas');
+      canvas.width = img.height;
+      canvas.height = img.width;
+      const ctx = canvas.getContext('2d')!;
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      ctx.translate(canvas.width / 2, canvas.height / 2);
+      ctx.rotate(direction * (Math.PI / 2));
+      ctx.drawImage(img, -img.width / 2, -img.height / 2);
+      const dataUrl = canvas.toDataURL('image/jpeg', 0.9);
+      if (!dataUrl || dataUrl.length < 100) return;
+      await this.imageService.updateSubmissionImage(imageId, dataUrl);
+      this.currentImageUrl = dataUrl;
+      this.undoStack = [];
+      this.redoStack = [];
+      this.canUndo.set(false);
+      this.canRedo.set(false);
+      if (this.drawingMode) this.initDrawCanvas();
     };
     img.src = this.currentImageUrl;
   }
 
-  async saveDraw(): Promise<void> {
+  clearDraw(): void {
     const canvas = this.drawCanvasRef?.nativeElement;
-    if (!canvas || !this.submission) return;
+    if (!canvas || !this.ctx) return;
+    this.undoStack.push(
+      this.ctx.getImageData(0, 0, canvas.width, canvas.height),
+    );
+    if (this.undoStack.length > 20) this.undoStack.shift();
+    this.canUndo.set(this.undoStack.length > 0);
+    this.redoStack = [];
+    this.canRedo.set(false);
+    this.ctx.clearRect(0, 0, canvas.width, canvas.height);
+  }
+
+  async saveDraw(): Promise<void> {
+    const drawCanvas = this.drawCanvasRef?.nativeElement;
+    const baseCanvas = this.baseCanvasRef?.nativeElement;
+    if (!drawCanvas || !baseCanvas || !this.submission) return;
     const tmp = document.createElement('canvas');
-    tmp.width = canvas.width;
-    tmp.height = canvas.height;
+    tmp.width = drawCanvas.width;
+    tmp.height = drawCanvas.height;
     const tmpCtx = tmp.getContext('2d')!;
     tmpCtx.fillStyle = '#ffffff';
     tmpCtx.fillRect(0, 0, tmp.width, tmp.height);
-    tmpCtx.drawImage(canvas, 0, 0);
+    tmpCtx.drawImage(baseCanvas, 0, 0);
+    tmpCtx.drawImage(drawCanvas, 0, 0);
     const dataUrl = tmp.toDataURL('image/jpeg', 0.9);
     if (!dataUrl || dataUrl.length < 100) return;
     const imageId = this.submission.imageIds[this.currentPage];
@@ -946,6 +1276,10 @@ export class GradingComponent implements OnInit {
       await this.imageService.updateSubmissionImage(imageId, dataUrl);
       this.currentImageUrl = dataUrl;
     }
+    this.undoStack = [];
+    this.redoStack = [];
+    this.canUndo.set(false);
+    this.canRedo.set(false);
     this.closeDraw();
   }
 

@@ -327,6 +327,10 @@ export class FirestoreService {
     return ref.id;
   }
 
+  async updateAssignment(id: string, data: Partial<Assignment>): Promise<void> {
+    await updateDoc(doc(this.firestore, 'assignments', id), data as any);
+  }
+
   async deleteAssignment(id: string): Promise<void> {
     await deleteDoc(doc(this.firestore, 'assignments', id));
   }

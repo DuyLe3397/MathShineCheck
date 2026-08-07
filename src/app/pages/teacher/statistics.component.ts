@@ -233,19 +233,19 @@ interface StudentGradeRow {
 
         th,
         td {
-          padding: 12px 16px;
+          padding: 10px 14px;
           text-align: center;
-          border-bottom: 1px solid #e2e8f0;
+          border: 2px solid #000;
           font-size: 0.9rem;
         }
 
         th {
-          color: #64748b;
-          font-weight: 600;
+          color: #1e293b;
+          font-weight: 700;
           font-size: 0.8rem;
           text-transform: uppercase;
           letter-spacing: 0.5px;
-          background: #f8fafc;
+          background: #e5e7eb;
           position: sticky;
           top: 0;
         }
@@ -358,6 +358,7 @@ interface StudentGradeRow {
           <a class="nav-item active" routerLink="/teacher/statistics"
             >Thống kê</a
           >
+          <a class="nav-item" routerLink="/teacher/profile">Hồ sơ</a>
           <teacher-notification-bell />
         </nav>
         <div class="sidebar-footer">
@@ -590,11 +591,16 @@ export class StatisticsComponent implements OnInit {
                 const studentGrades: { assignmentId: string; score: number }[] =
                   [];
                 allGradesByAssignment.forEach((grades, idx) => {
-                  const grade = grades.find((g) => g.studentId === s.uid);
-                  if (grade) {
+                  const studentGradesForAssignment = grades.filter(
+                    (g) => g.studentId === s.uid,
+                  );
+                  if (studentGradesForAssignment.length > 0) {
+                    const highest = Math.max(
+                      ...studentGradesForAssignment.map((g) => g.scoreValue),
+                    );
                     studentGrades.push({
                       assignmentId: assignments[idx].id,
-                      score: grade.scoreValue,
+                      score: highest,
                     });
                   }
                 });

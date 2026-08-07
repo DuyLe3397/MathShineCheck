@@ -11,7 +11,13 @@ import { SchoolClass, Group, Assignment } from '../../models';
 @Component({
   selector: 'app-assignment-management',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterModule, NavbarComponent, TeacherNotificationBellComponent],
+  imports: [
+    CommonModule,
+    FormsModule,
+    RouterModule,
+    NavbarComponent,
+    TeacherNotificationBellComponent,
+  ],
   styles: [
     `
       :host {
@@ -353,7 +359,7 @@ import { SchoolClass, Group, Assignment } from '../../models';
   template: `
     <div class="layout">
       <aside class="sidebar">
-        <div class="sidebar-brand">MMATHSHINE EDUCATION</div>
+        <div class="sidebar-brand">MATHSHINE EDUCATION</div>
         <nav class="sidebar-nav">
           <a class="nav-item" routerLink="/teacher/dashboard">Tổng quan</a>
           <a class="nav-item" routerLink="/teacher/classes">Quản lý lớp</a>
@@ -366,6 +372,7 @@ import { SchoolClass, Group, Assignment } from '../../models';
           >
           <a class="nav-item" routerLink="/teacher/discussions">Thảo luận</a>
           <a class="nav-item" routerLink="/teacher/statistics">Thống kê</a>
+          <a class="nav-item" routerLink="/teacher/profile">Hồ sơ</a>
           <teacher-notification-bell />
         </nav>
         <div class="sidebar-footer">
@@ -494,6 +501,12 @@ import { SchoolClass, Group, Assignment } from '../../models';
                       >
                         Xem
                       </button>
+                      <button
+                        class="btn btn-outline btn-sm"
+                        (click)="startRename(a)"
+                      >
+                        Đổi tên
+                      </button>
                       <button class="btn btn-danger" (click)="confirmDelete(a)">
                         Xóa
                       </button>
@@ -528,6 +541,30 @@ import { SchoolClass, Group, Assignment } from '../../models';
         </div>
       </div>
     </div>
+
+    <div class="dialog-overlay" *ngIf="renameTarget" (click)="cancelRename()">
+      <div class="dialog" (click)="$event.stopPropagation()">
+        <h3>Đổi tên bài tập</h3>
+        <div class="form-group">
+          <label>Tiêu đề mới</label>
+          <input
+            class="form-input"
+            [(ngModel)]="renameTitle"
+            placeholder="Nhập tên mới..."
+          />
+        </div>
+        <div class="dialog-actions">
+          <button class="btn btn-outline" (click)="cancelRename()">Hủy</button>
+          <button
+            class="btn btn-primary"
+            [disabled]="!renameTitle.trim() || renaming"
+            (click)="saveRename()"
+          >
+            {{ renaming ? 'Đang lưu...' : 'Lưu' }}
+          </button>
+        </div>
+      </div>
+    </div>
   `,
 })
 export class AssignmentManagementComponent implements OnInit {
@@ -544,6 +581,9 @@ export class AssignmentManagementComponent implements OnInit {
   loading = false;
   saving = false;
   deleteTarget: Assignment | null = null;
+  renameTarget: Assignment | null = null;
+  renameTitle = '';
+  renaming = false;
 
   newAssignment = {
     title: '',
@@ -635,7 +675,34 @@ export class AssignmentManagementComponent implements OnInit {
   }
 
   viewDetail(assignmentId: string): void {
-    this.router.navigate(['/teacher/assignments', assignmentId]);
+    const url = this.router.createUrlTree(['/teacher/assignments', assignmentId]).toString();
+    window.open(url, '_blank');
+  }
+
+  startRename(a: Assignment): void {
+    this.renameTarget = a;
+    this.renameTitle = a.title;
+  }
+
+  cancelRename(): void {
+    this.renameTarget = null;
+    this.renameTitle = '';
+  }
+
+  saveRename(): void {
+    if (!this.renameTarget || !this.renameTitle.trim()) return;
+    this.renaming = true;
+    this.firestoreService
+      .updateAssignment(this.renameTarget.id, { title: this.renameTitle.trim() })
+      .then(() => {
+        this.renameTarget = null;
+        this.renameTitle = '';
+        this.renaming = false;
+        this.loadAssignments();
+      })
+      .catch(() => {
+        this.renaming = false;
+      });
   }
 
   confirmDelete(a: Assignment): void {
@@ -648,10 +715,12 @@ export class AssignmentManagementComponent implements OnInit {
 
   executeDelete(): void {
     if (!this.deleteTarget) return;
-    this.firestoreService.deleteAssignmentCascade(this.deleteTarget.id).then(() => {
-      this.deleteTarget = null;
-      this.loadAssignments();
-    });
+    this.firestoreService
+      .deleteAssignmentCascade(this.deleteTarget.id)
+      .then(() => {
+        this.deleteTarget = null;
+        this.loadAssignments();
+      });
   }
 
   logout(): void {

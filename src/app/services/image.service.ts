@@ -13,29 +13,28 @@ import {
 export class ImageService {
   private firestore = inject(Firestore);
 
-  compressImage(file: File, maxDim = 1920, quality = 0.88): Promise<string> {
+  compressImage(
+    file: File,
+    maxDim = 1920,
+    quality = 0.88,
+    maxBytes = 900000,
+  ): Promise<string> {
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
       reader.onload = () => {
         const img = new Image();
         img.onload = () => {
-          let w = img.width;
-          let h = img.height;
-          if (w > maxDim || h > maxDim) {
-            if (w > h) {
-              h = h * (maxDim / w);
-              w = maxDim;
-            } else {
-              w = w * (maxDim / h);
-              h = maxDim;
+          const dimSteps = [maxDim, 1600, 1280, 1024].filter((d) => d > 0);
+          const qualitySteps = [quality, 0.8, 0.7, 0.6];
+          let dataUrl = this.encodeWithSize(img, dimSteps[0], qualitySteps[0]);
+          for (const dim of dimSteps) {
+            for (const q of qualitySteps) {
+              dataUrl = this.encodeWithSize(img, dim, q);
+              if (dataUrl.length <= maxBytes) break;
             }
+            if (dataUrl.length <= maxBytes) break;
           }
-          const canvas = document.createElement('canvas');
-          canvas.width = w;
-          canvas.height = h;
-          const ctx = canvas.getContext('2d')!;
-          ctx.drawImage(img, 0, 0, w, h);
-          resolve(canvas.toDataURL('image/jpeg', quality));
+          resolve(dataUrl);
         };
         img.onerror = reject;
         img.src = reader.result as string;
@@ -43,6 +42,32 @@ export class ImageService {
       reader.onerror = reject;
       reader.readAsDataURL(file);
     });
+  }
+
+  private encodeWithSize(
+    img: HTMLImageElement,
+    maxDim: number,
+    quality: number,
+  ): string {
+    let w = img.width;
+    let h = img.height;
+    if (w > maxDim || h > maxDim) {
+      if (w > h) {
+        h = h * (maxDim / w);
+        w = maxDim;
+      } else {
+        w = w * (maxDim / h);
+        h = maxDim;
+      }
+    }
+    w = Math.round(w);
+    h = Math.round(h);
+    const canvas = document.createElement('canvas');
+    canvas.width = w;
+    canvas.height = h;
+    const ctx = canvas.getContext('2d')!;
+    ctx.drawImage(img, 0, 0, w, h);
+    return canvas.toDataURL('image/jpeg', quality);
   }
 
   async saveSubmissionImage(

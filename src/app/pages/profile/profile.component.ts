@@ -298,6 +298,7 @@ import { UserProfile } from '../../models';
             <a class="nav-item" routerLink="/teacher/assignments">Bài tập</a>
             <a class="nav-item" routerLink="/teacher/discussions">Thảo luận</a>
             <a class="nav-item" routerLink="/teacher/statistics">Thống kê</a>
+            <a class="nav-item" routerLink="/teacher/profile">Hồ sơ</a>
           </nav>
           <div class="sidebar-footer">
             <div class="user-info">

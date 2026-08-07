@@ -20,6 +20,22 @@ export const routes: Routes = [
     loadComponent: () => import('./pages/auth/student-login.component').then(m => m.StudentLoginComponent)
   },
   {
+    path: 'privacy-policy',
+    loadComponent: () => import('./pages/auth/legal-pages.component').then(m => m.LegalPagesComponent)
+  },
+  {
+    path: 'terms-of-service',
+    loadComponent: () => import('./pages/auth/legal-pages.component').then(m => m.LegalPagesComponent)
+  },
+  {
+    path: 'acceptable-use-policy',
+    loadComponent: () => import('./pages/auth/legal-pages.component').then(m => m.LegalPagesComponent)
+  },
+  {
+    path: 'contact',
+    loadComponent: () => import('./pages/auth/legal-pages.component').then(m => m.LegalPagesComponent)
+  },
+  {
     path: 'teacher',
     canActivate: [AuthGuard],
     data: { role: 'teacher' },
