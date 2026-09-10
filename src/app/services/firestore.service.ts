@@ -13,11 +13,13 @@ import {
   query,
   where,
   orderBy,
+  limit,
   addDoc,
   Timestamp,
+  writeBatch,
 } from '@angular/fire/firestore';
 import { from, Observable } from 'rxjs';
-import { map } from 'rxjs/operators';
+import { map, shareReplay } from 'rxjs/operators';
 import { ImageService } from './image.service';
 import {
   SchoolClass,
@@ -39,22 +41,50 @@ export class FirestoreService {
   private firestore = inject(Firestore);
   private imageService = inject(ImageService);
 
+  // Memory cache for reference data
+  private classesCache$: Observable<SchoolClass[]> | null = null;
+  private groupsCache$: Observable<Group[]> | null = null;
+  private classesCacheTime = 0;
+  private groupsCacheTime = 0;
+  private readonly CACHE_TTL = 60 * 1000; // 60 seconds
+
   // ==================== CLASSES ====================
   getClasses(
     source: 'default' | 'server' | 'cache' = 'default',
   ): Observable<SchoolClass[]> {
+    // For 'server' source, bypass cache
+    if (source === 'server') {
+      const ref = collection(this.firestore, 'classes');
+      return from(getDocsFromServer(ref)).pipe(
+        map((snap) =>
+          snap.docs.map((d) => ({ id: d.id, ...d.data() }) as SchoolClass),
+        ),
+      );
+    }
+
+    // Use cache if valid
+    const now = Date.now();
+    if (this.classesCache$ && (now - this.classesCacheTime) < this.CACHE_TTL && source !== 'cache') {
+      return this.classesCache$;
+    }
+
     const ref = collection(this.firestore, 'classes');
-    const fetcher =
-      source === 'server'
-        ? getDocsFromServer
-        : source === 'cache'
-          ? getDocsFromCache
-          : getDocs;
-    return from(fetcher(ref)).pipe(
+    const fetcher = source === 'cache' ? getDocsFromCache : getDocs;
+    
+    const observable = from(fetcher(ref)).pipe(
       map((snap) =>
         snap.docs.map((d) => ({ id: d.id, ...d.data() }) as SchoolClass),
       ),
+      shareReplay(1)
     );
+
+    // Cache the observable
+    if (source === 'default') {
+      this.classesCache$ = observable;
+      this.classesCacheTime = now;
+    }
+
+    return observable;
   }
 
   async createClass(data: Partial<SchoolClass>): Promise<string> {
@@ -219,9 +249,20 @@ export class FirestoreService {
   }
 
   getAllGroups(): Observable<Group[]> {
-    return from(getDocs(collection(this.firestore, 'groups'))).pipe(
+    // Use cache if valid
+    const now = Date.now();
+    if (this.groupsCache$ && (now - this.groupsCacheTime) < this.CACHE_TTL) {
+      return this.groupsCache$;
+    }
+
+    const observable = from(getDocs(collection(this.firestore, 'groups'))).pipe(
       map((snap) => snap.docs.map((d) => ({ id: d.id, ...d.data() }) as Group)),
+      shareReplay(1)
     );
+
+    this.groupsCache$ = observable;
+    this.groupsCacheTime = now;
+    return observable;
   }
 
   async createGroup(data: Partial<Group>): Promise<string> {
@@ -370,6 +411,105 @@ export class FirestoreService {
         snap.docs.map((d) => ({ id: d.id, ...d.data() }) as Submission),
       ),
     );
+  }
+
+  // ==================== BATCH QUERIES (Optimization for N+1) ====================
+  
+  // Batch query: Get all submissions for a student (replaces per-assignment queries)
+  getSubmissionsByStudent(studentId: string): Observable<Submission[]> {
+    const ref = query(
+      collection(this.firestore, 'submissions'),
+      where('studentId', '==', studentId),
+    );
+    return from(getDocs(ref)).pipe(
+      map((snap) =>
+        snap.docs.map((d) => ({ id: d.id, ...d.data() }) as Submission),
+      ),
+    );
+  }
+
+  // Batch query: Get all grades for a student (replaces per-submission queries)
+  getGradesByStudent(studentId: string): Observable<Grade[]> {
+    const ref = query(
+      collection(this.firestore, 'grades'),
+      where('studentId', '==', studentId),
+    );
+    return from(getDocs(ref)).pipe(
+      map((snap) => snap.docs.map((d) => ({ id: d.id, ...d.data() }) as Grade)),
+    );
+  }
+
+  // Batch query: Get grades for multiple submissions in one query
+  getGradesBySubmissionIds(submissionIds: string[]): Observable<Grade[]> {
+    // Firestore supports up to 30 values in 'in' clause
+    const chunks = this.chunkArray(submissionIds, 30);
+    
+    return from(Promise.all(chunks.map(chunk => {
+      const ref = query(
+        collection(this.firestore, 'grades'),
+        where('submissionId', 'in', chunk)
+      );
+      return getDocs(ref);
+    }))).pipe(
+      map((snapshots) => {
+        const grades: Grade[] = [];
+        snapshots.forEach(snap => {
+          grades.push(...snap.docs.map(d => ({ id: d.id, ...d.data() }) as Grade));
+        });
+        return grades;
+      })
+    );
+  }
+
+  // Batch query: Get replies for multiple discussions
+  getRepliesByDiscussionIds(discussionIds: string[]): Observable<DiscussionReply[]> {
+    const chunks = this.chunkArray(discussionIds, 30);
+    
+    return from(Promise.all(chunks.map(chunk => {
+      const ref = query(
+        collection(this.firestore, 'discussionReplies'),
+        where('discussionId', 'in', chunk)
+      );
+      return getDocs(ref);
+    }))).pipe(
+      map((snapshots) => {
+        const replies: DiscussionReply[] = [];
+        snapshots.forEach(snap => {
+          replies.push(...snap.docs.map(d => ({ id: d.id, ...d.data() }) as DiscussionReply));
+        });
+        return replies;
+      })
+    );
+  }
+
+  // Batch query: Get users by IDs (for avatars in discussions/results)
+  getUsersByIds(userIds: string[], type: 'teachers' | 'students'): Observable<any[]> {
+    const chunks = this.chunkArray(userIds, 30);
+    
+    return from(Promise.all(chunks.map(chunk => {
+      const ref = query(
+        collection(this.firestore, type),
+        where('__name__', 'in', chunk)
+      );
+      return getDocs(ref);
+    }))).pipe(
+      map((snapshots) => {
+        const users: any[] = [];
+        snapshots.forEach(snap => {
+          users.push(...snap.docs.map(d => ({ id: d.id, ...d.data() })));
+        });
+        return users;
+      })
+    );
+  }
+
+  // Helper: Chunk array for Firestore 'in' clause limit
+  private chunkArray<T>(array: T[], size: number): T[][] {
+    const chunks: T[][] = [];
+    for (let i = 0; i < array.length; i += size) {
+      chunks.push(array.slice(i, i + size));
+    }
+    return chunks;
   }
 
   getSubmissionByStudentAndAssignment(
@@ -552,22 +692,56 @@ export class FirestoreService {
     );
   }
 
-  async createOrUpdateGrade(data: Partial<Grade>): Promise<void> {
-    const existing = query(
-      collection(this.firestore, 'grades'),
-      where('submissionId', '==', data.submissionId),
+  // Batch query: Get grades for multiple assignments in one query
+  getGradesByAssignmentIds(assignmentIds: string[]): Observable<Grade[]> {
+    const chunks = this.chunkArray(assignmentIds, 30);
+    return from(Promise.all(chunks.map(chunk => {
+      const ref = query(
+        collection(this.firestore, 'grades'),
+        where('assignmentId', 'in', chunk)
+      );
+      return getDocs(ref);
+    }))).pipe(
+      map((snapshots) => {
+        const grades: Grade[] = [];
+        snapshots.forEach(snap => {
+          grades.push(...snap.docs.map(d => ({ id: d.id, ...d.data() }) as Grade));
+        });
+        return grades;
+      })
     );
-    const snap = await getDocs(existing);
-    if (!snap.empty) {
+  }
+
+  async createOrUpdateGrade(data: Partial<Grade>): Promise<void> {
+    let existing;
+    if (data.submissionId) {
+      existing = query(
+        collection(this.firestore, 'grades'),
+        where('submissionId', '==', data.submissionId),
+      );
+    } else if (data.studentId && data.assignmentId) {
+      existing = query(
+        collection(this.firestore, 'grades'),
+        where('studentId', '==', data.studentId),
+        where('assignmentId', '==', data.assignmentId),
+      );
+    }
+    let snap;
+    if (existing) {
+      snap = await getDocs(existing);
+    } else {
+      snap = { empty: true } as any;
+    }
+    if (snap.empty) {
+      await addDoc(collection(this.firestore, 'grades'), {
+        ...data,
+        gradedAt: new Date().toISOString(),
+      });
+    } else {
       await updateDoc(doc(this.firestore, 'grades', snap.docs[0].id), {
         scoreValue: data.scoreValue,
         comment: data.comment,
         gradedBy: data.gradedBy,
-        gradedAt: new Date().toISOString(),
-      });
-    } else {
-      await addDoc(collection(this.firestore, 'grades'), {
-        ...data,
         gradedAt: new Date().toISOString(),
       });
     }
@@ -703,6 +877,7 @@ export class FirestoreService {
       collection(this.firestore, 'teacherNotifications'),
       where('teacherId', '==', teacherId),
       orderBy('createdAt', 'desc'),
+      limit(50),
     );
     return from(getDocs(ref)).pipe(
       map((snap) =>
@@ -717,6 +892,23 @@ export class FirestoreService {
     await updateDoc(doc(this.firestore, 'teacherNotifications', id), {
       isRead: true,
     });
+  }
+
+  async markAllNotificationsRead(teacherId: string): Promise<void> {
+    const ref = query(
+      collection(this.firestore, 'teacherNotifications'),
+      where('teacherId', '==', teacherId),
+      where('isRead', '==', false),
+      limit(400),
+    );
+    const snap = await getDocs(ref);
+    if (snap.empty) return;
+
+    const batch = writeBatch(this.firestore);
+    snap.docs.forEach((d) => {
+      batch.update(d.ref, { isRead: true });
+    });
+    await batch.commit();
   }
 
   async updateCommentReactions(
@@ -749,6 +941,7 @@ export class FirestoreService {
       collection(this.firestore, 'discussions'),
       where('groupId', '==', groupId),
       orderBy('createdAt', 'desc'),
+      limit(50),
     );
     return from(getDocs(ref)).pipe(
       map((snap) =>
@@ -816,14 +1009,15 @@ export class FirestoreService {
     );
   }
 
-  async addReply(data: Partial<DiscussionReply>): Promise<string> {
+  async addReply(data: Partial<DiscussionReply>): Promise<DiscussionReply> {
+    const createdAt = new Date().toISOString();
     const ref = await addDoc(collection(this.firestore, 'discussionReplies'), {
       ...data,
-      createdAt: new Date().toISOString(),
+      createdAt,
     });
     if (data.discussionId) {
       await updateDoc(doc(this.firestore, 'discussions', data.discussionId), {
-        lastReplyAt: new Date().toISOString(),
+        lastReplyAt: createdAt,
       });
       await this.notifyTeachersDiscussionReply(
         data.discussionId,
@@ -833,7 +1027,16 @@ export class FirestoreService {
         data.authorId,
       );
     }
-    return ref.id;
+    return {
+      id: ref.id,
+      discussionId: data.discussionId || '',
+      authorId: data.authorId || '',
+      authorName: data.authorName || '',
+      authorAvatarUrl: data.authorAvatarUrl || '',
+      content: data.content || '',
+      imageUrl: data.imageUrl || '',
+      createdAt,
+    } as DiscussionReply;
   }
 
   private async notifyTeachersDiscussionReply(
@@ -867,6 +1070,7 @@ export class FirestoreService {
       collection(this.firestore, 'permissions'),
       where('ownerId', '==', ownerId),
       orderBy('createdAt', 'desc'),
+      limit(50),
     );
     return from(getDocs(ref)).pipe(
       map((snap) =>
@@ -880,6 +1084,7 @@ export class FirestoreService {
       collection(this.firestore, 'permissions'),
       where('requesterId', '==', requesterId),
       orderBy('createdAt', 'desc'),
+      limit(50),
     );
     return from(getDocs(ref)).pipe(
       map((snap) =>

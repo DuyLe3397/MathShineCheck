@@ -246,6 +246,97 @@ interface ScoreRow {
         padding: 2rem;
         color: #64748b;
       }
+
+      .filter-card {
+        margin: 1rem 1rem 0;
+        background: #fff;
+        border-radius: 12px;
+        padding: 0.85rem 1rem;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+      }
+
+      .filter-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 0.6rem;
+      }
+
+      .filter-title {
+        font-size: 0.85rem;
+        font-weight: 600;
+        color: #334155;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+      }
+
+      .filter-icon {
+        width: 16px;
+        height: 16px;
+        stroke: #2563eb;
+      }
+
+      .clear-filter-btn {
+        background: #fee2e2;
+        color: #dc2626;
+        border: none;
+        border-radius: 6px;
+        padding: 3px 8px;
+        font-size: 0.72rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.15s;
+      }
+
+      .clear-filter-btn:hover {
+        background: #fca5a5;
+      }
+
+      .filter-inputs {
+        display: flex;
+        gap: 12px;
+        flex-wrap: wrap;
+      }
+
+      .filter-group {
+        flex: 1;
+        min-width: 130px;
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+      }
+
+      .filter-group label {
+        font-size: 0.75rem;
+        color: #64748b;
+        font-weight: 500;
+      }
+
+      .date-input {
+        padding: 6px 10px;
+        border: 1px solid #cbd5e1;
+        border-radius: 6px;
+        font-size: 0.82rem;
+        color: #1e293b;
+        outline: none;
+        background: #f8fafc;
+        transition: border-color 0.15s;
+      }
+
+      .date-input:focus {
+        border-color: #2563eb;
+        background: #fff;
+        box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.15);
+      }
+
+      .empty-filter-msg {
+        padding: 2rem 1rem;
+        text-align: center;
+        color: #64748b;
+        font-size: 0.85rem;
+        font-style: italic;
+      }
     `,
   ],
   template: `
@@ -259,77 +350,132 @@ interface ScoreRow {
     }
 
     @if (!loading()) {
-      <div class="table-wrapper">
-        @if (totalPages > 1) {
-          <div class="table-nav">
-            <button
-              class="nav-btn"
-              (click)="prevPage()"
-              [disabled]="currentPage() === 0"
+      <div class="filter-card">
+        <div class="filter-header">
+          <div class="filter-title">
+            <svg
+              class="filter-icon"
+              xmlns="http://www.w3.org/2000/svg"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
             >
-              ‹
-            </button>
-            <span class="nav-indicator"
-              >{{ currentPage() + 1 }} / {{ totalPages }}</span
-            >
-            <button
-              class="nav-btn"
-              (click)="nextPage()"
-              [disabled]="currentPage() >= totalPages - 1"
-            >
-              ›
-            </button>
+              <polygon
+                points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"
+              ></polygon>
+            </svg>
+            <span>Lọc theo thời gian</span>
           </div>
-        }
-        <div class="table-scroll">
-          <table>
-            <thead>
-              <tr>
-                <th class="stt">STT</th>
-                <th class="name-cell">Họ tên</th>
-                @for (a of paginatedAssignments(); track a.id) {
-                  <th>{{ a.title }}</th>
-                }
-              </tr>
-            </thead>
-            <tbody>
-              @for (row of rows(); track row.studentId; let idx = $index) {
+          @if (fromDate() || toDate()) {
+            <button class="clear-filter-btn" (click)="clearFilter()">
+              ✕ Xóa lọc
+            </button>
+          }
+        </div>
+        <div class="filter-inputs">
+          <div class="filter-group">
+            <label for="fromDate">Từ ngày</label>
+            <input
+              id="fromDate"
+              type="date"
+              [ngModel]="fromDate()"
+              (ngModelChange)="onFromDateChange($event)"
+              class="date-input"
+            />
+          </div>
+          <div class="filter-group">
+            <label for="toDate">Đến ngày</label>
+            <input
+              id="toDate"
+              type="date"
+              [ngModel]="toDate()"
+              (ngModelChange)="onToDateChange($event)"
+              class="date-input"
+            />
+          </div>
+        </div>
+      </div>
+
+      <div class="table-wrapper">
+        @if (getFilteredAssignments().length === 0) {
+          <div class="empty-filter-msg">
+            Không có bài tập nào trong khoảng thời gian đã chọn.
+          </div>
+        } @else {
+          @if (totalPages > 1) {
+            <div class="table-nav">
+              <button
+                class="nav-btn"
+                (click)="prevPage()"
+                [disabled]="currentPage() === 0"
+              >
+                ‹
+              </button>
+              <span class="nav-indicator"
+                >{{ currentPage() + 1 }} / {{ totalPages }}</span
+              >
+              <button
+                class="nav-btn"
+                (click)="nextPage()"
+                [disabled]="currentPage() >= totalPages - 1"
+              >
+                ›
+              </button>
+            </div>
+          }
+          <div class="table-scroll">
+            <table>
+              <thead>
                 <tr>
-                  <td class="stt">{{ idx + 1 }}</td>
-                  <td class="name-cell">{{ row.fullName }}</td>
+                  <th class="stt">STT</th>
+                  <th class="name-cell">Họ tên</th>
                   @for (a of paginatedAssignments(); track a.id) {
-                    <td class="score-cell">
-                      @if (row.scores.has(a.id)) {
-                        {{ row.scores.get(a.id)?.score }}
-                      } @else {
-                        @if (row.studentId !== currentUid && canRequest(a.id)) {
-                          <button
-                            class="request-btn"
-                            [class.sent]="
-                              sentRequestMap()[a.id + '_' + row.studentId]
-                            "
-                            [disabled]="
-                              sentRequestMap()[a.id + '_' + row.studentId]
-                            "
-                            (click)="requestView(a.id, row.studentId)"
-                          >
-                            {{
-                              sentRequestMap()[a.id + '_' + row.studentId]
-                                ? 'Đã gửi'
-                                : 'Xin xem bài'
-                            }}
-                          </button>
-                        } @else {
-                          <span class="no-score">-</span>
-                        }
-                      }
-                    </td>
+                    <th>{{ a.title }}</th>
                   }
                 </tr>
-              }
-            </tbody>
-          </table>
-        </div>
+              </thead>
+              <tbody>
+                @for (row of rows(); track row.studentId; let idx = $index) {
+                  <tr>
+                    <td class="stt">{{ idx + 1 }}</td>
+                    <td class="name-cell">{{ row.fullName }}</td>
+                    @for (a of paginatedAssignments(); track a.id) {
+                      <td class="score-cell">
+                        @if (row.scores.has(a.id)) {
+                          {{ row.scores.get(a.id)?.score }}
+                        } @else {
+                          @if (row.studentId !== currentUid && canRequest(a.id)) {
+                            <button
+                              class="request-btn"
+                              [class.sent]="
+                                sentRequestMap()[a.id + '_' + row.studentId]
+                              "
+                              [disabled]="
+                                sentRequestMap()[a.id + '_' + row.studentId]
+                              "
+                              (click)="requestView(a.id, row.studentId)"
+                            >
+                              {{
+                                sentRequestMap()[a.id + '_' + row.studentId]
+                                  ? 'Đã gửi'
+                                  : 'Xin xem bài'
+                              }}
+                            </button>
+                          } @else {
+                            <span class="no-score">-</span>
+                          }
+                        }
+                      </td>
+                    }
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        }
       </div>
 
       @if (myPermissions().length > 0) {
@@ -378,6 +524,8 @@ export class ScoreboardComponent implements OnInit {
   pageSize = signal(3);
   totalPages = 0;
   paginatedAssignments = signal<Assignment[]>([]);
+  fromDate = signal<string>('');
+  toDate = signal<string>('');
 
   ngOnInit(): void {
     this.notificationService.markTabVisited('scoreboard');
@@ -419,48 +567,33 @@ export class ScoreboardComponent implements OnInit {
   }
 
   private loadGrades(assignments: Assignment[]): void {
-    const allGrades: Grade[] = [];
-    let completed = 0;
-
     if (assignments.length === 0) {
       this.grades.set([]);
       this.buildRows();
       return;
     }
 
-    assignments.forEach((a) => {
-      this.firestoreService.getGradesByAssignment(a.id).subscribe((grades) => {
-        allGrades.push(...grades);
-        completed++;
-        if (completed === assignments.length) {
-          this.grades.set(allGrades);
-          this.loadMySubmissions(assignments);
-        }
+    // Batch query: get all grades for all assignments in one query
+    const assignmentIds = assignments.map((a) => a.id);
+    this.firestoreService
+      .getGradesByAssignmentIds(assignmentIds)
+      .subscribe((allGrades) => {
+        this.grades.set(allGrades);
+        this.loadMySubmissions();
       });
-    });
   }
 
-  private loadMySubmissions(assignments: Assignment[]): void {
-    const allSubs: Submission[] = [];
-    let completed = 0;
-
-    if (assignments.length === 0) {
-      this.mySubmissions.set([]);
-      this.buildRows();
-      return;
-    }
-
-    assignments.forEach((a) => {
-      this.firestoreService
-        .getSubmissionByStudentAndAssignment(this.currentUid, a.id)
-        .subscribe((sub) => {
-          if (sub) allSubs.push(sub);
-          completed++;
-          if (completed === assignments.length) {
-            this.mySubmissions.set(allSubs);
-            this.buildRows();
-          }
-        });
+  private loadMySubmissions(): void {
+    // Single query: get all my submissions instead of one per assignment
+    this.firestoreService.getSubmissionsByStudent(this.currentUid).subscribe({
+      next: (subs) => {
+        this.mySubmissions.set(subs);
+        this.buildRows();
+      },
+      error: () => {
+        this.mySubmissions.set([]);
+        this.buildRows();
+      },
     });
   }
 
@@ -540,8 +673,45 @@ export class ScoreboardComponent implements OnInit {
     this.updatePaginated();
   }
 
+  getFilteredAssignments(): Assignment[] {
+    const all = this.assignments();
+    const from = this.fromDate();
+    const to = this.toDate();
+
+    if (!from && !to) return all;
+
+    return all.filter((a) => {
+      const rawDate = a.sessionDate || a.createdAt || '';
+      const dateStr = rawDate.substring(0, 10);
+      if (!dateStr) return true;
+
+      if (from && dateStr < from) return false;
+      if (to && dateStr > to) return false;
+      return true;
+    });
+  }
+
+  onFromDateChange(val: string): void {
+    this.fromDate.set(val);
+    this.currentPage.set(0);
+    this.updatePaginated();
+  }
+
+  onToDateChange(val: string): void {
+    this.toDate.set(val);
+    this.currentPage.set(0);
+    this.updatePaginated();
+  }
+
+  clearFilter(): void {
+    this.fromDate.set('');
+    this.toDate.set('');
+    this.currentPage.set(0);
+    this.updatePaginated();
+  }
+
   private updatePaginated(): void {
-    const ass = this.assignments();
+    const ass = this.getFilteredAssignments();
     this.totalPages = Math.max(1, Math.ceil(ass.length / this.pageSize()));
     if (this.currentPage() >= this.totalPages) {
       this.currentPage.set(0);

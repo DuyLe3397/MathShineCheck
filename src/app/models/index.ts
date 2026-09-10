@@ -13,6 +13,7 @@ export interface Student {
   groupId: string;
   username: string;
   phone?: string;
+  avatarUrl?: string;
   mustChangePassword: boolean;
   createdAt: string;
   lastHomeSeenAt?: string;

@@ -593,6 +593,10 @@ import { Submission, Grade, SubmissionComment } from '../../models';
         top: 50%;
         left: 50%;
         transform: translate(-50%, -50%);
+        /* Bắt buộc để bút điện tử / cảm ứng không bị trình duyệt
+           cướp thao tác (cuộn trang, zoom, pan) trước khi tới canvas */
+        touch-action: none;
+        -ms-touch-action: none;
       }
       .draw-toolbar .btn-close-draw {
         margin-left: auto;
@@ -619,7 +623,7 @@ import { Submission, Grade, SubmissionComment } from '../../models';
       <a class="profile-link" routerLink="/teacher/profile">Hồ sơ</a>
     </div>
 
-    <div class="container" *ngIf="!loading && submission">
+    <div class="container" *ngIf="!loading">
       <div class="nav-bar">
         <button
           class="nav-btn"
@@ -659,7 +663,13 @@ import { Submission, Grade, SubmissionComment } from '../../models';
             />
           </label>
         </div>
-        <img [src]="currentImageUrl" alt="Bài làm" />
+        @if (submission && submission.imageIds && submission.imageIds.length > 0) {
+          <img [src]="currentImageUrl" alt="Bài làm" />
+        } @else {
+          <div style="background: #fff; height: 300px; display: flex; align-items: center; justify-content: center;">
+            <span style="color: #94a3b8; font-size: 0.9rem;">Không có ảnh bài làm</span>
+          </div>
+        }
       </div>
 
       <div
@@ -916,7 +926,8 @@ export class GradingComponent implements OnInit {
 
   scoreValue: number | null = null;
   overallComment = '';
-  studentName = '';
+studentName = '';
+  studentId = '';
   currentImageUrl = '';
 
   imageComments = signal<SubmissionComment[]>([]);
@@ -941,6 +952,7 @@ export class GradingComponent implements OnInit {
   private isDrawing = false;
   private lastPoint: { x: number; y: number } | null = null;
   private lastMid: { x: number; y: number } | null = null;
+  private activePointerId: number | null = null;
   private undoStack: ImageData[] = [];
   private redoStack: ImageData[] = [];
   canUndo = signal(false);
@@ -968,6 +980,13 @@ export class GradingComponent implements OnInit {
     );
     if (!submission) {
       this.loading = false;
+      this.submission = null;
+      this.totalPages = 0;
+      this.currentPage = 0;
+      this.studentName = '';
+      this.scoreValue = null;
+      this.overallComment = '';
+      this.studentId = this.submissionId;
       return;
     }
     this.submission = submission;
@@ -1104,11 +1123,22 @@ export class GradingComponent implements OnInit {
     img.src = this.currentImageUrl;
   }
 
+  /**
+   * Dùng Pointer Events (thay vì Mouse Events + Touch Events tách rời) để hỗ trợ
+   * đồng thời chuột, cảm ứng và đặc biệt là bút điện tử (XPPen, Wacom, Huion...).
+   * - pointerdown/pointermove/pointerup xử lý được cả 3 loại thiết bị trong 1 luồng.
+   * - setPointerCapture giữ nét vẽ liên tục dù bút di chuyển nhanh ra khỏi canvas.
+   * - e.pressure (0..1, mặc định 0.5 với chuột) dùng để mô phỏng nét đậm/nhạt
+   *   theo lực nhấn bút thật.
+   */
   private setupDrawEvents(): void {
     const canvas = this.drawCanvasRef.nativeElement;
     if (!canvas) return;
 
-    const getPos = (e: MouseEvent | Touch) => {
+    // Đảm bảo trình duyệt không tự ý cuộn/zoom khi nhận thao tác từ bút/ngón tay
+    canvas.style.touchAction = 'none';
+
+    const getPos = (e: PointerEvent) => {
       const rect = canvas.getBoundingClientRect();
       return {
         x: ((e.clientX - rect.left) * canvas.width) / rect.width,
@@ -1116,12 +1146,27 @@ export class GradingComponent implements OnInit {
       };
     };
 
-    const startDraw = (pos: { x: number; y: number }) => {
+    // Áp lực bút: mặc định 0.5 cho chuột (không hỗ trợ áp lực).
+    // Với bút điện tử, giá trị chạy từ ~0 (chạm nhẹ) đến 1 (nhấn mạnh).
+    const pressureWidth = (basePx: number, pressure: number) => {
+      const p = pressure && pressure > 0 ? pressure : 0.5;
+      const factor = 0.5 + p; // dao động trong khoảng ~0.5x - 1.5x nét gốc
+      return Math.max(0.5, basePx * factor);
+    };
+
+    const startDraw = (e: PointerEvent) => {
+      // Nếu đang có 1 pointer khác đang vẽ (vd 2 ngón chạm nhầm) thì bỏ qua
+      if (this.activePointerId !== null) return;
+
+      const pos = getPos(e);
+      this.activePointerId = e.pointerId;
+      canvas.setPointerCapture(e.pointerId);
+
       this.isDrawing = true;
       this.lastPoint = pos;
       this.lastMid = pos;
+
       if (this.ctx) {
-        const canvas = this.drawCanvasRef.nativeElement;
         this.undoStack.push(
           this.ctx.getImageData(0, 0, canvas.width, canvas.height),
         );
@@ -1129,18 +1174,42 @@ export class GradingComponent implements OnInit {
         this.canUndo.set(this.undoStack.length > 0);
         this.redoStack = [];
         this.canRedo.set(false);
+
+        const baseWidth = this.drawSize;
+        const width =
+          e.pointerType === 'pen'
+            ? pressureWidth(baseWidth, e.pressure)
+            : baseWidth;
+        this.ctx.lineWidth = width;
+
         this.ctx.beginPath();
-        this.ctx.arc(pos.x, pos.y, this.ctx.lineWidth / 2, 0, Math.PI * 2);
+        this.ctx.arc(pos.x, pos.y, width / 2, 0, Math.PI * 2);
         this.ctx.fill();
       }
     };
-    const moveDraw = (pos: { x: number; y: number }) => {
-      if (!this.isDrawing || !this.ctx || !this.lastPoint || !this.lastMid)
+
+    const moveDraw = (e: PointerEvent) => {
+      if (
+        !this.isDrawing ||
+        !this.ctx ||
+        !this.lastPoint ||
+        !this.lastMid ||
+        e.pointerId !== this.activePointerId
+      )
         return;
+
+      const pos = getPos(e);
       const newMid = {
         x: (this.lastPoint.x + pos.x) / 2,
         y: (this.lastPoint.y + pos.y) / 2,
       };
+
+      const baseWidth = this.drawSize;
+      this.ctx.lineWidth =
+        e.pointerType === 'pen'
+          ? pressureWidth(baseWidth, e.pressure)
+          : baseWidth;
+
       this.ctx.beginPath();
       this.ctx.moveTo(this.lastMid.x, this.lastMid.y);
       this.ctx.quadraticCurveTo(
@@ -1153,26 +1222,49 @@ export class GradingComponent implements OnInit {
       this.lastPoint = pos;
       this.lastMid = newMid;
     };
-    const endDraw = () => {
+
+    const endDraw = (e: PointerEvent) => {
+      if (e.pointerId !== this.activePointerId) return;
+      try {
+        canvas.releasePointerCapture(e.pointerId);
+      } catch {}
+      this.activePointerId = null;
       this.isDrawing = false;
       this.lastPoint = null;
       this.lastMid = null;
     };
 
-    canvas.onmousedown = (e) => startDraw(getPos(e));
-    canvas.onmousemove = (e) => moveDraw(getPos(e));
-    canvas.onmouseup = endDraw;
-    canvas.onmouseleave = endDraw;
+    // Gỡ các listener cũ (nếu init lại canvas do xoay ảnh, đổi trang, v.v.)
+    canvas.onpointerdown = null;
+    canvas.onpointermove = null;
+    canvas.onpointerup = null;
+    canvas.onpointercancel = null;
+    canvas.onpointerleave = null;
+    canvas.onmousedown = null;
+    canvas.onmousemove = null;
+    canvas.onmouseup = null;
+    canvas.onmouseleave = null;
+    canvas.ontouchstart = null;
+    canvas.ontouchmove = null;
+    canvas.ontouchend = null;
 
-    canvas.ontouchstart = (e) => {
+    canvas.addEventListener('pointerdown', (e: PointerEvent) => {
       e.preventDefault();
-      startDraw(getPos(e.touches[0]));
-    };
-    canvas.ontouchmove = (e) => {
+      startDraw(e);
+    });
+    canvas.addEventListener('pointermove', (e: PointerEvent) => {
       e.preventDefault();
-      moveDraw(getPos(e.touches[0]));
-    };
-    canvas.ontouchend = endDraw;
+      moveDraw(e);
+    });
+    canvas.addEventListener('pointerup', (e: PointerEvent) => {
+      e.preventDefault();
+      endDraw(e);
+    });
+    canvas.addEventListener('pointercancel', (e: PointerEvent) => {
+      endDraw(e);
+    });
+    // Không kết thúc nét khi con trỏ chỉ rời khỏi canvas trong lúc capture,
+    // vì setPointerCapture đã đảm bảo move/up vẫn được nhận đúng pointer.
   }
 
   updateBrush(): void {
@@ -1353,28 +1445,32 @@ export class GradingComponent implements OnInit {
   }
 
   async saveGrade(): Promise<void> {
-    if (
-      !this.submission ||
-      this.scoreValue === null ||
-      this.scoreValue === undefined
-    )
-      return;
+    if (this.scoreValue === null || this.scoreValue === undefined) return;
     this.saving = true;
 
     try {
       const profile = this.authService.currentProfile;
-      await this.firestoreService.createOrUpdateGrade({
-        submissionId: this.submission.id!,
-        studentId: this.submission.studentId,
-        assignmentId: this.submission.assignmentId,
+      const gradeData: any = {
         scoreValue: this.scoreValue,
         comment: this.overallComment,
         gradedBy: profile?.uid || '',
-      });
-      await this.firestoreService.updateSubmissionStatus(
-        this.submissionId,
-        'graded',
-      );
+      };
+      if (this.submission?.studentId) {
+        gradeData.studentId = this.submission.studentId;
+      }
+      if (this.submission?.assignmentId) {
+        gradeData.assignmentId = this.submission.assignmentId;
+      }
+      if (this.submission?.id) {
+        gradeData.submissionId = this.submission.id;
+      }
+      await this.firestoreService.createOrUpdateGrade(gradeData);
+      if (this.submission) {
+        await this.firestoreService.updateSubmissionStatus(
+          this.submissionId,
+          'graded',
+        );
+      }
       this.showSuccess = true;
     } catch (err: any) {
       alert('Lỗi khi lưu: ' + (err.message || 'Không xác định'));

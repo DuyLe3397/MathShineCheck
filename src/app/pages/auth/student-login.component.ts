@@ -138,7 +138,7 @@ import { SchoolClass, Group } from '../../models';
             />
           </div>
           <div class="form-group">
-            <label for="phone">Số điện thoại</label>
+            <label for="phone">Số điện thoại học sinh</label>
             <input
               id="phone"
               name="phone"

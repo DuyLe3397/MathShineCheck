@@ -126,6 +126,36 @@ import { TeacherNotification } from '../../models';
         color: #94a3b8;
         margin-top: 4px;
       }
+      .notif-title {
+        font-size: 0.95rem;
+        font-weight: 700;
+        color: #1e293b;
+      }
+      .notif-clear-row {
+        margin-top: 10px;
+        display: flex;
+      }
+      .notif-clear-btn {
+        background: none;
+        border: 1px solid #e2e8f0;
+        border-radius: 6px;
+        padding: 4px 10px;
+        font-size: 0.75rem;
+        font-weight: 600;
+        color: #64748b;
+        cursor: pointer;
+        white-space: nowrap;
+        transition: all 0.15s;
+      }
+      .notif-clear-btn:hover {
+        background: #f1f5f9;
+        color: #dc2626;
+        border-color: #dc2626;
+      }
+      .notif-clear-btn:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+      }
     `,
   ],
   template: `
@@ -140,9 +170,22 @@ import { TeacherNotification } from '../../models';
       <div class="notif-overlay" (click)="closePopup()"></div>
       <div class="notif-popup">
         <div class="notif-header">
-          Lịch sử thông báo
+          <div class="notif-title">
+            Lịch sử thông báo
+            @if (unreadCount() > 0) {
+              <span class="notif-badge" style="margin-left:6px;">+{{ unreadCount() }} chưa đọc</span>
+            }
+          </div>
           @if (unreadCount() > 0) {
-            <span class="notif-badge" style="margin-left:6px;">+{{ unreadCount() }} chưa đọc</span>
+            <div class="notif-clear-row">
+              <button
+                class="notif-clear-btn"
+                (click)="clearAllRead()"
+                [disabled]="clearing()"
+              >
+                {{ clearing() ? 'Đang xử lý...' : 'Clear all' }}
+              </button>
+            </div>
           }
         </div>
         @if (notifications().length === 0) {
@@ -175,6 +218,7 @@ export class TeacherNotificationBellComponent implements OnInit {
 
   notifications = signal<TeacherNotification[]>([]);
   popupOpen = signal(false);
+  clearing = signal(false);
 
   unreadCount = signal(0);
 
@@ -193,6 +237,23 @@ export class TeacherNotificationBellComponent implements OnInit {
 
   closePopup(): void {
     this.popupOpen.set(false);
+  }
+
+  async clearAllRead(): Promise<void> {
+    const profile = this.authService.currentProfile;
+    if (!profile?.uid) return;
+    this.clearing.set(true);
+    try {
+      await this.firestoreService.markAllNotificationsRead(profile.uid);
+      this.notifications.update((list) =>
+        list.map((x) => ({ ...x, isRead: true })),
+      );
+      this.unreadCount.set(0);
+    } catch {
+      /* keep as is on error */
+    } finally {
+      this.clearing.set(false);
+    }
   }
 
   openNotification(n: TeacherNotification): void {

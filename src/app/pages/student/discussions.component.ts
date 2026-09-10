@@ -903,26 +903,35 @@ export class DiscussionsComponent implements OnInit {
   }
 
   private loadAllReplies(discussions: Discussion[]): void {
-    let completed = 0;
     const total = discussions.length;
-    if (total === 0) return;
-    discussions.forEach((d) => {
-      this.firestoreService.getRepliesByDiscussion(d.id).subscribe({
+    if (total === 0) {
+      this.loading.set(false);
+      return;
+    }
+    const discussionIds = discussions.map((d) => d.id);
+    // Batch query: get all replies for all discussions in one/few queries
+    this.firestoreService
+      .getRepliesByDiscussionIds(discussionIds)
+      .subscribe({
         next: (replies) => {
+          const repliesByDiscussion = new Map<string, DiscussionReply[]>();
+          replies.forEach((r) => {
+            const list = repliesByDiscussion.get(r.discussionId) || [];
+            list.push(r);
+            repliesByDiscussion.set(r.discussionId, list);
+          });
           this.discussions.update((current) =>
-            current.map((item) =>
-              item.id === d.id ? { ...item, replies } : item,
-            ),
+            current.map((item) => ({
+              ...item,
+              replies: repliesByDiscussion.get(item.id) || [],
+            })),
           );
-          completed++;
-          if (completed === total) this.loadAvatarForAuthors();
+          this.loadAvatarForAuthors();
         },
         error: () => {
-          completed++;
-          if (completed === total) this.loadAvatarForAuthors();
+          this.loading.set(false);
         },
       });
-    });
     this.loading.set(false);
   }
 
@@ -943,25 +952,54 @@ export class DiscussionsComponent implements OnInit {
         }
       });
     });
-    authorsToLoad.forEach((id) => this.loadAuthorAvatar(id));
+    if (authorsToLoad.size === 0) return;
+
+    const authorIds = Array.from(authorsToLoad);
+    // Batch query both collections, then fill cache
+    this.firestoreService
+      .getUsersByIds(authorIds, 'teachers')
+      .subscribe({
+        next: (teachers) => {
+          const teacherMap = new Map<string, any>();
+          teachers.forEach((t) => teacherMap.set(t.id, t));
+          const remaining = authorIds.filter((id) => !teacherMap.get(id)?.avatarUrl);
+          this.fillAvatarCache(teacherMap);
+          if (remaining.length > 0) {
+            this.firestoreService
+              .getUsersByIds(remaining, 'students')
+              .subscribe({
+                next: (students) => {
+                  const studentMap = new Map<string, any>();
+                  students.forEach((s) => studentMap.set(s.id, s));
+                  this.fillAvatarCache(studentMap);
+                  studentMap.forEach((_, id) => {
+                    if (!this.avatarCache()[id]) {
+                      this.avatarCache.update((m) => ({ ...m, [id]: '' }));
+                    }
+                  });
+                },
+                error: () => {
+                  remaining.forEach((id) =>
+                    this.avatarCache.update((m) => ({ ...m, [id]: '' })),
+                  );
+                },
+              });
+          }
+        },
+        error: () => {
+          authorIds.forEach((id) =>
+            this.avatarCache.update((m) => ({ ...m, [id]: '' })),
+          );
+        },
+      });
   }
 
-  private async loadAuthorAvatar(authorId: string): Promise<void> {
-    try {
-      const doc = await this.firestoreService.getDocById('teachers', authorId);
-      if (doc?.avatarUrl) {
-        this.avatarCache.update((m) => ({ ...m, [authorId]: doc.avatarUrl }));
-        return;
+  private fillAvatarCache(users: Map<string, any>): void {
+    users.forEach((user, id) => {
+      if (user?.avatarUrl) {
+        this.avatarCache.update((m) => ({ ...m, [id]: user.avatarUrl }));
       }
-    } catch {}
-    try {
-      const doc = await this.firestoreService.getDocById('students', authorId);
-      if (doc?.avatarUrl) {
-        this.avatarCache.update((m) => ({ ...m, [authorId]: doc.avatarUrl }));
-        return;
-      }
-    } catch {}
-    this.avatarCache.update((m) => ({ ...m, [authorId]: '' }));
+    });
   }
 
   toggleDiscussion(d: DiscussionWithReplies): void {
@@ -985,7 +1023,7 @@ export class DiscussionsComponent implements OnInit {
     if (!content && !imageUrl) return;
     const profile = this.authService.currentProfile;
 
-    await this.firestoreService.addReply({
+    const newReply = await this.firestoreService.addReply({
       discussionId: d.id,
       authorId: profile?.uid || '',
       authorName: profile?.fullName || 'Bạn',
@@ -997,12 +1035,14 @@ export class DiscussionsComponent implements OnInit {
     this.updateReplyText(d.id, '');
     this.clearReplyImage(d.id);
 
-    this.firestoreService.getRepliesByDiscussion(d.id).subscribe((replies) => {
-      this.discussions.update((current) =>
-        current.map((item) => (item.id === d.id ? { ...item, replies } : item)),
-      );
-      this.loadAvatarForAuthors();
-    });
+    // Update local state instead of re-querying
+    this.discussions.update((current) =>
+      current.map((item) =>
+        item.id === d.id
+          ? { ...item, replies: [...item.replies, newReply] }
+          : item,
+      ),
+    );
   }
 
   async createNewDiscussion(): Promise<void> {

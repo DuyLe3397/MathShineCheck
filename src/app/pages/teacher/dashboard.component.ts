@@ -359,136 +359,104 @@ export class TeacherDashboardComponent implements OnInit {
       .getAllGroups()
       .pipe(
         switchMap((groups) => {
-          if (groups.length === 0) return [];
+          if (groups.length === 0) {
+            this.totalStudents = 0;
+            this.pendingSubmissions = 0;
+            this.gradedToday = 0;
+            this.averageScore = 'N/A';
+            return [];
+          }
+          
+          // Get all students from all groups
           const studentObservables = groups.map((g) =>
             this.firestoreService.getStudentsByGroup(g.id),
           );
-          return forkJoin(studentObservables).pipe(
-            map((studentArrays) => {
+          
+          // Get all assignments from all groups
+          const assignmentObservables = groups.map((g) =>
+            this.firestoreService.getAssignmentsByGroup(g.id),
+          );
+          
+          return forkJoin([
+            forkJoin(studentObservables),
+            forkJoin(assignmentObservables)
+          ]).pipe(
+            switchMap(([studentArrays, assignmentArrays]) => {
               const allStudents = studentArrays.flat();
+              const allAssignments = assignmentArrays.flat();
+              
+              // Calculate total unique students
               const uniqueStudents = Array.from(
                 new Map(allStudents.map((s) => [s.uid, s])).values(),
               );
               this.totalStudents = uniqueStudents.length;
-
-              return groups;
+              
+              if (allAssignments.length === 0) {
+                this.pendingSubmissions = 0;
+                this.gradedToday = 0;
+                this.averageScore = 'N/A';
+                return [];
+              }
+              
+              // Get submissions and grades for all assignments in parallel
+              const submissionObservables = allAssignments.map((a) =>
+                this.firestoreService.getSubmissionsByAssignment(a.id),
+              );
+              
+              const gradeObservables = allAssignments.map((a) =>
+                this.firestoreService.getGradesByAssignment(a.id),
+              );
+              
+              return forkJoin([
+                forkJoin(submissionObservables),
+                forkJoin(gradeObservables)
+              ]);
             }),
+            map(([submissionArrays, gradeArrays]) => {
+              const allSubmissions = submissionArrays.flat();
+              const allGrades = gradeArrays.flat();
+              
+              // Calculate pending submissions
+              const pending = allSubmissions.filter(
+                (s) => s.status === 'submitted',
+              ).length;
+              this.pendingSubmissions = pending;
+              
+              // Calculate graded today
+              const today = new Date().toISOString().split('T')[0];
+              const graded = allGrades.filter(
+                (g) => g.gradedAt && g.gradedAt.startsWith(today),
+              ).length;
+              this.gradedToday = graded;
+              
+              // Calculate average score
+              if (allGrades.length === 0) {
+                this.averageScore = 'N/A';
+              } else {
+                const avg =
+                  allGrades.reduce((sum, g) => sum + (g.scoreValue || 0), 0) /
+                  allGrades.length;
+                this.averageScore = avg.toFixed(1);
+              }
+              
+              return null;
+            })
           );
-        }),
-        switchMap(() => {
-          return forkJoin([
-            this.loadPendingSubmissions(),
-            this.loadGradedToday(),
-            this.loadAverageScore(),
-          ]);
-        }),
+        })
       )
       .subscribe({
-        next: ([pending, graded, avg]) => {
-          this.pendingSubmissions = pending;
-          this.gradedToday = graded;
-          this.averageScore = avg;
+        next: () => {
+          // Stats are already calculated in the pipeline
+        },
+        error: () => {
+          this.pendingSubmissions = 0;
+          this.gradedToday = 0;
+          this.averageScore = 'N/A';
         },
       });
   }
 
-  private loadPendingSubmissions(): Promise<number> {
-    return new Promise((resolve) => {
-      this.firestoreService
-        .getAllGroups()
-        .pipe(
-          switchMap((groups) => {
-            if (groups.length === 0) return [];
-            const assignmentObservables = groups.map((g) =>
-              this.firestoreService.getAssignmentsByGroup(g.id),
-            );
-            return forkJoin(assignmentObservables);
-          }),
-          switchMap((assignmentArrays) => {
-            const allAssignments = assignmentArrays.flat();
-            if (allAssignments.length === 0) return [];
-            const submissionObservables = allAssignments.map((a) =>
-              this.firestoreService.getSubmissionsByAssignment(a.id),
-            );
-            return forkJoin(submissionObservables);
-          }),
-        )
-        .subscribe((submissionArrays) => {
-          const allSubmissions = submissionArrays.flat();
-          const pending = allSubmissions.filter(
-            (s) => s.status === 'submitted',
-          ).length;
-          resolve(pending);
-        });
-    });
-  }
 
-  private loadGradedToday(): Promise<number> {
-    return new Promise((resolve) => {
-      this.firestoreService
-        .getAllGroups()
-        .pipe(
-          switchMap((groups) => {
-            if (groups.length === 0) return [];
-            const assignmentObservables = groups.map((g) =>
-              this.firestoreService.getAssignmentsByGroup(g.id),
-            );
-            return forkJoin(assignmentObservables);
-          }),
-          switchMap((assignmentArrays) => {
-            const allAssignments = assignmentArrays.flat();
-            if (allAssignments.length === 0) return [];
-            const gradeObservables = allAssignments.map((a) =>
-              this.firestoreService.getGradesByAssignment(a.id),
-            );
-            return forkJoin(gradeObservables);
-          }),
-        )
-        .subscribe((gradeArrays) => {
-          const allGrades = gradeArrays.flat();
-          const today = new Date().toISOString().split('T')[0];
-          const graded = allGrades.filter(
-            (g) => g.gradedAt && g.gradedAt.startsWith(today),
-          ).length;
-          resolve(graded);
-        });
-    });
-  }
-
-  private loadAverageScore(): Promise<string> {
-    return new Promise((resolve) => {
-      this.firestoreService
-        .getAllGroups()
-        .pipe(
-          switchMap((groups) => {
-            if (groups.length === 0) return [];
-            const assignmentObservables = groups.map((g) =>
-              this.firestoreService.getAssignmentsByGroup(g.id),
-            );
-            return forkJoin(assignmentObservables);
-          }),
-          switchMap((assignmentArrays) => {
-            const allAssignments = assignmentArrays.flat();
-            if (allAssignments.length === 0) return [];
-            const gradeObservables = allAssignments.map((a) =>
-              this.firestoreService.getGradesByAssignment(a.id),
-            );
-            return forkJoin(gradeObservables);
-          }),
-        )
-        .subscribe((gradeArrays) => {
-          const allGrades = gradeArrays.flat();
-          if (allGrades.length === 0) {
-            resolve('N/A');
-          } else {
-            const avg =
-              allGrades.reduce((sum, g) => sum + (g.scoreValue || 0), 0) /
-              allGrades.length;
-            resolve(avg.toFixed(1));
-          }
-        });
-    });
-  }
 
   logout(): void {
     this.authService.logout();

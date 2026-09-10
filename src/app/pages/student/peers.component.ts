@@ -442,46 +442,107 @@ export class PeersComponent implements OnInit {
     );
     this.assignmentTitle = assignment?.title || 'Bài tập';
 
-    const students = await new Promise<Student[]>((resolve) => {
-      this.firestoreService.getStudentsByGroup(groupId).subscribe({
-        next: (s) => resolve(s),
-        error: () => resolve([]),
-      });
+    // Load all data using batch queries
+    const [students, allSubmissions, allGrades, permissions] = await Promise.all([
+      // 1. Get all students in group
+      new Promise<Student[]>((resolve) => {
+        this.firestoreService.getStudentsByGroup(groupId).subscribe({
+          next: (s) => resolve(s),
+          error: () => resolve([]),
+        });
+      }),
+      // 2. Get all submissions for this assignment (batch query)
+      new Promise<Submission[]>((resolve) => {
+        this.firestoreService.getSubmissionsByAssignment(this.assignmentId).subscribe({
+          next: (s) => resolve(s),
+          error: () => resolve([]),
+        });
+      }),
+      // 3. Get all grades for this assignment (batch query)
+      new Promise<Grade[]>((resolve) => {
+        this.firestoreService.getGradesByAssignment(this.assignmentId).subscribe({
+          next: (g) => resolve(g),
+          error: () => resolve([]),
+        });
+      }),
+      // 4. Get permissions where current user is requester
+      new Promise<Permission[]>((resolve) => {
+        this.firestoreService.getPermissionsByRequester(uid).subscribe({
+          next: (p) => resolve(p),
+          error: () => resolve([]),
+        });
+      }),
+    ]);
+
+    // Create lookup maps for efficient data access
+    const submissionsByStudent = new Map<string, Submission[]>();
+    const gradeBySubmissionId = new Map<string, Grade>();
+    const permissionByOwnerId = new Map<string, Permission>();
+    
+    allSubmissions.forEach(sub => {
+      const studentSubs = submissionsByStudent.get(sub.studentId) || [];
+      studentSubs.push(sub);
+      submissionsByStudent.set(sub.studentId, studentSubs);
+    });
+
+    allGrades.forEach(grade => {
+      gradeBySubmissionId.set(grade.submissionId, grade);
+    });
+
+    permissions.forEach(perm => {
+      if (perm.assignmentId === this.assignmentId) {
+        permissionByOwnerId.set(perm.ownerId, perm);
+      }
     });
 
     const peerList: PeerInfo[] = [];
-    for (const student of students) {
-      const subs: Submission[] = await new Promise((resolve) => {
-        this.firestoreService
-          .getAllSubmissionsByStudentAndAssignment(
-            student.uid,
-            this.assignmentId,
-          )
-          .subscribe({ next: (s) => resolve(s), error: () => resolve([]) });
-      });
 
+    for (const student of students) {
+      const subs = (submissionsByStudent.get(student.uid) || [])
+        .slice()
+        .sort((a, b) => {
+          const aNum = a.attemptNumber ?? Number.MAX_SAFE_INTEGER;
+          const bNum = b.attemptNumber ?? Number.MAX_SAFE_INTEGER;
+          if (aNum !== bNum) return aNum - bNum;
+          return (a.submittedAt || '').localeCompare(b.submittedAt || '');
+        });
       const attempts: PeerAttempt[] = [];
+
       for (let i = 0; i < subs.length; i++) {
         const sub = subs[i];
         let score: number | undefined;
+        
         if (sub.status === 'graded') {
-          const grade = await new Promise<Grade | null>((resolve) => {
-            this.firestoreService.getGradeBySubmission(sub.id).subscribe({
-              next: (g) => resolve(g),
-              error: () => resolve(null),
-            });
-          });
+          const grade = gradeBySubmissionId.get(sub.id);
           if (grade) score = grade.scoreValue;
         }
 
+        // Load images if it's the current user's own submission (all images)
+        // or if permission is granted for other students
         const imageUrls: string[] = [];
-        for (const imageId of sub.imageIds) {
-          try {
-            const url = await this.imageService.getSubmissionImage(imageId);
-            if (url) imageUrls.push(url);
-            if (imageUrls.length >= 2) break;
-          } catch {
-            /* skip */
+        const isOwnSubmission = student.uid === uid;
+        const hasPermission = isOwnSubmission || permissionByOwnerId.get(student.uid)?.status === 'granted';
+
+        if (hasPermission && sub.imageIds.length > 0) {
+          if (isOwnSubmission) {
+            // Current user: load ALL images of each attempt
+            for (const imageId of sub.imageIds) {
+              try {
+                const url = await this.imageService.getSubmissionImage(imageId);
+                if (url) imageUrls.push(url);
+              } catch {
+                /* skip */
+              }
+            }
+          } else {
+            // Other students with granted permission: load only first image
+            try {
+              const imageId = sub.imageIds[0];
+              const url = await this.imageService.getSubmissionImage(imageId);
+              if (url) imageUrls.push(url);
+            } catch {
+              /* skip */
+            }
           }
         }
 
@@ -495,24 +556,11 @@ export class PeersComponent implements OnInit {
 
       let permissionStatus: 'none' | 'pending' | 'granted' | 'denied' = 'none';
       if (student.uid !== uid) {
-        const perms = await new Promise<Permission[]>((resolve) => {
-          this.firestoreService.getPermissionsForOwner(student.uid).subscribe({
-            next: (p) =>
-              resolve(
-                p.filter(
-                  (x) =>
-                    x.requesterId === uid &&
-                    x.assignmentId === this.assignmentId,
-                ),
-              ),
-            error: () => resolve([]),
-          });
-        });
-        if (perms.length > 0) {
-          const p = perms[0];
-          if (p.status === 'granted') permissionStatus = 'granted';
-          else if (p.status === 'pending') permissionStatus = 'pending';
-          else if (p.status === 'denied') permissionStatus = 'denied';
+        const perm = permissionByOwnerId.get(student.uid);
+        if (perm) {
+          if (perm.status === 'granted') permissionStatus = 'granted';
+          else if (perm.status === 'pending') permissionStatus = 'pending';
+          else if (perm.status === 'denied') permissionStatus = 'denied';
         }
       }
 

@@ -450,6 +450,13 @@ interface StudentSubmissionRow {
                       {{ row.status === 'Đã chấm' ? 'Sửa điểm' : 'Chấm bài' }}
                     </button>
                     <button
+                      class="btn btn-outline btn-sm"
+                      *ngIf="!row.submission"
+                      (click)="gradeWithoutSubmission(row.student.uid)"
+                    >
+                      Chấm điểm
+                    </button>
+                    <button
                       class="btn btn-danger btn-sm"
                       *ngIf="row.submission"
                       (click)="deleteSubmission(row)"
@@ -649,6 +656,10 @@ export class AssignmentDetailComponent implements OnInit {
 
   gradeSubmission(submissionId: string): void {
     this.router.navigate(['/teacher/grade', submissionId]);
+  }
+
+  gradeWithoutSubmission(studentId: string): void {
+    this.router.navigate(['/teacher/grade', studentId]);
   }
 
   logout(): void {

@@ -1059,34 +1059,36 @@ export class TeacherDiscussionsComponent implements OnInit {
   }
 
   private loadAllReplies(items: DiscussionWithReplies[]): void {
-    let completed = 0;
-    items.forEach((d) => {
-      this.firestoreService
-        .getRepliesByDiscussion(d.id)
-        .subscribe((replies) => {
-          this.discussions.update((current) =>
-            current.map((item) =>
-              item.id === d.id ? { ...item, replies } : item,
-            ),
-          );
-          completed++;
-          if (
-            completed === items.length &&
-            this.pendingDiscussionId &&
-            this.pendingReplyId
-          ) {
-            setTimeout(() => {
-              const el = document.getElementById(
-                'reply-' + this.pendingReplyId,
-              );
-              if (el)
-                el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-              this.pendingDiscussionId = '';
-              this.pendingReplyId = '';
-            }, 400);
-          }
+    if (items.length === 0) return;
+    const discussionIds = items.map((d) => d.id);
+    // Batch query: get all replies for all discussions in one/few queries
+    this.firestoreService
+      .getRepliesByDiscussionIds(discussionIds)
+      .subscribe((replies) => {
+        const repliesByDiscussion = new Map<string, DiscussionReply[]>();
+        replies.forEach((r) => {
+          const list = repliesByDiscussion.get(r.discussionId) || [];
+          list.push(r);
+          repliesByDiscussion.set(r.discussionId, list);
         });
-    });
+        this.discussions.update((current) =>
+          current.map((item) => ({
+            ...item,
+            replies: repliesByDiscussion.get(item.id) || [],
+          })),
+        );
+        if (this.pendingDiscussionId && this.pendingReplyId) {
+          setTimeout(() => {
+            const el = document.getElementById(
+              'reply-' + this.pendingReplyId,
+            );
+            if (el)
+              el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            this.pendingDiscussionId = '';
+            this.pendingReplyId = '';
+          }, 400);
+        }
+      });
   }
 
   toggleDiscussion(d: DiscussionWithReplies): void {
@@ -1197,7 +1199,7 @@ export class TeacherDiscussionsComponent implements OnInit {
     if (!content && !imageUrl) return;
     const profile = this.authService.currentProfile;
 
-    await this.firestoreService.addReply({
+    const newReply = await this.firestoreService.addReply({
       discussionId: d.id,
       authorId: this.currentUid,
       authorName: profile?.fullName || 'Giáo viên',
@@ -1209,11 +1211,14 @@ export class TeacherDiscussionsComponent implements OnInit {
     this.updateReplyText(d.id, '');
     this.clearReplyImage(d.id);
 
-    this.firestoreService.getRepliesByDiscussion(d.id).subscribe((replies) => {
-      this.discussions.update((current) =>
-        current.map((item) => (item.id === d.id ? { ...item, replies } : item)),
-      );
-    });
+    // Update local state instead of re-querying
+    this.discussions.update((current) =>
+      current.map((item) =>
+        item.id === d.id
+          ? { ...item, replies: [...item.replies, newReply] }
+          : item,
+      ),
+    );
   }
 
   async onReplyImageSelected(

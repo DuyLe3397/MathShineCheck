@@ -12,6 +12,7 @@ import {
   Grade,
   Permission,
   Student,
+  SubmissionComment,
 } from '../../models';
 
 interface AttemptInfo {
@@ -347,11 +348,9 @@ interface PendingRequest {
                 }
               </div>
               @if (item.isCompleted) {
-                <span class="badge-completed"> hoàn thành 10/10 </span>
+                <span></span>
               } @else if (item.attempts.length > 0) {
-                <span class="badge-improving">
-                  Điểm tối đa đạt được là {{ item.bestScore ?? '?' }}/10
-                </span>
+                <span></span>
               } @else {
                 <span class="status-badge status-not-submitted">
                   Chưa nộp
@@ -455,19 +454,49 @@ export class StudentHomeComponent implements OnInit {
     this.firestoreService.getAssignmentsByGroup(groupId).subscribe({
       next: async (rawAssignments) => {
         this.allAssignments = rawAssignments;
+        
+        // Batch query 1: Get all submissions for this student
+        const submissions = await new Promise<Submission[]>((resolve) => {
+          this.firestoreService.getSubmissionsByStudent(uid).subscribe({
+            next: (s) => resolve(s),
+            error: () => resolve([]),
+          });
+        });
+
+        // Batch query 2: Get all grades for this student
+        const grades = await new Promise<Grade[]>((resolve) => {
+          this.firestoreService.getGradesByStudent(uid).subscribe({
+            next: (g) => resolve(g),
+            error: () => resolve([]),
+          });
+        });
+
+        // Create lookup maps
+        const submissionsByAssignment = new Map<string, Submission[]>();
+        const gradeBySubmissionId = new Map<string, Grade>();
+        
+        submissions.forEach(sub => {
+          const assignmentSubs = submissionsByAssignment.get(sub.assignmentId) || [];
+          assignmentSubs.push(sub);
+          submissionsByAssignment.set(sub.assignmentId, assignmentSubs);
+        });
+
+        grades.forEach(grade => {
+          gradeBySubmissionId.set(grade.submissionId, grade);
+        });
+
         const items: AssignmentWithAttempts[] = [];
 
         for (const assignment of rawAssignments) {
           try {
-            const subs: Submission[] = await new Promise((resolve) => {
-              this.firestoreService
-                .getAllSubmissionsByStudentAndAssignment(uid, assignment.id)
-                .subscribe({
-                  next: (s) => resolve(s),
-                  error: () => resolve([]),
-                });
-            });
-
+            const subs = (submissionsByAssignment.get(assignment.id) || [])
+              .slice()
+              .sort((a, b) => {
+                const aNum = a.attemptNumber ?? Number.MAX_SAFE_INTEGER;
+                const bNum = b.attemptNumber ?? Number.MAX_SAFE_INTEGER;
+                if (aNum !== bNum) return aNum - bNum;
+                return (a.submittedAt || '').localeCompare(b.submittedAt || '');
+              });
             const attempts: AttemptInfo[] = [];
             let bestScore: number | undefined;
             let isCompleted = false;
@@ -478,12 +507,7 @@ export class StudentHomeComponent implements OnInit {
               let gradedAt: string | undefined;
 
               if (sub.status === 'graded') {
-                const grade = await new Promise<Grade | null>((resolve) => {
-                  this.firestoreService.getGradeBySubmission(sub.id).subscribe({
-                    next: (g) => resolve(g),
-                    error: () => resolve(null),
-                  });
-                });
+                const grade = gradeBySubmissionId.get(sub.id);
                 if (grade) {
                   score = grade.scoreValue;
                   gradedAt = grade.gradedAt;
@@ -521,9 +545,9 @@ export class StudentHomeComponent implements OnInit {
         }
 
         this.assignments.set(items);
-        this.loadUnreadCommentCounts(items);
+        this.loadUnreadCommentCounts(items, submissions);
         this.loading.set(false);
-        this.loadPendingRequests();
+        this.loadPendingRequests(submissions);
       },
       error: () => {
         this.loading.set(false);
@@ -531,13 +555,28 @@ export class StudentHomeComponent implements OnInit {
     });
   }
 
-  private async loadPendingRequests(): Promise<void> {
+  private async loadPendingRequests(allSubmissions?: Submission[]): Promise<void> {
     const uid = this.profile?.uid;
     if (!uid) return;
 
     this.firestoreService.getPermissionsForOwner(uid).subscribe((perms) => {
       const pending = perms.filter((p) => p.status === 'pending');
       const requests: PendingRequest[] = [];
+
+      // Create submissions lookup map by student and assignment
+      const submissionsByStudentAndAssignment = new Map<string, Map<string, Submission[]>>();
+      if (allSubmissions) {
+        allSubmissions.forEach(sub => {
+          let studentMap = submissionsByStudentAndAssignment.get(sub.studentId);
+          if (!studentMap) {
+            studentMap = new Map<string, Submission[]>();
+            submissionsByStudentAndAssignment.set(sub.studentId, studentMap);
+          }
+          let assignmentSubs = studentMap.get(sub.assignmentId) || [];
+          assignmentSubs.push(sub);
+          studentMap.set(sub.assignmentId, assignmentSubs);
+        });
+      }
 
       pending.forEach((p) => {
         const requester = this.allStudents.find((s) => s.uid === p.requesterId);
@@ -547,56 +586,101 @@ export class StudentHomeComponent implements OnInit {
         const name = requester?.fullName || p.requesterId;
         const title = assignment?.title || p.assignmentId;
 
-        this.firestoreService
-          .getAllSubmissionsByStudentAndAssignment(
-            p.requesterId,
-            p.assignmentId,
-          )
-          .subscribe((subs) => {
-            const attemptNumber =
-              subs.length > 0
-                ? subs[subs.length - 1].attemptNumber || subs.length
-                : 1;
-            requests.push({
-              permissionId: p.id,
-              requesterName: name,
-              requesterId: p.requesterId,
-              assignmentTitle: title,
-              attemptNumber,
-            });
-            this.pendingRequests.set([...requests]);
+        // Get submissions from lookup map or query
+        const studentMap = submissionsByStudentAndAssignment.get(p.requesterId);
+        const subs = (studentMap?.get(p.assignmentId) || [])
+          .slice()
+          .sort((a, b) => {
+            const aNum = a.attemptNumber ?? Number.MAX_SAFE_INTEGER;
+            const bNum = b.attemptNumber ?? Number.MAX_SAFE_INTEGER;
+            if (aNum !== bNum) return aNum - bNum;
+            return (a.submittedAt || '').localeCompare(b.submittedAt || '');
           });
+
+        const attemptNumber =
+          subs.length > 0
+            ? subs[subs.length - 1].attemptNumber || subs.length
+            : 1;
+            
+        requests.push({
+          permissionId: p.id,
+          requesterName: name,
+          requesterId: p.requesterId,
+          assignmentTitle: title,
+          attemptNumber,
+        });
       });
+      
       this.pendingRequests.set(requests);
     });
   }
 
-  private loadUnreadCommentCounts(items: AssignmentWithAttempts[]): void {
+  private async loadUnreadCommentCounts(items: AssignmentWithAttempts[], allSubmissions: Submission[]): Promise<void> {
     const counts: Record<string, number> = {};
-    let completed = 0;
     const allSubIds = items.flatMap((a) =>
       a.attempts.map((att) => att.submissionId),
     );
-    if (allSubIds.length === 0) return;
-    allSubIds.forEach((subId) => {
-      this.firestoreService.getSubmission(subId).then((sub) => {
-        const lastSeen = sub?.lastCommentSeenAt
-          ? new Date(sub.lastCommentSeenAt).getTime()
-          : 0;
-        this.firestoreService
-          .getCommentsBySubmission(subId)
-          .subscribe((comments) => {
-            const unread = comments.filter(
-              (c) => new Date(c.createdAt).getTime() > lastSeen,
-            ).length;
-            if (unread > 0) counts[subId] = unread;
-            completed++;
-            if (completed === allSubIds.length) {
-              this.unreadCommentCounts.set(counts);
-            }
+    
+    if (allSubIds.length === 0) {
+      this.unreadCommentCounts.set(counts);
+      return;
+    }
+
+    try {
+      // Get all comments for student's submissions
+      const allComments = await new Promise<SubmissionComment[]>((resolve) => {
+        // We'll get comments for all submissions
+        const commentsPromises = allSubIds.map(subId => {
+          return new Promise<SubmissionComment[]>((res) => {
+            this.firestoreService.getCommentsBySubmission(subId).subscribe({
+              next: comments => res(comments),
+              error: () => res([])
+            });
           });
+        });
+
+        Promise.all(commentsPromises).then(commentArrays => {
+          resolve(commentArrays.flat());
+        });
       });
-    });
+
+      // Create submission lookup map
+      const submissionMap = new Map<string, Submission>();
+      allSubmissions.forEach(sub => {
+        submissionMap.set(sub.id, sub);
+      });
+
+      // Create comments by submission map
+      const commentsBySubmission = new Map<string, SubmissionComment[]>();
+      allComments.forEach(comment => {
+        const comments = commentsBySubmission.get(comment.submissionId) || [];
+        comments.push(comment);
+        commentsBySubmission.set(comment.submissionId, comments);
+      });
+
+      // Calculate unread counts
+      allSubIds.forEach(subId => {
+        const submission = submissionMap.get(subId);
+        const comments = commentsBySubmission.get(subId) || [];
+        
+        if (submission) {
+          const lastSeen = submission.lastCommentSeenAt
+            ? new Date(submission.lastCommentSeenAt).getTime()
+            : 0;
+          
+          const unread = comments.filter(
+            (c) => new Date(c.createdAt).getTime() > lastSeen,
+          ).length;
+          
+          if (unread > 0) counts[subId] = unread;
+        }
+      });
+
+      this.unreadCommentCounts.set(counts);
+    } catch (error) {
+      console.error('Error loading comment counts:', error);
+      this.unreadCommentCounts.set({});
+    }
   }
 
   async respondRequest(

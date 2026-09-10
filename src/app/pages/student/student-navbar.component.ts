@@ -269,13 +269,6 @@ export class StudentNavbarComponent implements OnInit {
     const groupId = this.profile?.groupId;
     if (!uid || !groupId) return;
 
-    this.firestoreService
-      .getDocById('students', uid)
-      .then((doc) => {
-        if (doc?.avatarUrl) this.profileAvatar.set(doc.avatarUrl);
-      })
-      .catch(() => {});
-
     const subscribeWithTimestamps = (
       homeSeen: number,
       scoreboardSeen: number,
@@ -315,23 +308,23 @@ export class StudentNavbarComponent implements OnInit {
         });
     };
 
-    this.firestoreService
-      .getStudent(uid)
-      .then((student) => {
-        const homeSeen = student?.lastHomeSeenAt
-          ? new Date(student.lastHomeSeenAt).getTime()
-          : 0;
-        const scoreboardSeen = student?.lastScoreboardSeenAt
-          ? new Date(student.lastScoreboardSeenAt).getTime()
-          : 0;
-        const discussionsSeen = student?.lastDiscussionsSeenAt
-          ? new Date(student.lastDiscussionsSeenAt).getTime()
-          : 0;
-        subscribeWithTimestamps(homeSeen, scoreboardSeen, discussionsSeen);
-      })
-      .catch(() => {
-        subscribeWithTimestamps(0, 0, 0);
-      });
+    // Single read of student doc (combines avatar + timestamps into one query)
+    this.firestoreService.getStudent(uid).then((student) => {
+      if (student?.avatarUrl) this.profileAvatar.set(student.avatarUrl);
+
+      const homeSeen = student?.lastHomeSeenAt
+        ? new Date(student.lastHomeSeenAt).getTime()
+        : 0;
+      const scoreboardSeen = student?.lastScoreboardSeenAt
+        ? new Date(student.lastScoreboardSeenAt).getTime()
+        : 0;
+      const discussionsSeen = student?.lastDiscussionsSeenAt
+        ? new Date(student.lastDiscussionsSeenAt).getTime()
+        : 0;
+      subscribeWithTimestamps(homeSeen, scoreboardSeen, discussionsSeen);
+    }).catch(() => {
+      subscribeWithTimestamps(0, 0, 0);
+    });
   }
 
   isActive(path: string): boolean {
