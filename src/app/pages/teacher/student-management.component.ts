@@ -185,8 +185,9 @@ import { SchoolClass, Group, Student } from '../../models';
 
       .form-row {
         display: grid;
-        grid-template-columns: 1fr auto;
+        grid-template-columns: 1fr 1fr auto;
         gap: 12px;
+        align-items: start;
       }
 
       .form-row .form-group {
@@ -326,6 +327,10 @@ import { SchoolClass, Group, Student } from '../../models';
           margin: 0 0 24px;
           line-height: 1.5;
         }
+
+        .form-group {
+          margin-bottom: 16px;
+        }
       }
 
       .dialog-actions {
@@ -353,6 +358,18 @@ import { SchoolClass, Group, Student } from '../../models';
         color: #065f46;
       }
 
+      .field-error {
+        color: #ef4444;
+        font-size: 0.8rem;
+        margin-top: 4px;
+        line-height: 1.3;
+      }
+
+      .text-muted {
+        color: #94a3b8;
+        font-style: italic;
+      }
+
       @media (max-width: 768px) {
         .layout {
           flex-direction: column;
@@ -363,11 +380,16 @@ import { SchoolClass, Group, Student } from '../../models';
         .content {
           padding: 16px;
         }
-        .filters-row {
+        .filters-row,
+        .form-row {
+          display: flex;
           flex-direction: column;
         }
         .form-group {
           min-width: 100%;
+        }
+        .form-group-btn label {
+          display: none;
         }
       }
     `,
@@ -447,12 +469,29 @@ import { SchoolClass, Group, Student } from '../../models';
                   placeholder="Nguyễn Văn A"
                 />
               </div>
+              <div class="form-group">
+                <label>Số điện thoại</label>
+                <input
+                  class="form-input"
+                  type="tel"
+                  [(ngModel)]="newStudent.phone"
+                  (keypress)="onPhoneKeyPress($event)"
+                  maxlength="10"
+                  placeholder="0912345678"
+                />
+                <div
+                  class="field-error"
+                  *ngIf="newStudent.phone && !isValidPhone(newStudent.phone)"
+                >
+                  SĐT phải gồm 10 chữ số (bắt đầu bằng số 0)
+                </div>
+              </div>
               <div class="form-group-btn">
-                <label>Họ tên</label>
+                <label>&nbsp;</label>
                 <button
                   class="btn btn-primary"
                   (click)="addStudent()"
-                  [disabled]="!newStudent.fullName.trim() || saving"
+                  [disabled]="!canAddStudent() || saving"
                 >
                   {{ saving ? 'Đang thêm...' : 'Thêm học sinh' }}
                 </button>
@@ -471,6 +510,7 @@ import { SchoolClass, Group, Student } from '../../models';
               <thead>
                 <tr>
                   <th>Họ tên</th>
+                  <th>Số điện thoại</th>
                   <th>Lớp</th>
                   <th>Nhóm</th>
                   <th>Thao tác</th>
@@ -481,15 +521,19 @@ import { SchoolClass, Group, Student } from '../../models';
                   <td>
                     <strong>{{ s.fullName }}</strong>
                   </td>
+                  <td>
+                    <span *ngIf="s.phone">{{ s.phone }}</span>
+                    <span *ngIf="!s.phone" class="text-muted">—</span>
+                  </td>
                   <td>{{ s.className }}</td>
                   <td>{{ getGroupName(s.groupId) }}</td>
                   <td>
                     <div class="td-actions">
                       <button
                         class="btn btn-outline"
-                        (click)="startRename(s)"
+                        (click)="startEdit(s)"
                       >
-                        Đổi tên
+                        Sửa
                       </button>
                       <button class="btn btn-danger" (click)="confirmDelete(s)">
                         Xóa
@@ -523,25 +567,42 @@ import { SchoolClass, Group, Student } from '../../models';
       </div>
     </div>
 
-    <div class="dialog-overlay" *ngIf="renameTarget" (click)="cancelRename()">
+    <div class="dialog-overlay" *ngIf="editTarget" (click)="cancelEdit()">
       <div class="dialog" (click)="$event.stopPropagation()">
-        <h3>Đổi tên học sinh</h3>
+        <h3>Sửa thông tin học sinh</h3>
         <div class="form-group">
-          <label>Họ tên mới</label>
+          <label>Họ tên</label>
           <input
             class="form-input"
-            [(ngModel)]="renameFullName"
-            placeholder="Nhập họ tên mới..."
+            [(ngModel)]="editFullName"
+            placeholder="Nhập họ tên..."
           />
         </div>
+        <div class="form-group">
+          <label>Số điện thoại</label>
+          <input
+            class="form-input"
+            type="tel"
+            [(ngModel)]="editPhone"
+            (keypress)="onPhoneKeyPress($event)"
+            maxlength="10"
+            placeholder="0912345678"
+          />
+          <div
+            class="field-error"
+            *ngIf="editPhone && !isValidPhone(editPhone)"
+          >
+            SĐT phải gồm 10 chữ số (bắt đầu bằng số 0)
+          </div>
+        </div>
         <div class="dialog-actions">
-          <button class="btn btn-outline" (click)="cancelRename()">Hủy</button>
+          <button class="btn btn-outline" (click)="cancelEdit()">Hủy</button>
           <button
             class="btn btn-primary"
-            [disabled]="!renameFullName.trim() || renaming"
-            (click)="saveRename()"
+            [disabled]="!canSaveEdit() || editing"
+            (click)="saveEdit()"
           >
-            {{ renaming ? 'Đang lưu...' : 'Lưu' }}
+            {{ editing ? 'Đang lưu...' : 'Lưu' }}
           </button>
         </div>
       </div>
@@ -562,14 +623,49 @@ export class StudentManagementComponent implements OnInit {
   loading = false;
   saving = false;
   deleteTarget: Student | null = null;
-  renameTarget: Student | null = null;
-  renameFullName = '';
-  renaming = false;
+  editTarget: Student | null = null;
+  editFullName = '';
+  editPhone = '';
+  editing = false;
 
-  newStudent = { fullName: '' };
+  newStudent = { fullName: '', phone: '' };
 
   userFullName = '';
   userSubject = '';
+
+  onPhoneKeyPress(event: KeyboardEvent): void {
+    const char = event.key;
+    if (
+      !/^[0-9]$/.test(char) &&
+      char !== 'Backspace' &&
+      char !== 'Delete' &&
+      char !== 'Tab' &&
+      char !== 'ArrowLeft' &&
+      char !== 'ArrowRight'
+    ) {
+      event.preventDefault();
+    }
+  }
+
+  isValidPhone(phone: string): boolean {
+    return /^0[0-9]{9}$/.test(phone ? phone.trim() : '');
+  }
+
+  canAddStudent(): boolean {
+    return (
+      !!this.newStudent.fullName.trim() &&
+      this.isValidPhone(this.newStudent.phone) &&
+      !!this.selectedGroupId &&
+      !!this.selectedClassId
+    );
+  }
+
+  canSaveEdit(): boolean {
+    return (
+      !!this.editFullName.trim() &&
+      this.isValidPhone(this.editPhone)
+    );
+  }
 
   ngOnInit(): void {
     const profile = this.authService.currentProfile;
@@ -621,11 +717,7 @@ export class StudentManagementComponent implements OnInit {
   }
 
   async addStudent(): Promise<void> {
-    if (
-      !this.newStudent.fullName.trim() ||
-      !this.selectedGroupId ||
-      !this.selectedClassId
-    ) {
+    if (!this.canAddStudent()) {
       return;
     }
 
@@ -635,14 +727,15 @@ export class StudentManagementComponent implements OnInit {
       const className = classDoc?.name || '';
 
       await this.firestoreService.createStudentDoc('', {
-        fullName: this.newStudent.fullName.trim(),
+        fullName: this.newStudent.fullName.trim().toUpperCase(),
+        phone: this.newStudent.phone.trim(),
         className,
         groupId: this.selectedGroupId,
         username: '',
         mustChangePassword: false,
       });
 
-      this.newStudent = { fullName: '' };
+      this.newStudent = { fullName: '', phone: '' };
       this.loadStudents();
     } catch (err: any) {
       alert('Lỗi khi tạo học sinh: ' + (err.message || 'Không xác định'));
@@ -669,31 +762,36 @@ export class StudentManagementComponent implements OnInit {
       });
   }
 
-  startRename(s: Student): void {
-    this.renameTarget = s;
-    this.renameFullName = s.fullName;
+  startEdit(s: Student): void {
+    this.editTarget = s;
+    this.editFullName = s.fullName;
+    this.editPhone = s.phone || '';
   }
 
-  cancelRename(): void {
-    this.renameTarget = null;
-    this.renameFullName = '';
+  cancelEdit(): void {
+    this.editTarget = null;
+    this.editFullName = '';
+    this.editPhone = '';
   }
 
-  saveRename(): void {
-    if (!this.renameTarget || !this.renameFullName.trim()) return;
-    this.renaming = true;
+  saveEdit(): void {
+    if (!this.editTarget || !this.canSaveEdit()) return;
+    this.editing = true;
     this.firestoreService
-      .updateStudent(this.renameTarget.uid, {
-        fullName: this.renameFullName.trim().toUpperCase(),
+      .updateStudent(this.editTarget.uid, {
+        fullName: this.editFullName.trim().toUpperCase(),
+        phone: this.editPhone.trim(),
       })
       .then(() => {
-        this.renameTarget = null;
-        this.renameFullName = '';
-        this.renaming = false;
+        this.editTarget = null;
+        this.editFullName = '';
+        this.editPhone = '';
+        this.editing = false;
         this.loadStudents();
       })
-      .catch(() => {
-        this.renaming = false;
+      .catch((err: any) => {
+        alert('Lỗi khi cập nhật học sinh: ' + (err.message || 'Không xác định'));
+        this.editing = false;
       });
   }
 

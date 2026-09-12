@@ -305,6 +305,16 @@ interface StudentGradeRow {
           user-select: none;
         }
 
+        /* Assignment title headers: allow wrapping by height */
+        th.th-assignment {
+          white-space: normal;
+          word-break: break-word;
+          text-overflow: clip;
+          overflow: hidden;
+          vertical-align: middle;
+          line-height: 1.3;
+        }
+
         td {
           color: #334155;
 
@@ -619,6 +629,7 @@ interface StudentGradeRow {
                         <!-- Assignment columns -->
                         <th
                           *ngFor="let a of filteredAssignments; let i = index"
+                          class="th-assignment"
                           [style.width]="columnWidths[i + 1] + 'px'"
                           [style.min-width]="columnWidths[i + 1] + 'px'"
                           [title]="a.title + ' (' + a.sessionDate + ')'"
