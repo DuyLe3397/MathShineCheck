@@ -10,12 +10,7 @@ import { SchoolClass, Group, Student, Assignment, Grade } from '../../models';
 import { forkJoin, map, switchMap, of } from 'rxjs';
 import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
-
-interface StudentGradeRow {
-  studentName: string;
-  grades: { assignmentTitle: string; score: number | null }[];
-  average: number | null;
-}
+import { rankStudentRows, ScopedStudentRow, StudentGradeRow } from './statistics-ranking';
 
 @Component({
   selector: 'app-statistics',
@@ -474,6 +469,7 @@ interface StudentGradeRow {
           <a class="nav-item" routerLink="/teacher/assignments">Bài tập</a>
           <a class="nav-item" routerLink="/teacher/discussions">Thảo luận</a>
           <a class="nav-item active" routerLink="/teacher/statistics">Thống kê</a>
+          <a class="nav-item" routerLink="/teacher/hidden-assignments">Ẩn bài tập</a>
           <a class="nav-item" routerLink="/teacher/profile">Hồ sơ</a>
           <teacher-notification-bell />
         </nav>
@@ -753,25 +749,8 @@ export class StatisticsComponent implements OnInit, OnDestroy {
     });
   }
 
-  get filteredStudentRows(): {
-    studentName: string;
-    filteredGrades: { assignmentTitle: string; score: number | null }[];
-    filteredAverage: number | null;
-  }[] {
-    const fa = this.filteredAssignments;
-    return this.studentRows.map(row => {
-      const filteredGrades = row.grades.filter(g =>
-        fa.some(a => a.title === g.assignmentTitle)
-      );
-      const validScores = filteredGrades
-        .filter(g => g.score !== null)
-        .map(g => g.score as number);
-      const filteredAverage =
-        validScores.length > 0
-          ? +(validScores.reduce((s, v) => s + v, 0) / validScores.length).toFixed(1)
-          : null;
-      return { studentName: row.studentName, filteredGrades, filteredAverage };
-    });
+  get filteredStudentRows(): ScopedStudentRow[] {
+    return rankStudentRows(this.studentRows, this.filteredAssignments.map(a => a.id));
   }
 
   get tableWidth(): number {
@@ -866,7 +845,7 @@ export class StatisticsComponent implements OnInit, OnDestroy {
             this.studentRows = students.map(s => ({
               studentName: s.fullName,
               grades: assignments.map(a => ({
-                assignmentTitle: a.title,
+                assignmentId: a.id,
                 score: null,
               })),
               average: null,
@@ -898,7 +877,7 @@ export class StatisticsComponent implements OnInit, OnDestroy {
                 const sg = gradeMap.get(s.uid) || [];
                 const grades = assignments.map(a => {
                   const found = sg.find(g => g.assignmentId === a.id);
-                  return { assignmentTitle: a.title, score: found ? found.score : null };
+                  return { assignmentId: a.id, score: found ? found.score : null };
                 });
                 const validScores = grades.filter(g => g.score !== null).map(g => g.score as number);
                 const average =
