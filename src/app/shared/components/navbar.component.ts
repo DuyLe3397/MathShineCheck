@@ -18,6 +18,7 @@ import { AuthService } from '../../services/auth.service';
           <a routerLink="/teacher/students" routerLinkActive="active">Học sinh</a>
           <a routerLink="/teacher/assignments" routerLinkActive="active">Bài tập</a>
           <a routerLink="/teacher/statistics" routerLinkActive="active">Thống kê</a>
+          <a routerLink="/teacher/hidden-assignments" routerLinkActive="active">Ẩn bài tập</a>
         </div>
       </div>
       <div class="nav-right">

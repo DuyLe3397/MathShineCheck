@@ -451,7 +451,7 @@ export class StudentHomeComponent implements OnInit {
       }
     });
 
-    this.firestoreService.getAssignmentsByGroup(groupId).subscribe({
+    this.firestoreService.getVisibleAssignmentsForStudent(groupId, uid).subscribe({
       next: async (rawAssignments) => {
         this.allAssignments = rawAssignments;
         

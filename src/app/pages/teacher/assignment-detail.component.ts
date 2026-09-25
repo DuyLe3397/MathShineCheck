@@ -351,6 +351,7 @@ interface StudentSubmissionRow {
           >
           <a class="nav-item" routerLink="/teacher/discussions">Thảo luận</a>
           <a class="nav-item" routerLink="/teacher/statistics">Thống kê</a>
+          <a class="nav-item" routerLink="/teacher/hidden-assignments">Ẩn bài tập</a>
           <a class="nav-item" routerLink="/teacher/profile">Hồ sơ cá nhân</a>
           <teacher-notification-bell />
         </nav>

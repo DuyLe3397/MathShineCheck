@@ -547,7 +547,7 @@ export class ScoreboardComponent implements OnInit {
     });
 
     this.firestoreService
-      .getAssignmentsByGroup(groupId)
+      .getVisibleAssignmentsForStudent(groupId, uid ?? '')
       .subscribe((assignments) => {
         this.assignments.set(assignments);
         this.updatePageSize();

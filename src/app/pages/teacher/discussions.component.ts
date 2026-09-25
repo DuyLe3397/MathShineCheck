@@ -561,6 +561,7 @@ interface DiscussionWithReplies extends Discussion {
             >Thảo luận</a
           >
           <a class="nav-item" routerLink="/teacher/statistics">Thống kê</a>
+          <a class="nav-item" routerLink="/teacher/hidden-assignments">Ẩn bài tập</a>
           <a class="nav-item" routerLink="/teacher/profile">Hồ sơ</a>
           <teacher-notification-bell />
         </nav>

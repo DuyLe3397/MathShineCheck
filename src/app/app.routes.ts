@@ -80,6 +80,10 @@ export const routes: Routes = [
       {
         path: 'statistics',
         loadComponent: () => import('./pages/teacher/statistics.component').then(m => m.StatisticsComponent)
+      },
+      {
+        path: 'hidden-assignments',
+        loadComponent: () => import('./pages/teacher/hidden-assignments.component').then(m => m.HiddenAssignmentsComponent)
       }
     ]
   },

@@ -46,6 +46,15 @@ export interface Assignment {
   createdAt: string;
 }
 
+/** Danh sách bài bị ẩn của một học sinh — document id = uid học sinh. Không có document = không ẩn bài nào. */
+export interface HiddenAssignments {
+  studentId: string;
+  groupId: string;
+  assignmentIds: string[];
+  updatedBy: string;
+  updatedAt: string;
+}
+
 export interface Submission {
   id: string;
   assignmentId: string;

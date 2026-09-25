@@ -18,8 +18,8 @@ import {
   Timestamp,
   writeBatch,
 } from '@angular/fire/firestore';
-import { from, Observable } from 'rxjs';
-import { map, shareReplay } from 'rxjs/operators';
+import { forkJoin, from, Observable, of } from 'rxjs';
+import { catchError, map, shareReplay } from 'rxjs/operators';
 import { ImageService } from './image.service';
 import {
   SchoolClass,
@@ -34,6 +34,7 @@ import {
   Permission,
   Teacher,
   TeacherNotification,
+  HiddenAssignments,
 } from '../models';
 
 @Injectable({ providedIn: 'root' })
@@ -374,6 +375,43 @@ export class FirestoreService {
 
   async deleteAssignment(id: string): Promise<void> {
     await deleteDoc(doc(this.firestore, 'assignments', id));
+  }
+
+  // ==================== HIDDEN ASSIGNMENTS ====================
+  /** Id các bài bị ẩn với học sinh; trả mảng rỗng nếu chưa có document hoặc đọc lỗi. */
+  getHiddenAssignmentIds(studentId: string): Observable<string[]> {
+    if (!studentId) return of([]);
+    return from(getDoc(doc(this.firestore, 'hiddenAssignments', studentId))).pipe(
+      map((d) => (d.exists() ? ((d.data() as HiddenAssignments).assignmentIds ?? []) : [])),
+      catchError(() => of([])),
+    );
+  }
+
+  getHiddenAssignmentsByGroup(groupId: string): Observable<HiddenAssignments[]> {
+    const ref = query(
+      collection(this.firestore, 'hiddenAssignments'),
+      where('groupId', '==', groupId),
+    );
+    return from(getDocs(ref)).pipe(
+      map((snap) => snap.docs.map((d) => d.data() as HiddenAssignments)),
+    );
+  }
+
+  /** Bài tập của nhóm mà học sinh được thấy (đã bỏ Bài bị ẩn). */
+  getVisibleAssignmentsForStudent(groupId: string, studentId: string): Observable<Assignment[]> {
+    return forkJoin([
+      this.getAssignmentsByGroup(groupId),
+      this.getHiddenAssignmentIds(studentId),
+    ]).pipe(
+      map(([assignments, hiddenIds]) => {
+        const hidden = new Set(hiddenIds);
+        return assignments.filter((a) => !hidden.has(a.id));
+      }),
+    );
+  }
+
+  async setHiddenAssignments(data: HiddenAssignments): Promise<void> {
+    await setDoc(doc(this.firestore, 'hiddenAssignments', data.studentId), data);
   }
 
   async deleteSubmission(id: string): Promise<void> {
