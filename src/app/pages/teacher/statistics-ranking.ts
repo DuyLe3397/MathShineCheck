@@ -18,7 +18,8 @@ export function rankStudentRows(rows: StudentGradeRow[], scopeAssignmentIds: str
   const scope = new Set(scopeAssignmentIds);
   const scoped = rows.map(row => {
     const filteredGrades = row.grades.filter(g => scope.has(g.assignmentId));
-    const validScores = filteredGrades.filter(g => g.score !== null).map(g => g.score as number);
+    // Điểm 0 là Chấm không điểm, không tính là Bài có điểm.
+    const validScores = filteredGrades.filter(g => g.score !== null && g.score !== 0).map(g => g.score as number);
     const filteredAverage =
       validScores.length > 0
         ? +(validScores.reduce((s, v) => s + v, 0) / validScores.length).toFixed(1)

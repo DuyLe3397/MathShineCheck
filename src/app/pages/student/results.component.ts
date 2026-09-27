@@ -6,6 +6,7 @@ import { AuthService } from '../../services/auth.service';
 import { FirestoreService } from '../../services/firestore.service';
 import { ImageService } from '../../services/image.service';
 import { Grade, Submission, SubmissionComment } from '../../models';
+import { formatScore } from '../../shared/score';
 
 @Component({
   selector: 'app-results',
@@ -466,7 +467,7 @@ import { Grade, Submission, SubmissionComment } from '../../models';
         @if (grade()) {
           <div class="score-section">
             <div class="score-label">Điểm số</div>
-            <div class="score-value">{{ grade()?.scoreValue }}</div>
+            <div class="score-value">{{ formatScore(grade()?.scoreValue) }}</div>
             @if (grade()?.comment) {
               <div class="score-comment">{{ grade()?.comment }}</div>
             }
@@ -721,6 +722,8 @@ export class ResultsComponent implements OnInit {
   private authService = inject(AuthService);
   private firestoreService = inject(FirestoreService);
   private imageService = inject(ImageService);
+
+  protected readonly formatScore = formatScore;
 
   grade = signal<Grade | null>(null);
   submittedImages = signal<string[]>([]);

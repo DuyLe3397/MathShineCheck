@@ -6,6 +6,7 @@ import { AuthService } from '../../services/auth.service';
 import { FirestoreService } from '../../services/firestore.service';
 import { StudentNotificationService } from '../../services/student-notification.service';
 import { StudentNavbarComponent } from './student-navbar.component';
+import { formatScore } from '../../shared/score';
 import {
   Student,
   Assignment,
@@ -445,7 +446,7 @@ interface ScoreRow {
                     @for (a of paginatedAssignments(); track a.id) {
                       <td class="score-cell">
                         @if (row.scores.has(a.id)) {
-                          {{ row.scores.get(a.id)?.score }}
+                          {{ formatScore(row.scores.get(a.id)?.score) }}
                         } @else {
                           @if (row.studentId !== currentUid && canRequest(a.id)) {
                             <button
@@ -508,6 +509,8 @@ export class ScoreboardComponent implements OnInit {
   private firestoreService = inject(FirestoreService);
   private notificationService = inject(StudentNotificationService);
   private router = inject(Router);
+
+  protected readonly formatScore = formatScore;
 
   profile = this.authService.currentProfile;
   currentUid = this.authService.currentUser?.uid || '';

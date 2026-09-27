@@ -449,10 +449,10 @@ interface StudentSubmissionRow {
                     </span>
                   </td>
                   <td>
-                    <span class="grade-cell" *ngIf="row.grade">
-                      {{ row.grade.scoreValue }}
+                    <span class="grade-cell" *ngIf="row.grade?.scoreValue">
+                      {{ row.grade!.scoreValue }}
                     </span>
-                    <span *ngIf="!row.grade" style="color: #94a3b8;">-</span>
+                    <span *ngIf="!row.grade?.scoreValue" style="color: #94a3b8;">-</span>
                   </td>
                   <td>
                     <div

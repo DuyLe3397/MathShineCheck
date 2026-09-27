@@ -37,13 +37,23 @@ describe('rankStudentRows', () => {
     expect(names(rankStudentRows(rows, ['a1', 'a2']))).toEqual(['Đủ trong phạm vi', 'Có điểm bài ngoài']);
   });
 
-  it('coi điểm 0 là Bài có điểm', () => {
+  it('coi Chấm không điểm (điểm 0) là Bài thiếu điểm', () => {
     const rows = [
-      row('Thiếu', { a1: 10, a2: null }),
-      row('Có điểm 0', { a1: 0, a2: 0 }),
+      row('Chấm không điểm', { a1: 0, a2: 0 }),
+      row('Một bài có điểm', { a1: 10, a2: null }),
     ];
 
-    expect(names(rankStudentRows(rows, ['a1', 'a2']))).toEqual(['Có điểm 0', 'Thiếu']);
+    expect(names(rankStudentRows(rows, ['a1', 'a2']))).toEqual(['Một bài có điểm', 'Chấm không điểm']);
+  });
+
+  it('không tính Chấm không điểm vào điểm TB', () => {
+    const [an, binh] = rankStudentRows(
+      [row('An', { a1: 8, a2: 0, a3: 6 }), row('Bình', { a1: 0 })],
+      ['a1', 'a2', 'a3'],
+    );
+
+    expect(an.filteredAverage).toBe(7);
+    expect(binh.filteredAverage).toBeNull();
   });
 
   it('học sinh cùng Độ đủ điểm giữ nguyên thứ tự ban đầu', () => {

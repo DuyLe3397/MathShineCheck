@@ -201,6 +201,10 @@ interface PendingRequest {
         font-weight: 800;
         color: #16a34a;
       }
+      .attempt-score-none {
+        font-weight: 800;
+        color: #94a3b8;
+      }
       .attempt-pending {
         font-weight: 800;
         color: #dc2626;
@@ -367,6 +371,8 @@ interface PendingRequest {
                       <span class="attempt-score-green">
                         {{ attempt.score }}/10</span
                       >
+                    } @else if (attempt.score === 0) {
+                      <span class="attempt-score-none"> -/10</span>
                     } @else {
                       <span class="attempt-score-red">
                         {{ attempt.score }}/10</span

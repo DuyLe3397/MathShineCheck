@@ -11,6 +11,7 @@ import { forkJoin, map, switchMap, of } from 'rxjs';
 import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
 import { rankStudentRows, ScopedStudentRow, StudentGradeRow } from './statistics-ranking';
+import { bestScore } from '../../shared/score';
 
 @Component({
   selector: 'app-statistics',
@@ -865,8 +866,8 @@ export class StatisticsComponent implements OnInit, OnDestroy {
                 const studentGrades: { assignmentId: string; score: number }[] = [];
                 allGradesByAssignment.forEach((grades, idx) => {
                   const sg = grades.filter(g => g.studentId === s.uid);
-                  if (sg.length > 0) {
-                    const highest = Math.max(...sg.map(g => g.scoreValue));
+                  const highest = bestScore(sg.map(g => g.scoreValue));
+                  if (highest !== null) {
                     studentGrades.push({ assignmentId: assignments[idx].id, score: highest });
                   }
                 });

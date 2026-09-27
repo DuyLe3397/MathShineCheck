@@ -348,7 +348,7 @@ interface PeerInfo {
                   class="score-value"
                   [class.score-perfect]="a.score === 10"
                 >
-                  {{ a.score ?? '?' }}đ
+                  {{ a.score === 0 ? '-' : (a.score ?? '?') + 'đ' }}
                 </span>
               </div>
               <div class="attempt-images">

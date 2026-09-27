@@ -89,6 +89,17 @@ function readRows(page: HTMLElement) {
   });
 }
 
+/** Đọc bảng bài nộp thành các dòng { tên, trạng thái, điểm }. */
+function readScores(page: HTMLElement) {
+  const headers = Array.from(page.querySelectorAll('table thead th')).map((th) => th.textContent!.trim());
+  const statusCol = headers.indexOf('Trạng thái');
+  const scoreCol = headers.indexOf('Điểm');
+  return Array.from(page.querySelectorAll('table tbody tr')).map((tr) => {
+    const cells = Array.from(tr.querySelectorAll('td')).map((td) => td.textContent!.trim());
+    return { name: cells[0], status: cells[statusCol], score: cells[scoreCol] };
+  });
+}
+
 describe('Trang chi tiết bài tập — cột Nhận xét chung', () => {
   it('mỗi Lần nộp đã chấm hiện Nhận xét chung của đúng lần đó', async () => {
     const page = await renderPage(
@@ -114,6 +125,21 @@ describe('Trang chi tiết bài tập — cột Nhận xét chung', () => {
       ['Chưa nộp', '-'],
       ['Chưa chấm', '-'],
       ['Nhận xét trống', '-'],
+    ]);
+  });
+});
+
+describe('Trang chi tiết bài tập — Chấm không điểm', () => {
+  it('Lần nộp chấm điểm 0 hiện "-" ở cột Điểm nhưng vẫn là Đã chấm', async () => {
+    const page = await renderPage(
+      [student('hs1', 'Không điểm'), student('hs2', 'Có điểm')],
+      [submission('s1', 'hs1', 1), submission('s2', 'hs2', 1)],
+      [grade('s1', 'hs1', 0, 'Làm lại câu 3'), grade('s2', 'hs2', 8, '')],
+    );
+
+    expect(readScores(page)).toEqual([
+      { name: 'Không điểm', status: 'Đã chấm', score: '-' },
+      { name: 'Có điểm', status: 'Đã chấm', score: '8' },
     ]);
   });
 });

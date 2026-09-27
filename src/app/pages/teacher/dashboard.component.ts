@@ -430,13 +430,14 @@ export class TeacherDashboardComponent implements OnInit {
               ).length;
               this.gradedToday = graded;
               
-              // Calculate average score
-              if (allGrades.length === 0) {
+              // Calculate average score (điểm 0 là Chấm không điểm, không tính)
+              const scoredGrades = allGrades.filter((g) => g.scoreValue);
+              if (scoredGrades.length === 0) {
                 this.averageScore = 'N/A';
               } else {
                 const avg =
-                  allGrades.reduce((sum, g) => sum + (g.scoreValue || 0), 0) /
-                  allGrades.length;
+                  scoredGrades.reduce((sum, g) => sum + g.scoreValue, 0) /
+                  scoredGrades.length;
                 this.averageScore = avg.toFixed(1);
               }
               

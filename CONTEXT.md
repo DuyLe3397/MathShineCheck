@@ -5,11 +5,15 @@ Hệ thống giao bài, nộp bài và chấm điểm môn Toán cho giáo viên
 ## Language
 
 **Bài có điểm**:
-Một bài tập mà học sinh đã được giáo viên chấm (có ít nhất một Grade). Nếu chấm nhiều lần thì lấy điểm cao nhất. Điểm 0 vẫn là Bài có điểm.
+Một bài tập mà học sinh có ít nhất một Lần nộp được chấm có điểm (khác **Chấm không điểm**). Nếu chấm nhiều lần thì lấy điểm cao nhất.
 _Avoid_: bài đã làm, bài đã nộp
 
+**Chấm không điểm**:
+Giáo viên đã chấm một Lần nộp (có thể kèm Nhận xét chung) nhưng không cho điểm; giáo viên thể hiện bằng cách nhập điểm 0. Ở mọi nơi hiển thị là "-", không tính vào điểm trung bình. Hệ thống không có điểm 0 thật.
+_Avoid_: điểm 0, điểm liệt
+
 **Bài thiếu điểm**:
-Một bài tập trong phạm vi đang xét mà học sinh chưa có điểm — gồm cả chưa nộp và đã nộp nhưng chưa chấm.
+Một bài tập trong phạm vi đang xét mà học sinh chưa có điểm — gồm chưa nộp, đã nộp nhưng chưa chấm, và mọi Lần nộp đều **Chấm không điểm**.
 _Avoid_: bài trống, bài chưa làm
 
 **Phạm vi thống kê**:
@@ -61,5 +65,6 @@ _Avoid_: quyền, permission (khi nói chung chung)
 ## Flagged ambiguities
 
 - "Set quyền cho học sinh được xem bài nào" — không phải khái niệm quyền; đã chốt là **Danh sách bài bị ẩn**: mặc định thấy hết, giáo viên chỉ ẩn bớt, để bài mới tự hiện với cả nhóm.
+- "Điểm 0 thì không hiển thị" — đã chốt: 0 không phải một điểm số mà là **Chấm không điểm**; bài đó là **Bài thiếu điểm** (trước đây điểm 0 được tính là Bài có điểm).
 - "Nhận xét chung với mỗi lần chấm bài" — đã chốt: một nhận xét cho mỗi **Lần nộp**, không lưu lịch sử các lần chấm lại.
 - "Có điểm trước" từng được hiểu theo thời gian hoàn thành — đã chốt: chỉ xét số lượng **Bài có điểm**, không xét thời gian.
