@@ -16,7 +16,8 @@ test('giáo viên thấy cột Nhận xét chung ngay sau cột Điểm trên tr
 
   await page.goto(`/teacher/assignments/${ASSIGNMENT_ID}`);
   const table = page.locator('table');
-  await expect(table.locator('tbody tr').first()).toBeVisible();
+  // Trang tải điểm từng Lần nộp một, bài đông học sinh có thể mất hơn 5 giây.
+  await expect(table.locator('tbody tr').first()).toBeVisible({ timeout: 20_000 });
 
   const headers = (await table.locator('thead th').allTextContents()).map((h) => h.trim().toLowerCase());
   const commentCol = headers.indexOf('nhận xét chung');
