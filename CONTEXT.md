@@ -23,6 +23,17 @@ _Avoid_: tiến độ, tỷ lệ hoàn thành
 Một bài giáo viên giao cho một Nhóm, gắn với một ngày buổi học. Người dùng hay gọi là "bài học" — cùng một thứ.
 _Avoid_: bài học, lesson
 
+**Lần nộp**:
+Một lần học sinh nộp bài cho một Bài tập. Học sinh có thể nộp nhiều lần; mỗi Lần nộp được chấm riêng.
+_Avoid_: bài nộp (khi cần phân biệt các lần)
+
+**Nhận xét chung**:
+Lời nhận xét tổng thể giáo viên viết cho một Lần nộp khi chấm, đi kèm điểm của lần đó. Mỗi Lần nộp có nhiều nhất một Nhận xét chung; chấm lại thì nhận xét mới thay nhận xét cũ.
+_Avoid_: bình luận, comment
+
+**Nhận xét theo ảnh**:
+Các lời nhận xét giáo viên (hoặc học sinh) gửi trên từng ảnh của một Lần nộp, dạng trao đổi qua lại. Không phải Nhận xét chung.
+
 **Bài bị ẩn**:
 Một Bài tập mà giáo viên đã ẩn khỏi giao diện của một học sinh cụ thể: không hiện ở trang chủ và bảng điểm của em đó. Chỉ là ẩn hiển thị, không phải chặn truy cập; bài nộp và điểm vẫn giữ nguyên.
 _Avoid_: quyền xem, phân quyền, bị khóa
@@ -39,6 +50,7 @@ _Avoid_: quyền, permission (khi nói chung chung)
 - Một **Nhóm** thuộc một **Lớp**; một **Học sinh** thuộc một **Nhóm**
 - Một **Bài tập** thuộc một **Nhóm** và gắn với một ngày buổi học
 - Mỗi **Học sinh** có một **Danh sách bài bị ẩn**, gồm không hoặc nhiều **Bài tập** thuộc nhóm của em đó
+- Một **Học sinh** có không hoặc nhiều **Lần nộp** cho một **Bài tập**; mỗi **Lần nộp** có nhiều nhất một điểm kèm một **Nhận xét chung**, và không hoặc nhiều **Nhận xét theo ảnh**
 - Mỗi bài trong **Phạm vi thống kê** là **Bài có điểm** hoặc **Bài thiếu điểm** đối với từng học sinh
 
 ## Example dialogue
@@ -49,4 +61,5 @@ _Avoid_: quyền, permission (khi nói chung chung)
 ## Flagged ambiguities
 
 - "Set quyền cho học sinh được xem bài nào" — không phải khái niệm quyền; đã chốt là **Danh sách bài bị ẩn**: mặc định thấy hết, giáo viên chỉ ẩn bớt, để bài mới tự hiện với cả nhóm.
+- "Nhận xét chung với mỗi lần chấm bài" — đã chốt: một nhận xét cho mỗi **Lần nộp**, không lưu lịch sử các lần chấm lại.
 - "Có điểm trước" từng được hiểu theo thời gian hoàn thành — đã chốt: chỉ xét số lượng **Bài có điểm**, không xét thời gian.

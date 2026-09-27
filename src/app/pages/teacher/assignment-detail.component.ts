@@ -283,6 +283,17 @@ interface StudentSubmissionRow {
         font-size: 1rem;
       }
 
+      .comment-cell {
+        max-width: 280px;
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+        white-space: pre-line;
+        color: #475569;
+        font-size: 0.85rem;
+      }
+
       .empty-state {
         text-align: center;
         padding: 40px 20px;
@@ -407,6 +418,7 @@ interface StudentSubmissionRow {
                   <th>Lần nộp</th>
                   <th>Trạng thái</th>
                   <th>Điểm</th>
+                  <th>Nhận xét chung</th>
                   <th>Thao tác</th>
                 </tr>
               </thead>
@@ -441,6 +453,18 @@ interface StudentSubmissionRow {
                       {{ row.grade.scoreValue }}
                     </span>
                     <span *ngIf="!row.grade" style="color: #94a3b8;">-</span>
+                  </td>
+                  <td>
+                    <div
+                      class="comment-cell"
+                      *ngIf="row.grade?.comment?.trim()"
+                      [title]="row.grade!.comment"
+                    >{{ row.grade!.comment.trim() }}</div>
+                    <span
+                      *ngIf="!row.grade?.comment?.trim()"
+                      style="color: #94a3b8;"
+                      >-</span
+                    >
                   </td>
                   <td>
                     <button
