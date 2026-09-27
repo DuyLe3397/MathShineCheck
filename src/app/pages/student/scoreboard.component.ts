@@ -155,6 +155,11 @@ interface ScoreRow {
         font-style: italic;
       }
 
+      .score-cell.score-none {
+        color: #94a3b8;
+        font-weight: 400;
+      }
+
       .request-btn {
         padding: 0.3rem 0.6rem;
         border: none;
@@ -444,7 +449,10 @@ interface ScoreRow {
                     <td class="stt">{{ idx + 1 }}</td>
                     <td class="name-cell">{{ row.fullName }}</td>
                     @for (a of paginatedAssignments(); track a.id) {
-                      <td class="score-cell">
+                      <td
+                        class="score-cell"
+                        [class.score-none]="row.scores.get(a.id)?.score === 0"
+                      >
                         @if (row.scores.has(a.id)) {
                           {{ formatScore(row.scores.get(a.id)?.score) }}
                         } @else {

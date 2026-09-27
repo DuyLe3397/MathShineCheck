@@ -154,6 +154,9 @@ interface PeerInfo {
       .score-value.score-perfect {
         color: #16a34a;
       }
+      .score-value.score-none {
+        color: #94a3b8;
+      }
       .attempt-images {
         display: flex;
         gap: 6px;
@@ -347,6 +350,7 @@ interface PeerInfo {
                 <span
                   class="score-value"
                   [class.score-perfect]="a.score === 10"
+                  [class.score-none]="a.score === 0"
                 >
                   {{ a.score === 0 ? '-' : (a.score ?? '?') + 'đ' }}
                 </span>
