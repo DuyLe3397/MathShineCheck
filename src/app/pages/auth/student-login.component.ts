@@ -5,6 +5,7 @@ import { Router, RouterModule } from '@angular/router';
 import { AuthService } from '../../services/auth.service';
 import { FirestoreService } from '../../services/firestore.service';
 import { SchoolClass, Group } from '../../models';
+import { isValidStudentName, normalizePhone, normalizeStudentName } from '../../shared/student-input';
 
 @Component({
   selector: 'app-student-login',
@@ -134,6 +135,7 @@ import { SchoolClass, Group } from '../../models';
               placeholder="Nhập họ tên đầy đủ"
               [(ngModel)]="fullName"
               (ngModelChange)="fullName = $event.toUpperCase()"
+              (blur)="fullName = normalizeStudentName(fullName)"
               required
             />
           </div>
@@ -145,6 +147,7 @@ import { SchoolClass, Group } from '../../models';
               type="tel"
               placeholder="Nhập số điện thoại"
               [(ngModel)]="phone"
+              (ngModelChange)="phone = normalizePhone($event)"
               (keypress)="onPhoneKeyPress($event)"
               required
             />
@@ -192,6 +195,9 @@ export class StudentLoginComponent implements OnInit {
   private firestoreService = inject(FirestoreService);
   private router = inject(Router);
 
+  protected readonly normalizeStudentName = normalizeStudentName;
+  protected readonly normalizePhone = normalizePhone;
+
   classes: SchoolClass[] = [];
   groups: Group[] = [];
   fullName = '';
@@ -234,6 +240,12 @@ export class StudentLoginComponent implements OnInit {
 
   onSubmit(): void {
     this.errorMessage = '';
+    this.fullName = normalizeStudentName(this.fullName);
+    this.phone = normalizePhone(this.phone);
+    if (!isValidStudentName(this.fullName)) {
+      this.errorMessage = 'Họ tên chỉ gồm chữ cái và dấu cách.';
+      return;
+    }
     this.loading = true;
     this.authService
       .getStudentByInfo(this.fullName, this.className, this.groupId, this.phone)
