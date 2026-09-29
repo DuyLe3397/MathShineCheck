@@ -855,11 +855,8 @@ export class StatisticsComponent implements OnInit, OnDestroy {
             return of(void 0);
           }
 
-          const gradeObservables = assignments.map(a =>
-            this.firestoreService.getGradesByAssignment(a.id),
-          );
-
-          return forkJoin(gradeObservables).pipe(
+          return this.firestoreService.getGradesByAssignmentIds(assignments.map(a => a.id)).pipe(
+            map(grades => assignments.map(a => grades.filter(g => g.assignmentId === a.id))),
             map(allGradesByAssignment => {
               const gradeMap = new Map<string, { assignmentId: string; score: number }[]>();
               students.forEach(s => {

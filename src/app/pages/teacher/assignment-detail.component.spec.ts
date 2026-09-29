@@ -54,7 +54,7 @@ async function renderPage(students: Student[], submissions: Submission[], grades
     getAssignment: async () => assignment,
     getStudentsByGroup: () => of(students),
     getSubmissionsByAssignment: () => of(submissions),
-    getGradeBySubmission: (id: string) => of(grades.find((g) => g.submissionId === id) ?? null),
+    getGradesByAssignment: () => of(grades),
   };
 
   TestBed.configureTestingModule({

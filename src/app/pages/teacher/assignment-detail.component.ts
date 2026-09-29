@@ -7,7 +7,7 @@ import { AuthService } from '../../services/auth.service';
 import { NavbarComponent } from '../../shared/components/navbar.component';
 import { TeacherNotificationBellComponent } from '../../shared/components/teacher-notification-bell.component';
 import { Assignment, Student, Submission, Grade } from '../../models';
-import { forkJoin, map, switchMap, of } from 'rxjs';
+import { forkJoin } from 'rxjs';
 
 interface StudentSubmissionRow {
   student: Student;
@@ -572,44 +572,20 @@ export class AssignmentDetailComponent implements OnInit {
 
     this.assignment = assignment;
 
-    this.firestoreService
-      .getStudentsByGroup(assignment.groupId)
-      .pipe(
-        switchMap((students) => {
-          if (students.length === 0) return of([]);
-
-          this.firestoreService
-            .getSubmissionsByAssignment(this.assignmentId)
-            .pipe(
-              switchMap((submissions) => {
-                const gradeObservables = submissions.map((s) =>
-                  this.firestoreService.getGradeBySubmission(s.id),
-                );
-                if (gradeObservables.length === 0) {
-                  return of({
-                    students,
-                    submissions,
-                    grades: [] as (Grade | null)[],
-                  });
-                }
-                return forkJoin(gradeObservables).pipe(
-                  map((grades) => ({ students, submissions, grades })),
-                );
-              }),
-            )
-            .subscribe({
-              next: (data: any) => {
-                this.buildRows(data.students, data.submissions, data.grades);
-                this.loading = false;
-              },
-              error: () => {
-                this.loading = false;
-              },
-            });
-          return of([]);
-        }),
-      )
-      .subscribe();
+    // Học sinh, Lần nộp và điểm của bài này: 3 query chạy song song
+    forkJoin([
+      this.firestoreService.getStudentsByGroup(assignment.groupId),
+      this.firestoreService.getSubmissionsByAssignment(this.assignmentId),
+      this.firestoreService.getGradesByAssignment(this.assignmentId),
+    ]).subscribe({
+      next: ([students, submissions, grades]) => {
+        if (students.length > 0) this.buildRows(students, submissions, grades);
+        this.loading = false;
+      },
+      error: () => {
+        this.loading = false;
+      },
+    });
   }
 
   private buildRows(

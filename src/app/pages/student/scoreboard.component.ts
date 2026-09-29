@@ -565,6 +565,8 @@ export class ScoreboardComponent implements OnInit {
         this.loadGrades(assignments);
       });
 
+    this.loadMySubmissions();
+
     this.firestoreService
       .getPermissionsByRequester(this.currentUid)
       .subscribe((perms) => {
@@ -590,7 +592,7 @@ export class ScoreboardComponent implements OnInit {
       .getGradesByAssignmentIds(assignmentIds)
       .subscribe((allGrades) => {
         this.grades.set(allGrades);
-        this.loadMySubmissions();
+        this.buildRows();
       });
   }
 
