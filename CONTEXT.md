@@ -31,6 +31,10 @@ _Avoid_: bài học, lesson
 Một lần học sinh nộp bài cho một Bài tập. Học sinh có thể nộp nhiều lần; mỗi Lần nộp được chấm riêng.
 _Avoid_: bài nộp (khi cần phân biệt các lần)
 
+**Lần nộp chờ chấm**:
+Một Lần nộp chưa có kết quả chấm cuối cùng: học sinh vừa nộp, hoặc giáo viên đã mở chấm nhưng chưa chấm xong. Lần nộp đã chấm (kể cả **Chấm không điểm**) không còn là chờ chấm.
+_Avoid_: bài chưa chấm, bài pending
+
 **Nhận xét chung**:
 Lời nhận xét tổng thể giáo viên viết cho một Lần nộp khi chấm, đi kèm điểm của lần đó. Mỗi Lần nộp có nhiều nhất một Nhận xét chung; chấm lại thì nhận xét mới thay nhận xét cũ.
 _Avoid_: bình luận, comment

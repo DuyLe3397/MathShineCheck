@@ -17,6 +17,10 @@ import {
   addDoc,
   Timestamp,
   writeBatch,
+  getCountFromServer,
+  getAggregateFromServer,
+  sum,
+  count,
 } from '@angular/fire/firestore';
 import { forkJoin, from, Observable, of } from 'rxjs';
 import { catchError, map, shareReplay } from 'rxjs/operators';
@@ -538,6 +542,69 @@ export class FirestoreService {
         });
         return users;
       })
+    );
+  }
+
+  // ==================== DASHBOARD (aggregation, không tải bản ghi) ====================
+  private readonly PENDING_STATUSES = ['submitted', 'grading'];
+
+  /** Số liệu tổng quan cho dashboard giáo viên; server tự đếm/cộng, chỉ tốn vài lượt đọc. */
+  async getDashboardStats(): Promise<{
+    totalStudents: number;
+    pendingSubmissions: number;
+    gradedToday: number;
+    averageScore: number | null;
+  }> {
+    const today = new Date().toISOString().split('T')[0];
+    const grades = collection(this.firestore, 'grades');
+    const [students, pending, gradedToday, scored] = await Promise.all([
+      getCountFromServer(collection(this.firestore, 'students')),
+      getCountFromServer(
+        query(
+          collection(this.firestore, 'submissions'),
+          where('status', 'in', this.PENDING_STATUSES),
+        ),
+      ),
+      getCountFromServer(query(grades, where('gradedAt', '>=', today))),
+      // Điểm 0 là Chấm không điểm, không tính vào trung bình
+      getAggregateFromServer(query(grades, where('scoreValue', '>', 0)), {
+        total: sum('scoreValue'),
+        n: count(),
+      }),
+    ]);
+    const { total, n } = scored.data();
+    return {
+      totalStudents: students.data().count,
+      pendingSubmissions: pending.data().count,
+      gradedToday: gradedToday.data().count,
+      averageScore: n > 0 ? total / n : null,
+    };
+  }
+
+  /** Mọi Lần nộp chờ chấm (vừa nộp hoặc đang chấm dở). */
+  async getPendingSubmissions(): Promise<Submission[]> {
+    const snap = await getDocs(
+      query(
+        collection(this.firestore, 'submissions'),
+        where('status', 'in', this.PENDING_STATUSES),
+      ),
+    );
+    return snap.docs.map((d) => ({ id: d.id, ...d.data() }) as Submission);
+  }
+
+  async getAssignmentsByIds(ids: string[]): Promise<Assignment[]> {
+    const snaps = await Promise.all(
+      this.chunkArray(ids, 30).map((chunk) =>
+        getDocs(
+          query(
+            collection(this.firestore, 'assignments'),
+            where('__name__', 'in', chunk),
+          ),
+        ),
+      ),
+    );
+    return snaps.flatMap((s) =>
+      s.docs.map((d) => ({ id: d.id, ...d.data() }) as Assignment),
     );
   }
 
