@@ -1,4 +1,4 @@
-import { Component, Input, signal } from '@angular/core';
+import { Component, HostBinding, Input, signal } from '@angular/core';
 import { DatePipe } from '@angular/common';
 
 /**
@@ -67,6 +67,20 @@ import { DatePipe } from '@angular/common';
           cursor: not-allowed;
         }
       }
+      :host(.on-dark) .status {
+        color: rgba(255, 255, 255, 0.85);
+      }
+      :host(.on-dark) .status.error {
+        color: #fecaca;
+      }
+      :host(.on-dark) .refresh-btn {
+        background: transparent;
+        color: #fff;
+        border: 1.5px solid rgba(255, 255, 255, 0.5);
+        &:hover:not(:disabled) {
+          background: rgba(255, 255, 255, 0.15);
+        }
+      }
       .icon {
         display: inline-block;
         font-size: 1.05rem;
@@ -86,6 +100,8 @@ import { DatePipe } from '@angular/common';
 export class RefreshButtonComponent {
   @Input({ required: true }) action!: () => Promise<boolean | void>;
   @Input() disabled = false;
+  /** Đặt trên nền tối (header xanh của trang chấm bài). */
+  @HostBinding('class.on-dark') @Input() onDark = false;
 
   refreshing = signal(false);
   updatedAt = signal<Date | null>(null);

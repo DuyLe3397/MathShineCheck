@@ -13,11 +13,13 @@ import { FirestoreService } from '../../services/firestore.service';
 import { ImageService } from '../../services/image.service';
 import { AuthService } from '../../services/auth.service';
 import { Submission, Grade, SubmissionComment } from '../../models';
+import { RefreshButtonComponent } from '../../shared/components/refresh-button.component';
+import { firstValueFrom } from 'rxjs';
 
 @Component({
   selector: 'app-grading',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterModule],
+  imports: [CommonModule, FormsModule, RouterModule, RefreshButtonComponent],
   styles: [
     `
       :host {
@@ -50,6 +52,10 @@ import { Submission, Grade, SubmissionComment } from '../../models';
         font-size: 0.8rem;
         opacity: 0.85;
         margin-left: auto;
+      }
+      .app-header app-refresh-button {
+        order: 0;
+        margin: 0;
       }
       .profile-link {
         color: #fff;
@@ -620,6 +626,7 @@ import { Submission, Grade, SubmissionComment } from '../../models';
       <button class="back-btn" (click)="goBack()">←</button>
       <h2>Chấm bài</h2>
       <span class="sub">{{ studentName }}</span>
+      <app-refresh-button [action]="refresh" [onDark]="true" [disabled]="loading || !submission" />
       <a class="profile-link" routerLink="/teacher/profile">Hồ sơ</a>
     </div>
 
@@ -926,6 +933,9 @@ export class GradingComponent implements OnInit {
 
   scoreValue: number | null = null;
   overallComment = '';
+  // Điểm và Nhận xét chung đang lưu trên server, để biết giáo viên đã sửa mà chưa lưu
+  private savedScore: number | null = null;
+  private savedComment = '';
 studentName = '';
   studentId = '';
   currentImageUrl = '';
@@ -1003,12 +1013,7 @@ studentName = '';
 
     this.firestoreService
       .getGradeBySubmission(this.submissionId)
-      .subscribe((grade) => {
-        if (grade) {
-          this.scoreValue = grade.scoreValue;
-          this.overallComment = grade.comment || '';
-        }
-      });
+      .subscribe((grade) => this.applyGrade(grade));
 
     const [student] = await Promise.all([
       this.firestoreService.getStudent(submission.studentId),
@@ -1041,17 +1046,67 @@ studentName = '';
     if (!this.submission) return;
     this.firestoreService
       .getCommentsBySubmission(this.submissionId)
-      .subscribe((comments) => {
-        const map: Record<number, SubmissionComment[]> = {};
-        for (const c of comments) {
-          const idx = c.imageIndex ?? 0;
-          if (!map[idx]) map[idx] = [];
-          map[idx].push(c);
-        }
-        this.imageCommentsMap.set(map);
-        this.imageComments.set(map[this.currentPage] || []);
-      });
+      .subscribe((comments) => this.applyComments(comments));
   }
+
+  private applyComments(comments: SubmissionComment[]): void {
+    const map: Record<number, SubmissionComment[]> = {};
+    for (const c of comments) {
+      const idx = c.imageIndex ?? 0;
+      if (!map[idx]) map[idx] = [];
+      map[idx].push(c);
+    }
+    this.imageCommentsMap.set(map);
+    this.imageComments.set(map[this.currentPage] || []);
+  }
+
+  private applyGrade(grade: Grade | null): void {
+    this.scoreValue = grade ? grade.scoreValue : null;
+    this.overallComment = grade?.comment || '';
+    this.savedScore = this.scoreValue;
+    this.savedComment = this.overallComment;
+  }
+
+  /** Điểm hoặc Nhận xét chung đã sửa mà chưa lưu, hoặc bình luận đang gõ dở. */
+  private hasUnsavedChanges(): boolean {
+    return (
+      this.scoreValue !== this.savedScore ||
+      this.overallComment !== this.savedComment ||
+      this.newCommentText.trim() !== ''
+    );
+  }
+
+  /** Làm mới Lần nộp, điểm, bình luận và ảnh đang xem (lấy từ server, bỏ cache). */
+  refresh = async (): Promise<boolean> => {
+    if (
+      this.hasUnsavedChanges() &&
+      !confirm('Bỏ các thay đổi chưa lưu (điểm, nhận xét chung, bình luận đang gõ)?')
+    ) {
+      return false;
+    }
+
+    const submission = await this.firestoreService.getSubmission(this.submissionId);
+    if (!submission) throw new Error('Không tìm thấy bài nộp');
+    this.submission = submission;
+    this.totalPages = submission.imageIds.length;
+    this.currentPage = Math.min(this.currentPage, Math.max(this.totalPages - 1, 0));
+
+    // Đang mở khung vẽ thì giữ ảnh trên canvas để không mất nét vẽ dở
+    const imageId = submission.imageIds[this.currentPage];
+    const [grade, comments, image] = await Promise.all([
+      firstValueFrom(this.firestoreService.getGradeBySubmission(this.submissionId)),
+      firstValueFrom(this.firestoreService.getCommentsBySubmission(this.submissionId)),
+      imageId && !this.drawingMode
+        ? this.imageService.refreshSubmissionImage(imageId)
+        : Promise.resolve(undefined),
+    ]);
+
+    this.applyGrade(grade);
+    this.newCommentText = '';
+    this.applyComments(comments);
+    if (image !== undefined) this.currentImageUrl = image || '';
+    return true;
+  };
 
   async sendComment(): Promise<void> {
     const text = this.newCommentText.trim();
@@ -1473,6 +1528,8 @@ studentName = '';
           'graded',
         );
       }
+      this.savedScore = this.scoreValue;
+      this.savedComment = this.overallComment;
       this.showSuccess = true;
     } catch (err: any) {
       alert('Lỗi khi lưu: ' + (err.message || 'Không xác định'));

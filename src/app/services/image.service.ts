@@ -118,6 +118,12 @@ export class ImageService {
     return cached;
   }
 
+  /** Tải lại một ảnh từ server, bỏ bản trong cache (ví dụ giáo viên khác vừa vẽ lên). */
+  refreshSubmissionImage(imageId: string): Promise<string | null> {
+    this.submissionImageCache.delete(imageId);
+    return this.getSubmissionImage(imageId);
+  }
+
   /** Tải song song nhiều ảnh, giữ đúng thứ tự, bỏ qua ảnh thiếu hoặc lỗi. */
   async getSubmissionImages(imageIds: string[]): Promise<string[]> {
     const results = await Promise.all(

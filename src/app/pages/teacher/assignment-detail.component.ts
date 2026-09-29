@@ -6,8 +6,9 @@ import { FirestoreService } from '../../services/firestore.service';
 import { AuthService } from '../../services/auth.service';
 import { NavbarComponent } from '../../shared/components/navbar.component';
 import { TeacherNotificationBellComponent } from '../../shared/components/teacher-notification-bell.component';
+import { RefreshButtonComponent } from '../../shared/components/refresh-button.component';
 import { Assignment, Student, Submission, Grade } from '../../models';
-import { forkJoin } from 'rxjs';
+import { firstValueFrom, forkJoin } from 'rxjs';
 
 interface StudentSubmissionRow {
   student: Student;
@@ -20,7 +21,7 @@ interface StudentSubmissionRow {
 @Component({
   selector: 'app-assignment-detail',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterModule, NavbarComponent, TeacherNotificationBellComponent],
+  imports: [CommonModule, FormsModule, RouterModule, NavbarComponent, TeacherNotificationBellComponent, RefreshButtonComponent],
   styles: [
     `
       :host {
@@ -377,6 +378,7 @@ interface StudentSubmissionRow {
 
       <main class="main">
         <div class="header">
+          <app-refresh-button [action]="refresh" [disabled]="loading" />
           <h1>{{ assignment?.title || 'Chi tiết bài tập' }}</h1>
           <button class="btn btn-outline" routerLink="/teacher/assignments">
             ← Quay lại
@@ -561,32 +563,30 @@ export class AssignmentDetailComponent implements OnInit {
 
   async loadAssignmentDetail(): Promise<void> {
     this.loading = true;
-
-    const assignment = await this.firestoreService.getAssignment(
-      this.assignmentId,
-    );
-    if (!assignment) {
+    try {
+      await this.refresh();
+    } catch {
+      // giữ trang trống như trước khi có dữ liệu
+    } finally {
       this.loading = false;
-      return;
     }
+  }
 
+  /** Tải bài tập cùng học sinh, Lần nộp và điểm của bài (3 query song song); giữ bảng cũ trong lúc tải. */
+  refresh = async (): Promise<void> => {
+    const assignment = await this.firestoreService.getAssignment(this.assignmentId);
+    if (!assignment) return;
     this.assignment = assignment;
 
-    // Học sinh, Lần nộp và điểm của bài này: 3 query chạy song song
-    forkJoin([
-      this.firestoreService.getStudentsByGroup(assignment.groupId),
-      this.firestoreService.getSubmissionsByAssignment(this.assignmentId),
-      this.firestoreService.getGradesByAssignment(this.assignmentId),
-    ]).subscribe({
-      next: ([students, submissions, grades]) => {
-        if (students.length > 0) this.buildRows(students, submissions, grades);
-        this.loading = false;
-      },
-      error: () => {
-        this.loading = false;
-      },
-    });
-  }
+    const [students, submissions, grades] = await firstValueFrom(
+      forkJoin([
+        this.firestoreService.getStudentsByGroup(assignment.groupId),
+        this.firestoreService.getSubmissionsByAssignment(this.assignmentId),
+        this.firestoreService.getGradesByAssignment(this.assignmentId),
+      ]),
+    );
+    this.buildRows(students, submissions, grades);
+  };
 
   private buildRows(
     students: Student[],
