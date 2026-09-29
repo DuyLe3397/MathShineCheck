@@ -68,7 +68,22 @@
       "Bash(node get-all-tokens.js)",
       "Bash(node get-token-single.js RM44101 123)",
       "Bash(node get-token-single.js RM44000 123)",
-      "Bash(node get-token-single.js KSPTD 123)"
+      "Bash(node get-token-single.js KSPTD 123)",
+      "Bash(python \"C:/Users/runno/AppData/Local/Temp/claude/d--Duy-MathShineCheck/639e7756-b07a-4fca-a84a-02ca267477fe/scratchpad/disc_patch.py\")",
+      "Bash(git diff *)",
+      "Bash(break)",
+      "Bash(sed 's/\\\\x1b\\\\[[0-9;]*[A-Za-z]//g' C:/Users/runno/AppData/Local/Temp/claude/d--Duy-MathShineCheck/639e7756-b07a-4fca-a84a-02ca267477fe/scratchpad/karma-server.log)",
+      "Bash(grep -v \"^\\\\s*$\")",
+      "Bash(npm run *)",
+      "Bash(grep -vE \"WARNING|CommonJS|For more information|^\\\\s*$\")",
+      "Bash(grep -n \"async [a-zA-Z]*\\(.*{$\\\\|updateSubmissionImage\\\\|onMouseUp\\\\|stopDrawing\\\\|endDraw\\\\|pointerup\" src/app/pages/teacher/grading.component.ts)",
+      "Bash(awk -F: '$1>1100 && $1<1460')",
+      "Bash(grep -v \"^--$\")",
+      "Bash(python \"C:/Users/runno/AppData/Local/Temp/claude/d--Duy-MathShineCheck/639e7756-b07a-4fca-a84a-02ca267477fe/scratchpad/add_import.py\")",
+      "Bash(python \"C:/Users/runno/AppData/Local/Temp/claude/d--Duy-MathShineCheck/639e7756-b07a-4fca-a84a-02ca267477fe/scratchpad/group2.py\")",
+      "Bash(grep -n \"template: \\\\`\" -A30 src/app/pages/teacher/grading.component.ts)",
+      "Bash(grep -E \"Executed .* \\(SUCCESS|FAILED|ERROR\\)|FAILED$|Expected\")",
+      "Bash(grep -E \"Executed .* \\(SUCCESS|FAILED\\)|FAILED$|Expected\")"
     ],
     "additionalDirectories": [
       "\\tmp"
