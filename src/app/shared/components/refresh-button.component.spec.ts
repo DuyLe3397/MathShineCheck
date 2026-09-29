@@ -1,5 +1,6 @@
 import { TestBed } from '@angular/core/testing';
 import { RefreshButtonComponent } from './refresh-button.component';
+import { NotificationRefreshService } from '../../services/notification-refresh.service';
 
 async function render(action: () => Promise<boolean | void>) {
   const fixture = TestBed.createComponent(RefreshButtonComponent);
@@ -33,6 +34,44 @@ describe('Nút Làm mới', () => {
     });
     await click();
     expect(el.textContent).toContain('Làm mới thất bại');
+  });
+
+  it('làm mới xong thì tải lại cả mục Thông báo', async () => {
+    const notifications = TestBed.inject(NotificationRefreshService);
+    const reload = jasmine.createSpy('reload').and.resolveTo();
+    notifications.register(reload);
+    const { click } = await render(async () => {});
+    await click();
+    expect(reload).toHaveBeenCalledTimes(1);
+  });
+
+  it('người dùng hủy thì không tải lại mục Thông báo', async () => {
+    const notifications = TestBed.inject(NotificationRefreshService);
+    const reload = jasmine.createSpy('reload').and.resolveTo();
+    notifications.register(reload);
+    const { click } = await render(async () => false);
+    await click();
+    expect(reload).not.toHaveBeenCalled();
+  });
+
+  it('đang thu nhỏ mà làm mới xong thì bung ra 2 giây rồi thu lại', async () => {
+    jasmine.clock().install();
+    try {
+      const fixture = TestBed.createComponent(RefreshButtonComponent);
+      fixture.componentRef.setInput('action', async () => {});
+      fixture.detectChanges();
+      const host = fixture.nativeElement as HTMLElement;
+
+      await fixture.componentInstance.run();
+      fixture.detectChanges();
+      expect(host.classList).toContain('flash');
+
+      jasmine.clock().tick(2001);
+      fixture.detectChanges();
+      expect(host.classList).not.toContain('flash');
+    } finally {
+      jasmine.clock().uninstall();
+    }
   });
 
   it('khóa nút trong lúc đang tải để không bấm chồng', async () => {

@@ -1,4 +1,6 @@
-import { Component, inject, OnInit, signal } from '@angular/core';
+import { Component, inject, OnDestroy, OnInit, signal } from '@angular/core';
+import { firstValueFrom } from 'rxjs';
+import { NotificationRefreshService } from '../../services/notification-refresh.service';
 import { CommonModule } from '@angular/common';
 import { Router, RouterModule } from '@angular/router';
 import { AuthService } from '../../services/auth.service';
@@ -156,10 +158,18 @@ import { TeacherNotification } from '../../models';
         opacity: 0.5;
         cursor: not-allowed;
       }
+      .shake {
+        animation: shake 0.6s ease-in-out;
+      }
+      @keyframes shake {
+        0%, 100% { transform: translateX(0); }
+        20%, 60% { transform: translateX(-4px); }
+        40%, 80% { transform: translateX(4px); }
+      }
     `,
   ],
   template: `
-    <button class="notif-nav-item" (click)="togglePopup()">
+    <button class="notif-nav-item" [class.shake]="shaking()" (click)="togglePopup()">
       <span>Thông báo</span>
       @if (unreadCount() > 0) {
         <span class="notif-badge">+{{ unreadCount() }}</span>
@@ -211,10 +221,11 @@ import { TeacherNotification } from '../../models';
     }
   `,
 })
-export class TeacherNotificationBellComponent implements OnInit {
+export class TeacherNotificationBellComponent implements OnInit, OnDestroy {
   private authService = inject(AuthService);
   private firestoreService = inject(FirestoreService);
   private router = inject(Router);
+  private notificationRefresh = inject(NotificationRefreshService);
 
   notifications = signal<TeacherNotification[]>([]);
   popupOpen = signal(false);
@@ -222,13 +233,32 @@ export class TeacherNotificationBellComponent implements OnInit {
 
   unreadCount = signal(0);
 
+  /** Lắc nhẹ mục Thông báo khi nút Làm mới mang về thông báo chưa đọc mới. */
+  shaking = signal(false);
+  private unregister?: () => void;
+
   ngOnInit(): void {
     const profile = this.authService.currentProfile;
     if (!profile?.uid) return;
-    this.firestoreService.getNotificationsForTeacher(profile.uid).subscribe((items) => {
-      this.notifications.set(items);
-      this.unreadCount.set(items.filter((n) => !n.isRead).length);
+    this.load(profile.uid).catch(() => {});
+    this.unregister = this.notificationRefresh.register(async () => {
+      const before = this.unreadCount();
+      await this.load(profile.uid);
+      if (this.unreadCount() > before) {
+        this.shaking.set(true);
+        setTimeout(() => this.shaking.set(false), 700);
+      }
     });
+  }
+
+  ngOnDestroy(): void {
+    this.unregister?.();
+  }
+
+  private async load(uid: string): Promise<void> {
+    const items = await firstValueFrom(this.firestoreService.getNotificationsForTeacher(uid));
+    this.notifications.set(items);
+    this.unreadCount.set(items.filter((n) => !n.isRead).length);
   }
 
   togglePopup(): void {

@@ -1,10 +1,13 @@
-import { Component, HostBinding, Input, signal } from '@angular/core';
+import { Component, HostBinding, inject, Input, NgZone, OnDestroy, OnInit, signal } from '@angular/core';
 import { DatePipe } from '@angular/common';
+import { NotificationRefreshService } from '../../services/notification-refresh.service';
 
 /**
  * Nút "Làm mới" của trang giáo viên, nổi cố định ở góc trên phải màn hình để bấm được
- * cả khi đã cuộn xuống: gọi lại hàm tải dữ liệu của trang mà không tải lại cả trang. `action` trả về false khi người dùng hủy (ví dụ không muốn
- * bỏ thay đổi chưa lưu) thì giữ nguyên mốc "Cập nhật lúc"; ném lỗi thì báo thất bại.
+ * cả khi đã cuộn xuống: gọi lại hàm tải dữ liệu của trang mà không tải lại cả trang,
+ * kèm tải lại mục Thông báo ở sidebar nếu trang có. `action` trả về false khi người dùng
+ * hủy (ví dụ không muốn bỏ thay đổi chưa lưu) thì không làm mới gì; ném lỗi thì báo thất bại.
+ * Cuộn khỏi đầu trang thì thu còn icon ↻; di chuột vào hoặc vừa làm mới xong thì bung ra.
  */
 @Component({
   selector: 'app-refresh-button',
@@ -24,7 +27,7 @@ import { DatePipe } from '@angular/common';
       title="Tải lại dữ liệu trên trang"
     >
       <span class="icon" [class.spinning]="refreshing()">↻</span>
-      Làm mới
+      <span class="label">Làm mới</span>
     </button>
   `,
   styles: [
@@ -43,14 +46,37 @@ import { DatePipe } from '@angular/common';
         border: 1px solid #e2e8f0;
         border-radius: 12px;
         box-shadow: 0 4px 16px rgba(15, 23, 42, 0.12);
+        transition: padding 0.2s ease, gap 0.2s ease, border-radius 0.2s ease;
+      }
+      .status,
+      .label {
+        white-space: nowrap;
+        overflow: hidden;
+        max-width: 160px;
+        transition: max-width 0.2s ease, opacity 0.2s ease;
       }
       .status {
         font-size: 0.8rem;
         color: #64748b;
-        white-space: nowrap;
       }
       .status.error {
         color: #dc2626;
+      }
+      /* Thu nhỏ: chỉ còn nút tròn ↻ */
+      :host(.compact:not(:hover):not(.flash)) {
+        padding: 4px;
+        gap: 0;
+        border-radius: 999px;
+        .status,
+        .label {
+          max-width: 0;
+          opacity: 0;
+        }
+        .refresh-btn {
+          padding: 8px;
+          gap: 0;
+          border-radius: 999px;
+        }
       }
       .refresh-btn {
         display: inline-flex;
@@ -64,7 +90,7 @@ import { DatePipe } from '@angular/common';
         font-size: 0.875rem;
         font-weight: 600;
         cursor: pointer;
-        transition: background 0.15s ease;
+        transition: background 0.15s ease, padding 0.2s ease;
         &:hover:not(:disabled) {
           background: #f1f5f9;
         }
@@ -89,7 +115,10 @@ import { DatePipe } from '@angular/common';
     `,
   ],
 })
-export class RefreshButtonComponent {
+export class RefreshButtonComponent implements OnInit, OnDestroy {
+  private notificationRefresh = inject(NotificationRefreshService);
+  private zone = inject(NgZone);
+
   @Input({ required: true }) action!: () => Promise<boolean | void>;
   @Input() disabled = false;
   /** Khoảng cách tới mép trên màn hình, để né header cao (trang chấm bài). */
@@ -98,13 +127,40 @@ export class RefreshButtonComponent {
   refreshing = signal(false);
   updatedAt = signal<Date | null>(null);
   failed = signal(false);
+  private compact = signal(false);
+  private flash = signal(false);
+  private flashTimer?: ReturnType<typeof setTimeout>;
+
+  @HostBinding('class.compact') get isCompact(): boolean {
+    return this.compact();
+  }
+
+  @HostBinding('class.flash') get isFlashing(): boolean {
+    return this.flash();
+  }
+
+  // Trang cuộn theo cửa sổ, riêng vài trang cuộn trong .main; bắt cả hai ở pha capture
+  private onScroll = (): void => {
+    const main = document.querySelector('.main');
+    this.compact.set(Math.max(window.scrollY, main?.scrollTop ?? 0) > 0);
+  };
+
+  ngOnInit(): void {
+    document.addEventListener('scroll', this.onScroll, { capture: true, passive: true });
+  }
+
+  ngOnDestroy(): void {
+    document.removeEventListener('scroll', this.onScroll, { capture: true });
+    clearTimeout(this.flashTimer);
+  }
 
   async run(): Promise<void> {
     if (this.refreshing()) return;
     this.refreshing.set(true);
+    let cancelled = false;
     try {
-      const done = await this.action();
-      if (done !== false) {
+      cancelled = (await this.action()) === false;
+      if (!cancelled) {
         this.failed.set(false);
         this.updatedAt.set(new Date());
       }
@@ -113,5 +169,16 @@ export class RefreshButtonComponent {
     } finally {
       this.refreshing.set(false);
     }
+    if (cancelled) return;
+
+    // Thông báo là phần phụ: tải kèm nhưng không bắt nút chờ, lỗi thì chuông giữ số cũ
+    this.notificationRefresh.reloadAll();
+    // Đang thu nhỏ thì bung ra 2 giây cho thấy giờ cập nhật
+    this.flash.set(true);
+    clearTimeout(this.flashTimer);
+    // Timer chỉ để đổi giao diện: chạy ngoài zone để trang vẫn được coi là ổn định
+    this.zone.runOutsideAngular(() => {
+      this.flashTimer = setTimeout(() => this.zone.run(() => this.flash.set(false)), 2000);
+    });
   }
 }
