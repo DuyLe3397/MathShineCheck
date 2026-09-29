@@ -610,8 +610,8 @@ export class StudentHomeComponent implements OnInit, OnDestroy {
         return;
       }
 
-      // Chỉ tải tên người xin và tiêu đề bài có trong các yêu cầu
-      const [requesters, assignments] = await Promise.all([
+      // Chỉ tải tên người xin, tiêu đề bài và Lần nộp của người xin có trong các yêu cầu
+      const [requesters, assignments, attemptNumbers] = await Promise.all([
         firstValueFrom(
           this.firestoreService.getUsersByIds(
             [...new Set(pending.map((p) => p.requesterId))],
@@ -621,6 +621,7 @@ export class StudentHomeComponent implements OnInit, OnDestroy {
         this.firestoreService
           .getAssignmentsByIds([...new Set(pending.map((p) => p.assignmentId))])
           .catch(() => [] as Assignment[]),
+        Promise.all(pending.map((p) => this.latestAttemptOf(p.requesterId, p.assignmentId))),
       ]);
       const nameById = new Map<string, string>(
         requesters.map((s) => [s.id, s.fullName]),
@@ -628,15 +629,27 @@ export class StudentHomeComponent implements OnInit, OnDestroy {
       const titleById = new Map(assignments.map((a) => [a.id, a.title]));
 
       this.pendingRequests.set(
-        pending.map((p) => ({
+        pending.map((p, i) => ({
           permissionId: p.id,
           requesterName: nameById.get(p.requesterId) || p.requesterId,
           requesterId: p.requesterId,
           assignmentTitle: titleById.get(p.assignmentId) || p.assignmentId,
-          attemptNumber: 1,
+          attemptNumber: attemptNumbers[i],
         })),
       );
     });
+  }
+
+  /** Số của Lần nộp mới nhất mà học sinh đã nộp cho bài; chưa nộp thì là 1. */
+  private async latestAttemptOf(studentId: string, assignmentId: string): Promise<number> {
+    try {
+      const subs = await firstValueFrom(
+        this.firestoreService.getAllSubmissionsByStudentAndAssignment(studentId, assignmentId),
+      );
+      return subs.length > 0 ? subs[subs.length - 1].attemptNumber || subs.length : 1;
+    } catch {
+      return 1;
+    }
   }
 
   private async loadUnreadCommentCounts(submissions: Submission[]): Promise<void> {
