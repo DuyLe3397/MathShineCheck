@@ -5,6 +5,7 @@ import { FirestoreService } from '../../services/firestore.service';
 import { AuthService } from '../../services/auth.service';
 import { NavbarComponent } from '../../shared/components/navbar.component';
 import { TeacherNotificationBellComponent } from '../../shared/components/teacher-notification-bell.component';
+import { RefreshButtonComponent } from '../../shared/components/refresh-button.component';
 
 interface PendingAssignmentItem {
   id: string;
@@ -20,7 +21,7 @@ interface PendingAssignmentItem {
     RouterModule,
     RouterLink,
     NavbarComponent,
-    TeacherNotificationBellComponent,
+    TeacherNotificationBellComponent, RefreshButtonComponent,
   ],
   styles: [
     `
@@ -507,6 +508,7 @@ interface PendingAssignmentItem {
 
       <main class="main">
         <div class="header">
+          <app-refresh-button [action]="refresh" />
           <h1>Tổng quan</h1>
           <p>Chào mừng trở lại, {{ userFullName }}</p>
         </div>
@@ -652,7 +654,7 @@ export class TeacherDashboardComponent implements OnInit {
       }
     }
 
-    this.loadStats();
+    this.loadStats().catch(() => {});
   }
 
   async openPendingModal(): Promise<void> {
@@ -660,26 +662,36 @@ export class TeacherDashboardComponent implements OnInit {
     this.showPendingModal = true;
     this.pendingLoading = true;
     try {
-      const submissions = await this.firestoreService.getPendingSubmissions();
-      const countByAssignment = new Map<string, number>();
-      submissions.forEach((s) =>
-        countByAssignment.set(s.assignmentId, (countByAssignment.get(s.assignmentId) || 0) + 1),
-      );
-      const assignments = await this.firestoreService.getAssignmentsByIds([
-        ...countByAssignment.keys(),
-      ]);
-      this.pendingAssignments = assignments
-        .map((a) => ({
-          id: a.id,
-          title: a.title || 'Bài tập không có tiêu đề',
-          pendingCount: countByAssignment.get(a.id) || 0,
-        }))
-        .sort((a, b) => b.pendingCount - a.pendingCount);
+      await this.loadPendingAssignments();
     } catch {
       this.pendingAssignments = [];
     } finally {
       this.pendingLoading = false;
     }
+  }
+
+  /** Làm mới các ô số; popup chờ chấm đang mở thì tải lại luôn danh sách trong đó. */
+  refresh = async (): Promise<void> => {
+    await this.loadStats();
+    if (this.showPendingModal) await this.loadPendingAssignments();
+  };
+
+  private async loadPendingAssignments(): Promise<void> {
+    const submissions = await this.firestoreService.getPendingSubmissions();
+    const countByAssignment = new Map<string, number>();
+    submissions.forEach((s) =>
+      countByAssignment.set(s.assignmentId, (countByAssignment.get(s.assignmentId) || 0) + 1),
+    );
+    const assignments = await this.firestoreService.getAssignmentsByIds([
+      ...countByAssignment.keys(),
+    ]);
+    this.pendingAssignments = assignments
+      .map((a) => ({
+        id: a.id,
+        title: a.title || 'Bài tập không có tiêu đề',
+        pendingCount: countByAssignment.get(a.id) || 0,
+      }))
+      .sort((a, b) => b.pendingCount - a.pendingCount);
   }
 
   closePendingModal(): void {
@@ -691,18 +703,12 @@ export class TeacherDashboardComponent implements OnInit {
   }
 
   private async loadStats(): Promise<void> {
-    try {
-      const stats = await this.firestoreService.getDashboardStats();
-      this.totalStudents = stats.totalStudents;
-      this.pendingSubmissions = stats.pendingSubmissions;
-      this.gradedToday = stats.gradedToday;
-      this.averageScore =
-        stats.averageScore === null ? 'N/A' : stats.averageScore.toFixed(1);
-    } catch {
-      this.pendingSubmissions = 0;
-      this.gradedToday = 0;
-      this.averageScore = 'N/A';
-    }
+    const stats = await this.firestoreService.getDashboardStats();
+    this.totalStudents = stats.totalStudents;
+    this.pendingSubmissions = stats.pendingSubmissions;
+    this.gradedToday = stats.gradedToday;
+    this.averageScore =
+      stats.averageScore === null ? 'N/A' : stats.averageScore.toFixed(1);
   }
 
   logout(): void {

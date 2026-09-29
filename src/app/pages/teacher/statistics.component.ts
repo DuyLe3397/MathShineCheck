@@ -6,8 +6,9 @@ import { FirestoreService } from '../../services/firestore.service';
 import { AuthService } from '../../services/auth.service';
 import { NavbarComponent } from '../../shared/components/navbar.component';
 import { TeacherNotificationBellComponent } from '../../shared/components/teacher-notification-bell.component';
+import { RefreshButtonComponent } from '../../shared/components/refresh-button.component';
 import { SchoolClass, Group, Student, Assignment, Grade } from '../../models';
-import { forkJoin, map, switchMap, of } from 'rxjs';
+import { firstValueFrom, forkJoin, map, switchMap, of } from 'rxjs';
 import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
 import { rankStudentRows, ScopedStudentRow, StudentGradeRow } from './statistics-ranking';
@@ -16,7 +17,7 @@ import { bestScore } from '../../shared/score';
 @Component({
   selector: 'app-statistics',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterModule, NavbarComponent, TeacherNotificationBellComponent],
+  imports: [CommonModule, FormsModule, RouterModule, NavbarComponent, TeacherNotificationBellComponent, RefreshButtonComponent],
   styles: [
     `
       :host {
@@ -485,6 +486,7 @@ import { bestScore } from '../../shared/score';
 
       <main class="main">
         <div class="header">
+          <app-refresh-button [action]="refresh" [disabled]="!selectedGroupId" />
           <h1>Thống kê</h1>
         </div>
 
@@ -833,8 +835,18 @@ export class StatisticsComponent implements OnInit, OnDestroy {
 
   loadStatistics(): void {
     this.loading = true;
+    this.fetchStatistics().subscribe({
+      next: () => { this.loading = false; },
+      error: () => { this.loading = false; },
+    });
+  }
 
-    forkJoin([
+  /** Làm mới bảng thống kê của nhóm đang chọn, giữ nguyên bảng cũ trong lúc tải. */
+  refresh = (): Promise<void> =>
+    firstValueFrom(this.fetchStatistics(), { defaultValue: undefined });
+
+  private fetchStatistics() {
+    return forkJoin([
       this.firestoreService.getAssignmentsByGroup(this.selectedGroupId),
       this.firestoreService.getStudentsByGroup(this.selectedGroupId),
     ])
@@ -889,11 +901,7 @@ export class StatisticsComponent implements OnInit, OnDestroy {
             }),
           );
         }),
-      )
-      .subscribe({
-        next: () => { this.loading = false; },
-        error: () => { this.loading = false; },
-      });
+      );
   }
 
   // ── Column resize ────────────────────────────────────────────
