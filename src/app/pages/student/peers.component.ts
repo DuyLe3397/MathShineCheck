@@ -499,9 +499,8 @@ export class PeersComponent implements OnInit {
       }
     });
 
-    const peerList: PeerInfo[] = [];
-
-    for (const student of students) {
+    // Tải ảnh của mọi học sinh, mọi lần nộp song song
+    const peerList: PeerInfo[] = await Promise.all(students.map(async (student) => {
       const subs = (submissionsByStudent.get(student.uid) || [])
         .slice()
         .sort((a, b) => {
@@ -510,53 +509,33 @@ export class PeersComponent implements OnInit {
           if (aNum !== bNum) return aNum - bNum;
           return (a.submittedAt || '').localeCompare(b.submittedAt || '');
         });
-      const attempts: PeerAttempt[] = [];
 
-      for (let i = 0; i < subs.length; i++) {
-        const sub = subs[i];
+      const attempts: PeerAttempt[] = await Promise.all(subs.map(async (sub, i) => {
         let score: number | undefined;
-        
+
         if (sub.status === 'graded') {
           const grade = gradeBySubmissionId.get(sub.id);
           if (grade) score = grade.scoreValue;
         }
 
         // Load images if it's the current user's own submission (all images)
-        // or if permission is granted for other students
-        const imageUrls: string[] = [];
+        // or if permission is granted for other students (first image only)
         const isOwnSubmission = student.uid === uid;
         const hasPermission = isOwnSubmission || permissionByOwnerId.get(student.uid)?.status === 'granted';
+        const imageIds = !hasPermission
+          ? []
+          : isOwnSubmission
+            ? sub.imageIds
+            : sub.imageIds.slice(0, 1);
+        const imageUrls = await this.imageService.getSubmissionImages(imageIds);
 
-        if (hasPermission && sub.imageIds.length > 0) {
-          if (isOwnSubmission) {
-            // Current user: load ALL images of each attempt
-            for (const imageId of sub.imageIds) {
-              try {
-                const url = await this.imageService.getSubmissionImage(imageId);
-                if (url) imageUrls.push(url);
-              } catch {
-                /* skip */
-              }
-            }
-          } else {
-            // Other students with granted permission: load only first image
-            try {
-              const imageId = sub.imageIds[0];
-              const url = await this.imageService.getSubmissionImage(imageId);
-              if (url) imageUrls.push(url);
-            } catch {
-              /* skip */
-            }
-          }
-        }
-
-        attempts.push({
+        return {
           attemptNumber: sub.attemptNumber || i + 1,
           score,
           submissionId: sub.id,
           imageUrls,
-        });
-      }
+        };
+      }));
 
       let permissionStatus: 'none' | 'pending' | 'granted' | 'denied' = 'none';
       if (student.uid !== uid) {
@@ -568,8 +547,8 @@ export class PeersComponent implements OnInit {
         }
       }
 
-      peerList.push({ student, attempts, permissionStatus });
-    }
+      return { student, attempts, permissionStatus };
+    }));
 
     this.peers.set(peerList);
     this.loading.set(false);

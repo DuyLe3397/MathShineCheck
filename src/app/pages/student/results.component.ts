@@ -789,17 +789,7 @@ export class ResultsComponent implements OnInit {
 
   private async loadSubmissionImages(submission: Submission): Promise<void> {
     this.imagesLoading.set(true);
-    const urls: string[] = [];
-    const imageIds = submission.imageIds || [];
-
-    for (const imageId of imageIds) {
-      try {
-        const base64Data = await this.imageService.getSubmissionImage(imageId);
-        if (base64Data) urls.push(base64Data);
-      } catch {
-        // skip missing images
-      }
-    }
+    const urls = await this.imageService.getSubmissionImages(submission.imageIds || []);
 
     this.submittedImages.set(urls);
     this.imagesLoading.set(false);

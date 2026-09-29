@@ -479,23 +479,14 @@ export class PermissionsComponent implements OnInit {
   }
 
   async viewGradedImages(p: PermissionWithInfo): Promise<void> {
-    const urls: string[] = [];
     const submission =
       await this.firestoreService.getSubmissionByStudentAssignment(
         p.ownerId,
         p.assignmentId,
       );
-    if (submission && submission.imageIds) {
-      for (const imageId of submission.imageIds) {
-        try {
-          const base64Data =
-            await this.imageService.getSubmissionImage(imageId);
-          if (base64Data) urls.push(base64Data);
-        } catch {
-          break;
-        }
-      }
-    }
+    const urls = await this.imageService.getSubmissionImages(
+      submission?.imageIds || [],
+    );
 
     this.viewedImages.update((current) => ({ ...current, [p.id]: urls }));
   }

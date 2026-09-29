@@ -86,10 +86,44 @@ export class ImageService {
     return ref.id;
   }
 
-  async getSubmissionImage(imageId: string): Promise<string | null> {
-    const d = await getDoc(doc(this.firestore, 'submissionImages', imageId));
-    if (!d.exists()) return null;
-    return (d.data() as any)['base64Data'] || null;
+  // Ảnh đã tải trong phiên này, để chuyển trang không phải tải lại; ghi ảnh thì cập nhật luôn
+  // Giữ tối đa 40 ảnh gần nhất (mỗi ảnh tới ~900KB), bỏ ảnh dùng lâu nhất
+  private submissionImageCache = new Map<string, Promise<string | null>>();
+  private readonly IMAGE_CACHE_MAX = 40;
+
+  private cacheImage(imageId: string, value: Promise<string | null>): void {
+    this.submissionImageCache.delete(imageId);
+    this.submissionImageCache.set(imageId, value);
+    if (this.submissionImageCache.size > this.IMAGE_CACHE_MAX) {
+      const oldest = this.submissionImageCache.keys().next().value;
+      if (oldest !== undefined) this.submissionImageCache.delete(oldest);
+    }
+  }
+
+  getSubmissionImage(imageId: string): Promise<string | null> {
+    let cached = this.submissionImageCache.get(imageId);
+    if (!cached) {
+      cached = getDoc(doc(this.firestore, 'submissionImages', imageId)).then(
+        (d) => (d.exists() ? (d.data() as any)['base64Data'] || null : null),
+      );
+      // Lỗi mạng thì bỏ khỏi cache để lần sau thử lại
+      const pending = cached;
+      pending.catch(() => {
+        if (this.submissionImageCache.get(imageId) === pending) {
+          this.submissionImageCache.delete(imageId);
+        }
+      });
+    }
+    this.cacheImage(imageId, cached);
+    return cached;
+  }
+
+  /** Tải song song nhiều ảnh, giữ đúng thứ tự, bỏ qua ảnh thiếu hoặc lỗi. */
+  async getSubmissionImages(imageIds: string[]): Promise<string[]> {
+    const results = await Promise.all(
+      imageIds.map((id) => this.getSubmissionImage(id).catch(() => null)),
+    );
+    return results.filter((url): url is string => !!url);
   }
 
   async updateSubmissionImage(
@@ -99,6 +133,7 @@ export class ImageService {
     await updateDoc(doc(this.firestore, 'submissionImages', imageId), {
       base64Data,
     });
+    this.cacheImage(imageId, Promise.resolve(base64Data));
   }
 
   async saveGradedImage(
@@ -125,6 +160,7 @@ export class ImageService {
 
   async deleteSubmissionImages(imageIds: string[]): Promise<void> {
     for (const id of imageIds) {
+      this.submissionImageCache.delete(id);
       try {
         await deleteDoc(doc(this.firestore, 'submissionImages', id));
       } catch (e) {}

@@ -1010,12 +1010,11 @@ studentName = '';
         }
       });
 
-    const student = await this.firestoreService.getStudent(
-      submission.studentId,
-    );
+    const [student] = await Promise.all([
+      this.firestoreService.getStudent(submission.studentId),
+      this.loadImage(this.currentPage),
+    ]);
     this.studentName = student?.fullName || '';
-
-    await this.loadImage(this.currentPage);
     this.loadComments();
     this.loading = false;
 
@@ -1030,9 +1029,12 @@ studentName = '';
   async loadImage(pageIndex: number): Promise<void> {
     if (!this.submission || pageIndex >= this.submission.imageIds.length)
       return;
-    const imageId = this.submission.imageIds[pageIndex];
-    const base64Data = await this.imageService.getSubmissionImage(imageId);
+    const imageIds = this.submission.imageIds;
+    const base64Data = await this.imageService.getSubmissionImage(imageIds[pageIndex]);
     this.currentImageUrl = base64Data || '';
+    // Tải trước ảnh kế tiếp để chuyển trang không phải chờ
+    const next = imageIds[pageIndex + 1];
+    if (next) this.imageService.getSubmissionImage(next).catch(() => {});
   }
 
   loadComments(): void {
