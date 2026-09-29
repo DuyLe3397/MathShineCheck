@@ -1,4 +1,5 @@
-import { Component, inject, OnInit, signal } from '@angular/core';
+import { Component, ElementRef, inject, OnDestroy, OnInit, signal, ViewChild } from '@angular/core';
+import { QueryDocumentSnapshot } from '@angular/fire/firestore';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RouterModule } from '@angular/router';
@@ -787,6 +788,12 @@ interface DiscussionWithReplies extends Discussion {
           }
         </div>
       }
+      @if (loadingMore()) {
+        <div class="loading">Đang tải thêm...</div>
+      }
+      @if (hasMore()) {
+        <div #sentinel style="height: 1px"></div>
+      }
     </div>
 
     @if (openMenuId()) {
@@ -834,7 +841,7 @@ interface DiscussionWithReplies extends Discussion {
     <student-navbar />
   `,
 })
-export class DiscussionsComponent implements OnInit {
+export class DiscussionsComponent implements OnInit, OnDestroy {
   private authService = inject(AuthService);
   private firestoreService = inject(FirestoreService);
   private notificationService = inject(StudentNotificationService);
@@ -845,6 +852,29 @@ export class DiscussionsComponent implements OnInit {
   profile = this.authService.currentProfile;
 
   discussions = signal<DiscussionWithReplies[]>([]);
+
+  hasMore = signal(false);
+  loadingMore = signal(false);
+  private readonly PAGE_SIZE = 10;
+  private cursor?: QueryDocumentSnapshot;
+  private observer?: IntersectionObserver;
+
+  // Lướt tới cuối danh sách thì tải thêm một đợt chủ đề
+  @ViewChild('sentinel') set sentinel(el: ElementRef<HTMLElement> | undefined) {
+    this.observer?.disconnect();
+    if (!el) return;
+    this.observer = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((e) => e.isIntersecting)) this.loadMoreDiscussions();
+      },
+      { rootMargin: '200px' },
+    );
+    this.observer.observe(el.nativeElement);
+  }
+
+  ngOnDestroy(): void {
+    this.observer?.disconnect();
+  }
   loading = signal(true);
   showForm = signal(false);
   newGroupId = '';
@@ -887,52 +917,68 @@ export class DiscussionsComponent implements OnInit {
       });
     }
 
-    this.firestoreService
-      .getDiscussionsByGroup(groupId)
-      .subscribe((discussions) => {
-        const items: DiscussionWithReplies[] = discussions.map((d) => ({
-          ...d,
-          replies: [],
-          expanded: false,
-        }));
+    this.reloadDiscussions();
+  }
 
-        this.discussions.set(items);
-        this.loadAvatarForAuthors();
-        this.loadAllReplies(discussions);
-      });
+  private reloadDiscussions(): void {
+    this.discussions.set([]);
+    this.cursor = undefined;
+    this.hasMore.set(true);
+    this.loading.set(true);
+    this.loadMoreDiscussions().finally(() => this.loading.set(false));
+  }
+
+  private async loadMoreDiscussions(): Promise<void> {
+    const groupId = this.profile?.groupId;
+    if (!groupId || this.loadingMore() || !this.hasMore()) return;
+    this.loadingMore.set(true);
+
+    try {
+      const page = await this.firestoreService.getDiscussionsPage(
+        groupId,
+        this.PAGE_SIZE,
+        this.cursor,
+      );
+      this.cursor = page.cursor;
+      this.hasMore.set(page.hasMore);
+
+      const existing = new Set(this.discussions().map((d) => d.id));
+      const items = page.items.filter((d) => !existing.has(d.id));
+      this.discussions.update((current) => [
+        ...current,
+        ...items.map((d) => ({ ...d, replies: [], expanded: false })),
+      ]);
+      this.loadAvatarForAuthors();
+      this.loadAllReplies(items);
+    } catch {
+      this.hasMore.set(false);
+    } finally {
+      this.loadingMore.set(false);
+    }
   }
 
   private loadAllReplies(discussions: Discussion[]): void {
-    const total = discussions.length;
-    if (total === 0) {
-      this.loading.set(false);
-      return;
-    }
-    const discussionIds = discussions.map((d) => d.id);
-    // Batch query: get all replies for all discussions in one/few queries
+    if (discussions.length === 0) return;
+    const discussionIds = new Set(discussions.map((d) => d.id));
+    // Batch query: replies của đợt chủ đề vừa tải
     this.firestoreService
-      .getRepliesByDiscussionIds(discussionIds)
-      .subscribe({
-        next: (replies) => {
-          const repliesByDiscussion = new Map<string, DiscussionReply[]>();
-          replies.forEach((r) => {
-            const list = repliesByDiscussion.get(r.discussionId) || [];
-            list.push(r);
-            repliesByDiscussion.set(r.discussionId, list);
-          });
-          this.discussions.update((current) =>
-            current.map((item) => ({
-              ...item,
-              replies: repliesByDiscussion.get(item.id) || [],
-            })),
-          );
-          this.loadAvatarForAuthors();
-        },
-        error: () => {
-          this.loading.set(false);
-        },
+      .getRepliesByDiscussionIds([...discussionIds])
+      .subscribe((replies) => {
+        const repliesByDiscussion = new Map<string, DiscussionReply[]>();
+        replies.forEach((r) => {
+          const list = repliesByDiscussion.get(r.discussionId) || [];
+          list.push(r);
+          repliesByDiscussion.set(r.discussionId, list);
+        });
+        this.discussions.update((current) =>
+          current.map((item) =>
+            discussionIds.has(item.id)
+              ? { ...item, replies: repliesByDiscussion.get(item.id) || [] }
+              : item,
+          ),
+        );
+        this.loadAvatarForAuthors();
       });
-    this.loading.set(false);
   }
 
   private loadAvatarForAuthors(): void {
@@ -1063,20 +1109,7 @@ export class DiscussionsComponent implements OnInit {
     this.clearNewDiscussionImage();
     this.showForm.set(false);
 
-    const groupId = this.profile?.groupId;
-    if (groupId) {
-      this.firestoreService
-        .getDiscussionsByGroup(groupId)
-        .subscribe((discussions) => {
-          const items: DiscussionWithReplies[] = discussions.map((d) => ({
-            ...d,
-            replies: [],
-            expanded: false,
-          }));
-          this.discussions.set(items);
-          this.loadAllReplies(discussions);
-        });
-    }
+    this.reloadDiscussions();
   }
 
   toggleHighlightAuthor(authorName: string): void {

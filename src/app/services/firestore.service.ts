@@ -1109,6 +1109,26 @@ export class FirestoreService {
     );
   }
 
+  /** Một trang chủ đề thảo luận của nhóm, mới nhất trước; truyền `after` là cursor trang trước. */
+  async getDiscussionsPage(
+    groupId: string,
+    pageSize: number,
+    after?: QueryDocumentSnapshot,
+  ): Promise<{ items: Discussion[]; cursor?: QueryDocumentSnapshot; hasMore: boolean }> {
+    const constraints = [
+      where('groupId', '==', groupId),
+      orderBy('createdAt', 'desc'),
+      ...(after ? [startAfter(after)] : []),
+      limit(pageSize),
+    ];
+    const snap = await getDocs(query(collection(this.firestore, 'discussions'), ...constraints));
+    return {
+      items: snap.docs.map((d) => ({ id: d.id, ...d.data() }) as Discussion),
+      cursor: snap.docs[snap.docs.length - 1] ?? after,
+      hasMore: snap.docs.length === pageSize,
+    };
+  }
+
   async createDiscussion(data: Partial<Discussion>): Promise<string> {
     const ref = await addDoc(collection(this.firestore, 'discussions'), {
       ...data,

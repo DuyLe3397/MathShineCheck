@@ -1,4 +1,5 @@
-import { Component, inject, OnInit, signal } from '@angular/core';
+import { Component, ElementRef, inject, OnDestroy, OnInit, signal, ViewChild } from '@angular/core';
+import { QueryDocumentSnapshot } from '@angular/fire/firestore';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RouterModule, Router, ActivatedRoute } from '@angular/router';
@@ -913,6 +914,12 @@ interface DiscussionWithReplies extends Discussion {
                 }
               </div>
             }
+            @if (loadingMore()) {
+              <div class="loading">Đang tải thêm...</div>
+            }
+            @if (hasMore()) {
+              <div #sentinel style="height: 1px"></div>
+            }
           } @else {
             <div class="empty-state">
               <p>Chọn lớp và nhóm để xem thảo luận</p>
@@ -933,7 +940,7 @@ interface DiscussionWithReplies extends Discussion {
     }
   `,
 })
-export class TeacherDiscussionsComponent implements OnInit {
+export class TeacherDiscussionsComponent implements OnInit, OnDestroy {
   private authService = inject(AuthService);
   private firestoreService = inject(FirestoreService);
   private imageService = inject(ImageService);
@@ -950,6 +957,29 @@ export class TeacherDiscussionsComponent implements OnInit {
   selectedGroupId = '';
 
   discussions = signal<DiscussionWithReplies[]>([]);
+
+  hasMore = signal(false);
+  loadingMore = signal(false);
+  private readonly PAGE_SIZE = 10;
+  private cursor?: QueryDocumentSnapshot;
+  private observer?: IntersectionObserver;
+
+  // Lướt tới cuối danh sách thì tải thêm một đợt chủ đề
+  @ViewChild('sentinel') set sentinel(el: ElementRef<HTMLElement> | undefined) {
+    this.observer?.disconnect();
+    if (!el) return;
+    this.observer = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((e) => e.isIntersecting)) this.loadMoreDiscussions();
+      },
+      { rootMargin: '200px' },
+    );
+    this.observer.observe(el.nativeElement);
+  }
+
+  ngOnDestroy(): void {
+    this.observer?.disconnect();
+  }
   loading = signal(true);
   showForm = signal(false);
   newGroupId = '';
@@ -1025,46 +1055,55 @@ export class TeacherDiscussionsComponent implements OnInit {
 
   private loadDiscussions(): void {
     if (!this.selectedGroupId) return;
+    this.discussions.set([]);
+    this.cursor = undefined;
+    this.hasMore.set(true);
     this.loading.set(true);
+    this.loadMoreDiscussions().finally(() => this.loading.set(false));
+  }
 
-    const group = this.allGroups.find((g) => g.id === this.selectedGroupId);
-    const groupName = group?.name || '';
+  private async loadMoreDiscussions(): Promise<void> {
+    const groupId = this.selectedGroupId;
+    if (!groupId || this.loadingMore() || !this.hasMore()) return;
+    this.loadingMore.set(true);
 
-    this.firestoreService
-      .getDiscussionsByGroup(this.selectedGroupId)
-      .subscribe((discussions) => {
-        const items: DiscussionWithReplies[] = discussions.map((d) => ({
+    const groupName = this.allGroups.find((g) => g.id === groupId)?.name || '';
+
+    try {
+      const page = await this.firestoreService.getDiscussionsPage(
+        groupId,
+        this.PAGE_SIZE,
+        this.cursor,
+      );
+      // Đổi nhóm trong lúc đang tải thì bỏ kết quả cũ
+      if (groupId !== this.selectedGroupId) return;
+      this.cursor = page.cursor;
+      this.hasMore.set(page.hasMore);
+
+      const existing = new Set(this.discussions().map((d) => d.id));
+      const items: DiscussionWithReplies[] = page.items
+        .filter((d) => !existing.has(d.id))
+        .map((d) => ({
           ...d,
           replies: [],
-          expanded: false,
+          expanded: d.id === this.pendingDiscussionId,
           groupName,
         }));
-        items.sort(
-          (a, b) =>
-            new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
-        );
-        this.discussions.set(items);
-        this.loadAllReplies(items);
-        this.loading.set(false);
-
-        if (this.pendingDiscussionId) {
-          this.discussions.update((current) =>
-            current.map((item) =>
-              item.id === this.pendingDiscussionId
-                ? { ...item, expanded: true }
-                : item,
-            ),
-          );
-        }
-      });
+      this.discussions.update((current) => [...current, ...items]);
+      this.loadAllReplies(items);
+    } catch {
+      this.hasMore.set(false);
+    } finally {
+      this.loadingMore.set(false);
+    }
   }
 
   private loadAllReplies(items: DiscussionWithReplies[]): void {
     if (items.length === 0) return;
-    const discussionIds = items.map((d) => d.id);
-    // Batch query: get all replies for all discussions in one/few queries
+    const discussionIds = new Set(items.map((d) => d.id));
+    // Batch query: replies của đợt chủ đề vừa tải
     this.firestoreService
-      .getRepliesByDiscussionIds(discussionIds)
+      .getRepliesByDiscussionIds([...discussionIds])
       .subscribe((replies) => {
         const repliesByDiscussion = new Map<string, DiscussionReply[]>();
         replies.forEach((r) => {
@@ -1073,12 +1112,17 @@ export class TeacherDiscussionsComponent implements OnInit {
           repliesByDiscussion.set(r.discussionId, list);
         });
         this.discussions.update((current) =>
-          current.map((item) => ({
-            ...item,
-            replies: repliesByDiscussion.get(item.id) || [],
-          })),
+          current.map((item) =>
+            discussionIds.has(item.id)
+              ? { ...item, replies: repliesByDiscussion.get(item.id) || [] }
+              : item,
+          ),
         );
-        if (this.pendingDiscussionId && this.pendingReplyId) {
+        if (
+          this.pendingDiscussionId &&
+          this.pendingReplyId &&
+          discussionIds.has(this.pendingDiscussionId)
+        ) {
           setTimeout(() => {
             const el = document.getElementById(
               'reply-' + this.pendingReplyId,
