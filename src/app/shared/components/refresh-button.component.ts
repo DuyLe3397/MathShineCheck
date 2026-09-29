@@ -2,8 +2,8 @@ import { Component, HostBinding, Input, signal } from '@angular/core';
 import { DatePipe } from '@angular/common';
 
 /**
- * Nút "Làm mới" đặt trong .header của trang giáo viên: gọi lại hàm tải dữ liệu của trang
- * mà không tải lại cả trang. `action` trả về false khi người dùng hủy (ví dụ không muốn
+ * Nút "Làm mới" của trang giáo viên, nổi cố định ở góc trên phải màn hình để bấm được
+ * cả khi đã cuộn xuống: gọi lại hàm tải dữ liệu của trang mà không tải lại cả trang. `action` trả về false khi người dùng hủy (ví dụ không muốn
  * bỏ thay đổi chưa lưu) thì giữ nguyên mốc "Cập nhật lúc"; ném lỗi thì báo thất bại.
  */
 @Component({
@@ -29,14 +29,20 @@ import { DatePipe } from '@angular/common';
   `,
   styles: [
     `
-      /* float cho header dạng block, order + margin-left cho header dạng flex */
+      /* Nổi cố định góc trên phải; dưới các popup (z-index 150+) để popup vẫn che được */
       :host {
-        float: right;
-        order: 99;
-        margin: -4px 0 -4px auto;
+        position: fixed;
+        top: 16px;
+        right: 16px;
+        z-index: 100;
         display: inline-flex;
         align-items: center;
         gap: 10px;
+        padding: 6px 6px 6px 12px;
+        background: #fff;
+        border: 1px solid #e2e8f0;
+        border-radius: 12px;
+        box-shadow: 0 4px 16px rgba(15, 23, 42, 0.12);
       }
       .status {
         font-size: 0.8rem;
@@ -67,20 +73,6 @@ import { DatePipe } from '@angular/common';
           cursor: not-allowed;
         }
       }
-      :host(.on-dark) .status {
-        color: rgba(255, 255, 255, 0.85);
-      }
-      :host(.on-dark) .status.error {
-        color: #fecaca;
-      }
-      :host(.on-dark) .refresh-btn {
-        background: transparent;
-        color: #fff;
-        border: 1.5px solid rgba(255, 255, 255, 0.5);
-        &:hover:not(:disabled) {
-          background: rgba(255, 255, 255, 0.15);
-        }
-      }
       .icon {
         display: inline-block;
         font-size: 1.05rem;
@@ -100,8 +92,8 @@ import { DatePipe } from '@angular/common';
 export class RefreshButtonComponent {
   @Input({ required: true }) action!: () => Promise<boolean | void>;
   @Input() disabled = false;
-  /** Đặt trên nền tối (header xanh của trang chấm bài). */
-  @HostBinding('class.on-dark') @Input() onDark = false;
+  /** Khoảng cách tới mép trên màn hình, để né header cao (trang chấm bài). */
+  @HostBinding('style.top.px') @Input() top = 16;
 
   refreshing = signal(false);
   updatedAt = signal<Date | null>(null);

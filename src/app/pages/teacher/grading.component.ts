@@ -53,10 +53,6 @@ import { firstValueFrom } from 'rxjs';
         opacity: 0.85;
         margin-left: auto;
       }
-      .app-header app-refresh-button {
-        order: 0;
-        margin: 0;
-      }
       .profile-link {
         color: #fff;
         text-decoration: none;
@@ -626,7 +622,7 @@ import { firstValueFrom } from 'rxjs';
       <button class="back-btn" (click)="goBack()">←</button>
       <h2>Chấm bài</h2>
       <span class="sub">{{ studentName }}</span>
-      <app-refresh-button [action]="refresh" [onDark]="true" [disabled]="loading || !submission" />
+      <app-refresh-button [action]="refresh" [top]="72" [disabled]="loading || !submission" />
       <a class="profile-link" routerLink="/teacher/profile">Hồ sơ</a>
     </div>
 
