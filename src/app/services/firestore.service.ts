@@ -21,6 +21,8 @@ import {
   getAggregateFromServer,
   sum,
   count,
+  startAfter,
+  QueryDocumentSnapshot,
 } from '@angular/fire/firestore';
 import { forkJoin, from, Observable, of } from 'rxjs';
 import { catchError, map, shareReplay } from 'rxjs/operators';
@@ -398,6 +400,58 @@ export class FirestoreService {
     );
     return from(getDocs(ref)).pipe(
       map((snap) => snap.docs.map((d) => d.data() as HiddenAssignments)),
+    );
+  }
+
+  /** Một trang bài tập của nhóm, mới nhất trước; truyền `after` là cursor trang trước. */
+  async getAssignmentsPage(
+    groupId: string,
+    pageSize: number,
+    after?: QueryDocumentSnapshot,
+  ): Promise<{ items: Assignment[]; cursor?: QueryDocumentSnapshot; hasMore: boolean }> {
+    const constraints = [
+      where('groupId', '==', groupId),
+      orderBy('sessionDate', 'desc'),
+      ...(after ? [startAfter(after)] : []),
+      limit(pageSize),
+    ];
+    const snap = await getDocs(query(collection(this.firestore, 'assignments'), ...constraints));
+    return {
+      items: snap.docs.map((d) => ({ id: d.id, ...d.data() }) as Assignment),
+      cursor: snap.docs[snap.docs.length - 1] ?? after,
+      hasMore: snap.docs.length === pageSize,
+    };
+  }
+
+  /** Lần nộp của một học sinh cho các bài tập cho trước. */
+  async getSubmissionsByStudentForAssignments(
+    studentId: string,
+    assignmentIds: string[],
+  ): Promise<Submission[]> {
+    const snaps = await Promise.all(
+      this.chunkArray(assignmentIds, 30).map((chunk) =>
+        getDocs(
+          query(
+            collection(this.firestore, 'submissions'),
+            where('studentId', '==', studentId),
+            where('assignmentId', 'in', chunk),
+          ),
+        ),
+      ),
+    );
+    return snaps.flatMap((s) => s.docs.map((d) => ({ id: d.id, ...d.data() }) as Submission));
+  }
+
+  async getCommentsBySubmissionIds(submissionIds: string[]): Promise<SubmissionComment[]> {
+    const snaps = await Promise.all(
+      this.chunkArray(submissionIds, 30).map((chunk) =>
+        getDocs(
+          query(collection(this.firestore, 'comments'), where('submissionId', 'in', chunk)),
+        ),
+      ),
+    );
+    return snaps.flatMap((s) =>
+      s.docs.map((d) => ({ id: d.id, ...d.data() }) as SubmissionComment),
     );
   }
 
