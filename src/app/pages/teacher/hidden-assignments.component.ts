@@ -2,16 +2,17 @@ import { Component, inject, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RouterModule } from '@angular/router';
-import { forkJoin } from 'rxjs';
+import { firstValueFrom, forkJoin } from 'rxjs';
 import { FirestoreService } from '../../services/firestore.service';
 import { AuthService } from '../../services/auth.service';
 import { TeacherNotificationBellComponent } from '../../shared/components/teacher-notification-bell.component';
+import { RefreshButtonComponent } from '../../shared/components/refresh-button.component';
 import { SchoolClass, Group, Student, Assignment } from '../../models';
 
 @Component({
   selector: 'app-hidden-assignments',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterModule, TeacherNotificationBellComponent],
+  imports: [CommonModule, FormsModule, RouterModule, TeacherNotificationBellComponent, RefreshButtonComponent],
   styles: [
     `
       :host {
@@ -384,6 +385,7 @@ import { SchoolClass, Group, Student, Assignment } from '../../models';
 
       <main class="main">
         <div class="header">
+          <app-refresh-button [action]="refresh" [disabled]="!selectedGroupId || loading" />
           <h1>Ẩn bài tập</h1>
           <p>Bỏ tích một bài để ẩn bài đó khỏi trang chủ và bảng điểm của học sinh. Bài tập mới tạo luôn hiện với cả nhóm.</p>
         </div>
@@ -584,6 +586,28 @@ export class HiddenAssignmentsComponent implements OnInit {
   logout(): void {
     this.authService.logout();
   }
+
+  /** Tải lại học sinh, bài tập và Danh sách bài bị ẩn của nhóm; bản nháp chưa lưu thì hỏi trước. */
+  refresh = async (): Promise<boolean> => {
+    const groupId = this.selectedGroupId;
+    if (!groupId || !this.confirmDiscard()) return false;
+    const [students, assignments, hiddenDocs] = await firstValueFrom(
+      forkJoin([
+        this.firestoreService.getStudentsByGroup(groupId),
+        this.firestoreService.getAssignmentsByGroup(groupId),
+        this.firestoreService.getHiddenAssignmentsByGroup(groupId),
+      ]),
+    );
+    if (groupId !== this.selectedGroupId) return false;
+    this.students = [...students].sort((a, b) => a.fullName.localeCompare(b.fullName, 'vi'));
+    this.assignments = assignments;
+    this.savedHidden = new Map(hiddenDocs.map(d => [d.studentId, new Set(d.assignmentIds ?? [])]));
+    if (!this.students.some(s => s.uid === this.selectedStudentId)) this.selectedStudentId = '';
+    this.draftHidden = new Set(this.savedHidden.get(this.selectedStudentId) ?? []);
+    this.loadError = '';
+    this.saveMessage = '';
+    return true;
+  };
 
   private loadGroup(groupId: string): void {
     this.loading = true;

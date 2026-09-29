@@ -1,5 +1,6 @@
 import { Component, ElementRef, inject, OnDestroy, OnInit, signal, ViewChild } from '@angular/core';
 import { QueryDocumentSnapshot } from '@angular/fire/firestore';
+import { firstValueFrom } from 'rxjs';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RouterModule, Router, ActivatedRoute } from '@angular/router';
@@ -7,6 +8,7 @@ import { FirestoreService } from '../../services/firestore.service';
 import { AuthService } from '../../services/auth.service';
 import { NavbarComponent } from '../../shared/components/navbar.component';
 import { TeacherNotificationBellComponent } from '../../shared/components/teacher-notification-bell.component';
+import { RefreshButtonComponent } from '../../shared/components/refresh-button.component';
 import { ImageService } from '../../services/image.service';
 import { Group, SchoolClass, Discussion, DiscussionReply } from '../../models';
 
@@ -24,7 +26,7 @@ interface DiscussionWithReplies extends Discussion {
     FormsModule,
     RouterModule,
     NavbarComponent,
-    TeacherNotificationBellComponent,
+    TeacherNotificationBellComponent, RefreshButtonComponent,
   ],
   styles: [
     `
@@ -577,6 +579,7 @@ interface DiscussionWithReplies extends Discussion {
 
       <main class="main">
         <div class="header">
+          <app-refresh-button [action]="refresh" [disabled]="!selectedGroupId" />
           <h1>Thảo luận</h1>
         </div>
 
@@ -1061,6 +1064,42 @@ export class TeacherDiscussionsComponent implements OnInit, OnDestroy {
     this.loading.set(true);
     this.loadMoreDiscussions().finally(() => this.loading.set(false));
   }
+
+  /**
+   * Tải lại đợt 10 chủ đề đầu kèm replies, giữ chủ đề đang mở; chữ đang gõ lưu theo id
+   * chủ đề nên không mất. Danh sách cũ vẫn hiện cho đến khi có dữ liệu mới.
+   */
+  refresh = async (): Promise<void> => {
+    const groupId = this.selectedGroupId;
+    if (!groupId) return;
+    const expanded = new Set(this.discussions().filter((d) => d.expanded).map((d) => d.id));
+    const groupName = this.allGroups.find((g) => g.id === groupId)?.name || '';
+
+    const page = await this.firestoreService.getDiscussionsPage(groupId, this.PAGE_SIZE);
+    const replies = page.items.length
+      ? await firstValueFrom(
+          this.firestoreService.getRepliesByDiscussionIds(page.items.map((d) => d.id)),
+        )
+      : [];
+    if (groupId !== this.selectedGroupId) return;
+
+    const repliesByDiscussion = new Map<string, DiscussionReply[]>();
+    replies.forEach((r) => {
+      const list = repliesByDiscussion.get(r.discussionId) || [];
+      list.push(r);
+      repliesByDiscussion.set(r.discussionId, list);
+    });
+    this.cursor = page.cursor;
+    this.hasMore.set(page.hasMore);
+    this.discussions.set(
+      page.items.map((d) => ({
+        ...d,
+        replies: repliesByDiscussion.get(d.id) || [],
+        expanded: expanded.has(d.id),
+        groupName,
+      })),
+    );
+  };
 
   private async loadMoreDiscussions(): Promise<void> {
     const groupId = this.selectedGroupId;
