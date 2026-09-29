@@ -6,12 +6,14 @@ import { FirestoreService } from '../../services/firestore.service';
 import { AuthService } from '../../services/auth.service';
 import { NavbarComponent } from '../../shared/components/navbar.component';
 import { TeacherNotificationBellComponent } from '../../shared/components/teacher-notification-bell.component';
+import { RefreshButtonComponent } from '../../shared/components/refresh-button.component';
+import { firstValueFrom } from 'rxjs';
 import { SchoolClass, Group } from '../../models';
 
 @Component({
   selector: 'app-group-management',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterModule, NavbarComponent, TeacherNotificationBellComponent],
+  imports: [CommonModule, FormsModule, RouterModule, NavbarComponent, TeacherNotificationBellComponent, RefreshButtonComponent],
   styles: [
     `
       :host {
@@ -358,6 +360,7 @@ import { SchoolClass, Group } from '../../models';
 
       <main class="main">
         <div class="header">
+          <app-refresh-button [action]="refresh" [disabled]="!selectedClassId" />
           <h1>Quản lý nhóm</h1>
         </div>
 
@@ -486,6 +489,13 @@ export class GroupManagementComponent implements OnInit {
     }
     this.loadGroups();
   }
+
+  /** Làm mới danh sách nhóm của lớp đang chọn, lấy thẳng từ server. */
+  refresh = async (): Promise<void> => {
+    this.groups = await firstValueFrom(
+      this.firestoreService.getGroupsByClass(this.selectedClassId, 'server'),
+    );
+  };
 
   loadGroups(): void {
     this.loading = true;

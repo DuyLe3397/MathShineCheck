@@ -6,12 +6,14 @@ import { FirestoreService } from '../../services/firestore.service';
 import { AuthService } from '../../services/auth.service';
 import { NavbarComponent } from '../../shared/components/navbar.component';
 import { TeacherNotificationBellComponent } from '../../shared/components/teacher-notification-bell.component';
+import { RefreshButtonComponent } from '../../shared/components/refresh-button.component';
+import { firstValueFrom } from 'rxjs';
 import { SchoolClass } from '../../models';
 
 @Component({
   selector: 'app-class-management',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterModule, NavbarComponent, TeacherNotificationBellComponent],
+  imports: [CommonModule, FormsModule, RouterModule, NavbarComponent, TeacherNotificationBellComponent, RefreshButtonComponent],
   styles: [
     `
       :host {
@@ -354,6 +356,7 @@ import { SchoolClass } from '../../models';
 
       <main class="main">
         <div class="header">
+          <app-refresh-button [action]="refresh" />
           <h1>Quản lý lớp</h1>
         </div>
 
@@ -453,6 +456,11 @@ export class ClassManagementComponent implements OnInit {
     }
     this.loadClasses();
   }
+
+  /** Làm mới danh sách lớp, lấy thẳng từ server (bỏ qua cache 60 giây). */
+  refresh = async (): Promise<void> => {
+    this.classes = await firstValueFrom(this.firestoreService.getClasses('server'));
+  };
 
   loadClasses(): void {
     this.loading = true;

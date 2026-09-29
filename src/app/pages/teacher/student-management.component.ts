@@ -6,6 +6,8 @@ import { FirestoreService } from '../../services/firestore.service';
 import { AuthService } from '../../services/auth.service';
 import { NavbarComponent } from '../../shared/components/navbar.component';
 import { TeacherNotificationBellComponent } from '../../shared/components/teacher-notification-bell.component';
+import { RefreshButtonComponent } from '../../shared/components/refresh-button.component';
+import { firstValueFrom } from 'rxjs';
 import { SchoolClass, Group, Student } from '../../models';
 
 @Component({
@@ -16,7 +18,7 @@ import { SchoolClass, Group, Student } from '../../models';
     FormsModule,
     RouterModule,
     NavbarComponent,
-    TeacherNotificationBellComponent,
+    TeacherNotificationBellComponent, RefreshButtonComponent,
   ],
   styles: [
     `
@@ -423,6 +425,7 @@ import { SchoolClass, Group, Student } from '../../models';
 
       <main class="main">
         <div class="header">
+          <app-refresh-button [action]="refresh" [disabled]="!selectedGroupId" />
           <h1>Quản lý học sinh</h1>
         </div>
 
@@ -703,6 +706,13 @@ export class StudentManagementComponent implements OnInit {
     }
     this.loadStudents();
   }
+
+  /** Làm mới danh sách học sinh của nhóm đang chọn. */
+  refresh = async (): Promise<void> => {
+    this.students = await firstValueFrom(
+      this.firestoreService.getStudentsByGroup(this.selectedGroupId),
+    );
+  };
 
   loadStudents(): void {
     this.loading = true;

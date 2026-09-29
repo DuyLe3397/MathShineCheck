@@ -6,6 +6,8 @@ import { FirestoreService } from '../../services/firestore.service';
 import { AuthService } from '../../services/auth.service';
 import { NavbarComponent } from '../../shared/components/navbar.component';
 import { TeacherNotificationBellComponent } from '../../shared/components/teacher-notification-bell.component';
+import { RefreshButtonComponent } from '../../shared/components/refresh-button.component';
+import { firstValueFrom } from 'rxjs';
 import { SchoolClass, Group, Assignment } from '../../models';
 
 @Component({
@@ -16,7 +18,7 @@ import { SchoolClass, Group, Assignment } from '../../models';
     FormsModule,
     RouterModule,
     NavbarComponent,
-    TeacherNotificationBellComponent,
+    TeacherNotificationBellComponent, RefreshButtonComponent,
   ],
   styles: [
     `
@@ -387,6 +389,7 @@ import { SchoolClass, Group, Assignment } from '../../models';
 
       <main class="main">
         <div class="header">
+          <app-refresh-button [action]="refresh" [disabled]="!selectedGroupId" />
           <h1>Quản lý bài tập</h1>
         </div>
 
@@ -630,6 +633,13 @@ export class AssignmentManagementComponent implements OnInit {
     }
     this.loadAssignments();
   }
+
+  /** Làm mới danh sách bài tập của nhóm đang chọn. */
+  refresh = async (): Promise<void> => {
+    this.assignments = await firstValueFrom(
+      this.firestoreService.getAssignmentsByGroup(this.selectedGroupId),
+    );
+  };
 
   loadAssignments(): void {
     this.loading = true;
