@@ -49,3 +49,5 @@ Thumbs.db
 # Cấu hình skill/hook của Antigravity IDE (đường dẫn riêng từng máy)
 /.agents/
 __pycache__/
+# File khóa tạm Claude Code tự tạo khi chạy
+/.claude/scheduled_tasks.lock
