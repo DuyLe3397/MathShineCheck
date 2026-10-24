@@ -23,7 +23,11 @@ function submission(id: string, studentId: string, attemptNumber: number): Submi
   };
 }
 
-async function renderHome(allSubmissions: Submission[], permissions: Permission[]) {
+async function renderHome(
+  allSubmissions: Submission[],
+  permissions: Permission[],
+  assignmentsList: any[] = [],
+) {
   const firestore = {
     updateStudent: async () => {},
     getGroup: () => of({ id: 'nhom1', name: 'Nhóm A' }),
@@ -31,7 +35,7 @@ async function renderHome(allSubmissions: Submission[], permissions: Permission[
     getUsersByIds: () => of([{ id: 'hs2', fullName: 'Trần Bình' }]),
     getAssignmentsByIds: async () => [{ id: 'bt1', title: 'Bài tập phân số' }],
     getHiddenAssignmentIds: () => of([]),
-    getAssignmentsPage: async () => ({ items: [], hasMore: false }),
+    getAssignmentsPage: async () => ({ items: assignmentsList, hasMore: false }),
     getSubmissionsByStudentForAssignments: async (studentId: string) =>
       allSubmissions.filter((s) => s.studentId === studentId),
     getAllSubmissionsByStudentAndAssignment: (studentId: string, assignmentId: string) =>
@@ -85,5 +89,33 @@ describe('Trang chủ học sinh — Yêu cầu xem bài bạn', () => {
 
     const text = page.querySelector('.notif-text')!.textContent!.replace(/\s+/g, ' ');
     expect(text).toContain('Trần Bình muốn được xem bài làm Bài tập phân số (lần 2)');
+  });
+});
+
+describe('Trang chủ học sinh — Chống trùng lặp Lần nộp', () => {
+  it('nhiều bản ghi trùng Lần 1 chỉ hiện 1 kết quả và nút nộp tiếp theo là Lần 2', async () => {
+    const page = await renderHome(
+      [
+        { ...submission('sub1', 'hs1', 1), submittedAt: '2026-10-18T13:35:44.807Z' },
+        { ...submission('sub2', 'hs1', 1), submittedAt: '2026-10-18T13:35:45.717Z' },
+        { ...submission('sub3', 'hs1', 1), submittedAt: '2026-10-18T13:35:46.666Z' },
+      ],
+      [],
+      [
+        {
+          id: 'bt1',
+          groupId: 'nhom1',
+          title: 'Bài tập hình học',
+          sessionDate: '2026-10-18',
+        },
+      ],
+    );
+
+    const attemptRows = page.querySelectorAll('.attempt-row');
+    expect(attemptRows.length).withContext('chỉ hiện 1 dòng kết quả lần 1').toBe(1);
+
+    const newAttemptBtn = page.querySelector('.btn-new-attempt');
+    expect(newAttemptBtn).not.toBeNull();
+    expect(newAttemptBtn!.textContent!.trim()).toBe('Nộp bài lần 2');
   });
 });

@@ -1,6 +1,7 @@
 import { Component, OnInit, inject } from '@angular/core';
 import { Router, RouterModule } from '@angular/router';
 import { AuthService } from '../../services/auth.service';
+import { takeTeacherReturnUrl } from '../../guards/auth.guard';
 
 @Component({
   selector: 'app-role-select',
@@ -148,7 +149,7 @@ export class RoleSelectComponent implements OnInit {
   ngOnInit(): void {
     const profile = this.authService.currentProfile;
     if (profile?.role === 'teacher') {
-      this.router.navigate(['/teacher/dashboard']);
+      this.router.navigateByUrl(takeTeacherReturnUrl() ?? '/teacher/dashboard');
     } else if (profile?.role === 'student') {
       this.router.navigate(['/student/home']);
     }

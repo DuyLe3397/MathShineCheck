@@ -1,0 +1,320 @@
+// Công thức kiểu Casio (docs/adr/0006): nút f(x), phần Xem trước, Công thức khi hiển thị, Bảng soạn công thức và bàn phím MathLive.
+// Đặt ở stylesheet chung vì bàn phím MathLive và Bảng soạn được gắn thẳng vào <body>.
+
+$fe-accent: #2563eb;
+$fe-accent-soft: #dbeafe;
+$fe-line: #e2e8f0;
+$fe-muted: #64748b;
+$fe-fg: #1e293b;
+$fe-warn: #b45309;
+
+:root {
+  --ML__static-fonts: 1; // font KaTeX đã có trong katex.min.css (cùng tên font), MathLive không tự tải nữa
+}
+
+// ---------- Nút f(x) ----------
+.fx-btn {
+  flex-shrink: 0;
+  width: 38px;
+  height: 38px;
+  display: inline-grid;
+  place-items: center;
+  padding: 0;
+  border: 1px solid $fe-line;
+  border-radius: 8px;
+  background: #fff;
+  color: $fe-muted;
+  cursor: pointer;
+  &:hover { border-color: $fe-accent; color: $fe-accent; }
+  &:focus-visible { outline: 2px solid $fe-accent; outline-offset: 2px; }
+  &.fx-btn-sm { width: 30px; height: 30px; }
+}
+.fx {
+  font-family: KaTeX_Main, 'Times New Roman', serif;
+  font-size: 1rem;
+  line-height: 1;
+  white-space: nowrap;
+  i { font-family: KaTeX_Math, 'Times New Roman', serif; }
+}
+
+// Hàng ô chữ + nút f(x) (dùng ở các ô chưa có hàng nút riêng)
+.fx-row {
+  display: flex;
+  gap: 6px;
+  align-items: flex-end;
+  > textarea, > input { flex: 1; min-width: 0; }
+}
+
+// ---------- Công thức khi hiển thị ----------
+// Xuống dòng sau các dấu = + − ÷… như chữ thường; khối không ngắt được mà quá rộng thì thu nhỏ (math-text.component)
+.math-text .f { white-space: normal; padding: 1px 0; }
+.math-text .f .katex-display { margin: 0; }
+// Xem trước: ô nền trắng quanh mỗi công thức bấm được, cao/rộng theo công thức. Ô nền là các .f-box do
+// math-text.component vẽ theo từng dòng (nền của phần tử inline chỉ cao bằng dòng chữ, không ôm được phân số, hệ…).
+.math-text-edit {
+  display: block;
+  position: relative;
+  isolation: isolate; // .f-boxes (z-index −1) nằm dưới chữ nhưng trên nền của phần Xem trước
+}
+.math-text .f[role='button'] {
+  cursor: pointer;
+  padding: 0 5px;
+  -webkit-box-decoration-break: clone;
+  box-decoration-break: clone;
+  outline: none;
+  .katex-html > .katex-base { padding-block: 3px; }
+}
+.f-boxes { position: absolute; inset: 0; z-index: -1; pointer-events: none; }
+.f-box {
+  position: absolute;
+  border-radius: 6px;
+  background: #fff;
+  box-shadow: inset 0 0 0 1px $fe-accent-soft;
+  &.focus { box-shadow: 0 0 0 2px $fe-accent; }
+}
+
+// ---------- Xem trước ngay trên ô chữ (rộng bằng ô chữ: formula-preview.component tự canh) ----------
+.formula-preview {
+  margin-bottom: 6px;
+  padding: 8px 10px;
+  background: #f1f5f9;
+  border: 1px solid $fe-accent; // viền xanh để dễ nhận ra khung Xem trước, khác với ô chữ phía trên
+  border-radius: 8px;
+  font-size: 0.92rem;
+  line-height: 1.5;
+  color: $fe-fg;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  text-align: left;
+}
+.formula-preview-label {
+  display: block;
+  font-size: 0.72rem;
+  color: $fe-muted;
+  margin-bottom: 2px;
+  white-space: normal;
+}
+
+// ---------- Bảng soạn công thức ----------
+.fe-scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 10000;
+  background: rgba(15, 23, 42, 0.3);
+}
+.fe-sheet {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: var(--ml-kb-h, 0px);
+  z-index: 10001;
+  max-width: 720px;
+  margin: 0 auto;
+  background: #fff;
+  color: $fe-fg;
+  border-radius: 14px 14px 0 0;
+  box-shadow: 0 -8px 24px rgba(15, 23, 42, 0.18);
+  padding: 12px max(14px, env(safe-area-inset-right, 0px)) 12px max(14px, env(safe-area-inset-left, 0px));
+  display: grid;
+  gap: 10px;
+  font-family: 'Segoe UI', system-ui, -apple-system, Roboto, 'Noto Sans', Tahoma, sans-serif;
+  > * { min-width: 0; }
+  &[hidden] { display: none; }
+}
+.fe-scrim[hidden] { display: none; }
+.fe-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.fe-title { display: grid; gap: 1px; min-width: 0; flex: 1; b { font-size: 0.95rem; } }
+.fe-hint {
+  font-size: 0.78rem;
+  line-height: 16px;
+  height: 16px;
+  color: $fe-muted;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  &.warn { color: $fe-warn; font-weight: 600; }
+}
+.fe-fmt {
+  display: flex;
+  gap: 4px;
+  flex-shrink: 0;
+  button {
+    width: 34px;
+    height: 34px;
+    border: 1px solid $fe-line;
+    border-radius: 8px;
+    background: #fff;
+    color: $fe-fg;
+    font: inherit;
+    font-size: 1rem;
+    cursor: pointer;
+    &:active { background: $fe-accent-soft; }
+    &[aria-pressed='true'] { background: $fe-accent; border-color: $fe-accent; color: #fff; }
+  }
+}
+.fe-cancel {
+  flex-shrink: 0;
+  height: 34px;
+  padding: 0 12px;
+  border: 1px solid $fe-line;
+  border-radius: 999px;
+  background: #fff;
+  color: $fe-fg;
+  font: inherit;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+// Hàng cuối: nút Chèn + hoàn tác ↶ / làm lại ↷ (to, đậm cho dễ nhìn)
+.fe-actions { display: flex; gap: 6px; align-items: stretch; }
+.fe-nav {
+  display: flex;
+  gap: 4px;
+  flex-shrink: 0;
+  button {
+    width: 52px;
+    height: 44px;
+    padding: 0;
+    border: 1px solid $fe-line;
+    border-radius: 10px;
+    background: #fff;
+    color: #000;
+    font: inherit;
+    font-size: 1.6rem;
+    font-weight: 800;
+    line-height: 1;
+    cursor: pointer;
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+    &:active { background: $fe-accent-soft; }
+  }
+}
+.fe-insert {
+  flex: 1;
+  min-width: 0;
+  height: 44px;
+  border: none;
+  border-radius: 10px;
+  background: $fe-accent;
+  color: #fff;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+  &:disabled { opacity: 0.45; cursor: not-allowed; }
+}
+.fe-mf-wrap { position: relative; min-width: 0; }
+
+// Ô soạn: cả hai chiều cuộn đều ở vùng nội dung bên trong MathLive (part=content), KHÔNG ở thẻ math-field:
+// MathLive tính chỗ bấm theo độ cuộn của chính vùng này. Đệm đặt ở vùng nội dung để thanh cuộn nằm sát mép ô.
+math-field.fe-mf {
+  display: block;
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  min-height: 76px;
+  overflow: hidden;
+  font-size: 1.55rem;
+  padding: 0;
+  border: 1px solid $fe-line;
+  border-radius: 10px;
+  background: #fff;
+  color: $fe-fg;
+  // BẮT BUỘC: styles.scss đặt user-select: none cho mọi phần tử; MathLive thấy user-select: none thì bỏ qua thao tác
+  // bấm/chạm (không đặt con trỏ, không bôi đen).
+  -webkit-user-select: text;
+  user-select: text;
+  --caret-color: #{$fe-accent};
+  --selection-background-color: #{$fe-accent-soft};
+  --placeholder-color: #{$fe-accent};
+  &:focus-within { outline: none; border-color: $fe-accent; box-shadow: 0 0 0 3px $fe-accent-soft; }
+  // Đang chạm giữ để kéo con trỏ
+  &.caret-drag { border-color: $fe-accent; box-shadow: 0 0 0 3px $fe-accent; background: $fe-accent-soft; }
+  &::part(virtual-keyboard-toggle), &::part(menu-toggle) { display: none; }
+  &::part(content) {
+    overflow: auto;
+    width: 100%;
+    min-width: 0;
+    min-height: 66px;
+    max-height: 140px;
+    box-sizing: border-box;
+    padding: 6px 12px;
+    align-items: flex-start;
+    // Cử chỉ chạm do trang tự xử lý (vuốt = cuộn, giữ rồi kéo = dịch con trỏ); để trình duyệt tự cuộn sẽ huỷ ngang các cử chỉ đó
+    touch-action: none;
+    -webkit-touch-callout: none;
+  }
+}
+
+// Chọn số dòng cho Hệ n / Hoặc n: phủ lên ô soạn
+.fe-pick {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px 6px 12px;
+  border-radius: 10px;
+  background: $fe-accent-soft;
+  border: 1px solid $fe-accent;
+  &[hidden] { display: none; }
+}
+.fe-pick-title { font-size: 0.8rem; font-weight: 600; white-space: nowrap; }
+.fe-pick-row {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  gap: 4px;
+  overflow-x: auto;
+  scrollbar-width: none;
+  &::-webkit-scrollbar { display: none; }
+}
+.fe-pick-row button,
+.fe-pick-close {
+  flex-shrink: 0;
+  min-width: 30px;
+  height: 38px;
+  padding: 0;
+  border-radius: 8px;
+  border: 1px solid $fe-line;
+  background: #fff;
+  color: $fe-fg;
+  font: inherit;
+  font-size: 1rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+.fe-pick-close { min-width: 34px; height: 34px; border-radius: 999px; font-weight: 400; }
+
+// ---------- Bàn phím toán của MathLive (gắn vào body) ----------
+// Cùng một cỡ trên điện thoại và máy tính: tab nhóm nhỏ, phím đủ cao cho ∑ ∫ có cận, mọi tab cao 250px.
+body {
+  --keyboard-zindex: 10002;
+  --keycap-height: 48px;
+  --keycap-font-size: 16px;
+  --keycap-small-font-size: 13px;
+  --keycap-extra-small-font-size: 11px;
+  --keycap-glyph-size: 17px;
+  --keycap-gap: 4px;
+  --keyboard-toolbar-font-size: 12px;
+}
+.MLK__toolbar .left > .layer-switch { padding-inline: 7px; }
+.MLK__keycap.mk-big { font-size: 1.3em; }
+// Phím điều khiển ⌫ ↵ ← →: đen và đậm hơn (biểu tượng là hình tô theo currentColor, thêm nét viền cùng màu để dày lên)
+.MLK__rows > .MLK__row {
+  [data-command*='deleteBackward'], [data-command*='moveToPreviousChar'], [data-command*='moveToNextChar'], .mk-newline {
+    color: #000;
+    font-weight: 800;
+    svg.svg-glyph { stroke: currentColor; stroke-width: 28px; paint-order: stroke; }
+  }
+}
+// Hoàn tác / làm lại đã có nút to cạnh Chèn: ẩn hai nút nhỏ trên thanh tab, giữ nút dán
+.MLK__toolbar [data-command*='undo'], .MLK__toolbar [data-command*='redo'] { display: none; }
+.mk-stack {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  line-height: 1.1;
+  font-size: 13px;
+  b { font-size: 15px; }
+}

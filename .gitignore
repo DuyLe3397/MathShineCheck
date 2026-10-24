@@ -42,3 +42,10 @@ testem.log
 Thumbs.db
 .agents/hooks.json
 .cursor/hooks.json
+
+# Báo cáo chấm của skill /cham-bai: có tên và bài làm học sinh, không đưa lên git
+/cham-bai/
+
+# Cấu hình skill/hook của Antigravity IDE (đường dẫn riêng từng máy)
+/.agents/
+__pycache__/

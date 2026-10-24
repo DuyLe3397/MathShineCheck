@@ -87,7 +87,12 @@ export interface SubmissionComment {
   authorAvatarUrl?: string;
   authorRole: 'teacher' | 'student';
   content: string;
+  /** Ảnh đính kèm cũ (một ảnh base64 lưu thẳng trong bình luận) — chỉ còn ở bình luận chưa sửa lại. */
   imageUrl?: string;
+  /** Ảnh đính kèm theo thứ tự Hình 1, Hình 2…; mỗi mã là một document trong `commentImages`. */
+  imageIds?: string[];
+  /** Ghi chú ảnh, song song theo vị trí với `imageIds` ('' là không có ghi chú). */
+  imageNotes?: string[];
   createdAt: string;
   reactions?: Record<string, string>;
 }

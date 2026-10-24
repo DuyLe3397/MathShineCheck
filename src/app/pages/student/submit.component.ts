@@ -6,6 +6,7 @@ import { AuthService } from '../../services/auth.service';
 import { FirestoreService } from '../../services/firestore.service';
 import { ImageService } from '../../services/image.service';
 import { Assignment } from '../../models';
+import { MathTextComponent } from '../../shared/math/math-text.component';
 
 interface ImageFile {
   file: File;
@@ -18,7 +19,7 @@ interface ImageFile {
 @Component({
   selector: 'app-submit',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterModule],
+  imports: [CommonModule, FormsModule, RouterModule, MathTextComponent],
   styles: [
     `
       :host {
@@ -206,10 +207,39 @@ interface ImageFile {
       .submit-btn:disabled {
         background: #94a3b8;
         cursor: not-allowed;
+        pointer-events: none;
       }
 
       .submit-btn:hover:not(:disabled) {
         background: #1d4ed8;
+      }
+
+      .loading-overlay {
+        position: fixed;
+        inset: 0;
+        background: rgba(15, 23, 42, 0.65);
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        z-index: 9999;
+        color: #fff;
+        gap: 12px;
+      }
+
+      .spinner {
+        width: 44px;
+        height: 44px;
+        border: 4px solid rgba(255, 255, 255, 0.3);
+        border-top-color: #fff;
+        border-radius: 50%;
+        animation: spin 0.8s linear infinite;
+      }
+
+      @keyframes spin {
+        to {
+          transform: rotate(360deg);
+        }
       }
 
       .error-msg {
@@ -221,6 +251,14 @@ interface ImageFile {
     `,
   ],
   template: `
+    @if (submitting()) {
+      <div class="loading-overlay">
+        <div class="spinner"></div>
+        <div style="font-size: 1rem; font-weight: 600;">Đang nén và nộp bài...</div>
+        <div style="font-size: 0.85rem; opacity: 0.85;">Vui lòng giữ kết nối mạng và chờ trong giây lát</div>
+      </div>
+    }
+
     <div class="page-header">
       <button class="back-btn" (click)="goBack()">←</button>
       <h2>
@@ -235,7 +273,7 @@ interface ImageFile {
         <div class="assignment-info-card">
           <h3>{{ assignment()?.title }}</h3>
           @if (assignment()?.description) {
-            <p class="desc">{{ assignment()?.description }}</p>
+            <p class="desc"><math-text [text]="assignment()?.description" /></p>
           }
           <div class="date">
             Ngày học: {{ assignment()?.sessionDate | date: 'dd/MM/yyyy' }}
@@ -309,6 +347,7 @@ export class SubmitComponent implements OnInit {
   images = signal<ImageFile[]>([]);
   submitting = signal(false);
   errorMsg = signal('');
+  private isSubmitting = false;
 
   ngOnInit(): void {
     const assignmentId = this.route.snapshot.paramMap.get('assignmentId');
@@ -360,10 +399,13 @@ export class SubmitComponent implements OnInit {
   }
 
   async submit(): Promise<void> {
+    if (this.isSubmitting || this.submitting()) return;
+
     const profile = this.authService.currentProfile;
     const assignmentId = this.route.snapshot.paramMap.get('assignmentId');
     if (!profile || !assignmentId) return;
 
+    this.isSubmitting = true;
     this.submitting.set(true);
     this.errorMsg.set('');
 
@@ -424,6 +466,7 @@ export class SubmitComponent implements OnInit {
       } else {
         this.errorMsg.set('Có lỗi xảy ra khi nộp bài. Vui lòng thử lại.');
       }
+      this.isSubmitting = false;
       this.submitting.set(false);
     }
   }

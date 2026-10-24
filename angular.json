@@ -28,7 +28,7 @@
               "src/assets",
               { "glob": "mathshine-logo.jpg", "input": "src/app/assets", "output": "assets" }
             ],
-            "styles": ["src/styles.scss"],
+            "styles": ["node_modules/katex/dist/katex.min.css", "src/styles.scss"],
             "scripts": []
           },
           "configurations": {
@@ -45,6 +45,14 @@
                   "maximumError": "10kB"
                 }
               ],
+              "optimization": {
+                "scripts": true,
+                "styles": {
+                  "minify": true,
+                  "inlineCritical": true
+                },
+                "fonts": false
+              },
               "outputHashing": "all"
             },
             "development": {
@@ -82,7 +90,7 @@
                 "input": "public"
               }
             ],
-            "styles": ["src/styles.scss"],
+            "styles": ["node_modules/katex/dist/katex.min.css", "src/styles.scss"],
             "scripts": []
           }
         }

@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterModule } from '@angular/router';
 import { AuthService } from '../../services/auth.service';
+import { takeTeacherReturnUrl } from '../../guards/auth.guard';
 
 @Component({
   selector: 'app-teacher-login',
@@ -193,7 +194,7 @@ export class TeacherLoginComponent {
 
     try {
       await this.authService.loginAsTeacher(this.email, this.password);
-      this.router.navigate(['/teacher/dashboard']);
+      this.router.navigateByUrl(takeTeacherReturnUrl() ?? '/teacher/dashboard');
     } catch (error: any) {
       this.errorMessage = this.getErrorMessage(error);
     } finally {

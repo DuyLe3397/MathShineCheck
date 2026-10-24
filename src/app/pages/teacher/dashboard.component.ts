@@ -6,6 +6,7 @@ import { AuthService } from '../../services/auth.service';
 import { NavbarComponent } from '../../shared/components/navbar.component';
 import { TeacherNotificationBellComponent } from '../../shared/components/teacher-notification-bell.component';
 import { RefreshButtonComponent } from '../../shared/components/refresh-button.component';
+import { Submission } from '../../models';
 
 interface PendingAssignmentItem {
   id: string;
@@ -678,10 +679,22 @@ export class TeacherDashboardComponent implements OnInit {
 
   private async loadPendingAssignments(): Promise<void> {
     const submissions = await this.firestoreService.getPendingSubmissions();
+    // Gom nhóm theo assignmentId và theo (studentId_attemptNumber)
+    // để các bản ghi trùng lặp (nếu có) không bị đếm thành nhiều bài chờ chấm
+    const assignmentSubsMap = new Map<string, Map<string, Submission>>();
+    for (const s of submissions) {
+      const key = `${s.studentId}_${s.attemptNumber || 1}`;
+      if (!assignmentSubsMap.has(s.assignmentId)) {
+        assignmentSubsMap.set(s.assignmentId, new Map());
+      }
+      assignmentSubsMap.get(s.assignmentId)!.set(key, s);
+    }
+
     const countByAssignment = new Map<string, number>();
-    submissions.forEach((s) =>
-      countByAssignment.set(s.assignmentId, (countByAssignment.get(s.assignmentId) || 0) + 1),
-    );
+    assignmentSubsMap.forEach((attemptsMap, assignmentId) => {
+      countByAssignment.set(assignmentId, attemptsMap.size);
+    });
+
     const assignments = await this.firestoreService.getAssignmentsByIds([
       ...countByAssignment.keys(),
     ]);
@@ -691,6 +704,7 @@ export class TeacherDashboardComponent implements OnInit {
         title: a.title || 'Bài tập không có tiêu đề',
         pendingCount: countByAssignment.get(a.id) || 0,
       }))
+      .filter((a) => a.pendingCount > 0)
       .sort((a, b) => b.pendingCount - a.pendingCount);
   }
 

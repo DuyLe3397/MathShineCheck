@@ -6,11 +6,12 @@ import { Router, RouterModule } from '@angular/router';
 import { AuthService } from '../../services/auth.service';
 import { FirestoreService } from '../../services/firestore.service';
 import { TeacherNotification } from '../../models';
+import { MathPlainPipe } from '../math/math-plain.pipe';
 
 @Component({
   selector: 'teacher-notification-bell',
   standalone: true,
-  imports: [CommonModule, RouterModule],
+  imports: [CommonModule, RouterModule, MathPlainPipe],
   styles: [
     `
       .notif-nav-item {
@@ -213,7 +214,7 @@ import { TeacherNotification } from '../../models';
               </span>
             </div>
             <div class="notif-item-author">{{ n.authorName }}</div>
-            <div class="notif-item-content">{{ n.content }}</div>
+            <div class="notif-item-content">{{ n.content | mathPlain }}</div>
             <div class="notif-item-time">{{ n.createdAt | date: 'dd/MM/yyyy HH:mm' }}</div>
           </div>
         }

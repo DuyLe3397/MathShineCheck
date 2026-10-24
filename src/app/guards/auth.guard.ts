@@ -3,6 +3,26 @@ import { CanActivate, Router, ActivatedRouteSnapshot, RouterStateSnapshot } from
 import { AuthService } from '../services/auth.service';
 import { filter, map, take, of } from 'rxjs';
 
+const TEACHER_RETURN_URL_KEY = 'teacherReturnUrl';
+
+/** Nhớ trang giáo viên đang muốn mở (vd. link trong Email thông báo) khi chưa đăng nhập. */
+export function rememberTeacherReturnUrl(url: string): void {
+  try {
+    sessionStorage.setItem(TEACHER_RETURN_URL_KEY, url);
+  } catch {}
+}
+
+/** Lấy (và xóa) trang giáo viên đã nhớ; chỉ nhận đường dẫn trong /teacher/. */
+export function takeTeacherReturnUrl(): string | null {
+  try {
+    const url = sessionStorage.getItem(TEACHER_RETURN_URL_KEY);
+    sessionStorage.removeItem(TEACHER_RETURN_URL_KEY);
+    return url && url.startsWith('/teacher/') ? url : null;
+  } catch {
+    return null;
+  }
+}
+
 @Injectable({ providedIn: 'root' })
 export class AuthGuard implements CanActivate {
   private authService = inject(AuthService);
@@ -22,6 +42,7 @@ export class AuthGuard implements CanActivate {
       map(() => {
         const p = this.authService.currentProfile;
         if (!p) {
+          if (requiredRole === 'teacher') rememberTeacherReturnUrl(state.url);
           this.router.navigate(['/role-select']);
           return false;
         }

@@ -1,5 +1,7 @@
 export const environment = {
   production: true,
+  /** API gửi Email thông báo (email-api/, deploy trên Vercel). Để trống thì không gửi. */
+  emailApiUrl: 'https://mathshine-email-api.vercel.app/api/notify',
   firebase: {
     apiKey: 'AIzaSyACnurThbikN3vxXLODB3DB9sKxSq-TDzM',
     authDomain: 'mathshine-check-274.firebaseapp.com',

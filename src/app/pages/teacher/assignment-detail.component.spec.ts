@@ -143,3 +143,26 @@ describe('Trang chi tiết bài tập — Chấm không điểm', () => {
     ]);
   });
 });
+
+describe('Trang chi tiết bài tập — Chống trùng lặp Lần nộp', () => {
+  it('học sinh có nhiều bản ghi trùng cùng Lần nộp (do lỗi mạng/concurrency cũ) chỉ hiển thị 1 dòng duy nhất', async () => {
+    const page = await renderPage(
+      [student('hs1', 'NGUYỄN LÊ TRÍ TẤN')],
+      [
+        { ...submission('s1', 'hs1', 1), submittedAt: '2026-10-18T13:35:44.807Z' },
+        { ...submission('s2', 'hs1', 1), submittedAt: '2026-10-18T13:35:45.717Z' },
+        { ...submission('s3', 'hs1', 1), submittedAt: '2026-10-18T13:35:46.666Z' },
+      ],
+      [],
+    );
+
+    const rows = readRows(page);
+    expect(rows.length).withContext('chỉ hiển thị 1 dòng thay vì 3 dòng trùng lặp').toBe(1);
+    expect(rows[0]).toEqual({
+      name: 'NGUYỄN LÊ TRÍ TẤN',
+      attempt: 'Lần 1',
+      comment: '-',
+    });
+  });
+});
+

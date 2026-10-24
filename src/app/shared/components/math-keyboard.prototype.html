@@ -1,0 +1,726 @@
+<title>Bàn phím toán MathShine</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<!--
+  PROTOTYPE — vứt đi sau khi chọn xong, KHÔNG phải code production.
+  Câu hỏi: bố cục Bàn phím toán nào bấm thuận nhất trên điện thoại (và vẫn ổn trên máy tính)?
+  Ba biến thể A/B/C trên cùng một trang demo, chuyển bằng thanh nổi phía dưới (hoặc #A #B #C).
+  Thiết kế đã chốt: xem docs/adr/0005-ban-phim-toan-chen-ky-tu-unicode-thay-vi-latex.md và CONTEXT.md.
+-->
+<style>
+  /* Layout: một cột giống trang Chấm bài; bàn phím là ngăn kéo cố định đáy (điện thoại) hoặc popover dưới ô nhập (máy tính).
+     Giao diện sáng có chủ đích, khớp app MathShine (chỉ có giao diện sáng). */
+  :root {
+    --bg: #f1f5f9;
+    --card: #ffffff;
+    --fg: #1e293b;
+    --muted: #64748b;
+    --line: #e2e8f0;
+    --accent: #2563eb;
+    --accent-ink: #ffffff;
+    --accent-soft: #dbeafe;
+    --kb-bg: #e3e8ef;
+    --key: #ffffff;
+    --key-alt: #cfd7e3;
+    --key-shadow: #a9b4c4;
+    --proto: #0f172a;
+    --proto-ink: #f8fafc;
+    --font: 'Segoe UI', system-ui, -apple-system, Roboto, 'Noto Sans', Tahoma, sans-serif;
+    --mono: ui-monospace, 'Cascadia Mono', Consolas, 'Roboto Mono', monospace;
+    color-scheme: light;
+  }
+  * { box-sizing: border-box; }
+  body {
+    background: var(--bg);
+    color: var(--fg);
+    font-family: var(--font);
+    padding-left: max(16px, env(safe-area-inset-left, 0px));
+    padding-right: max(16px, env(safe-area-inset-right, 0px));
+    padding-block: 16px 96px;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .page { max-width: 720px; margin: 0 auto; display: grid; gap: 14px; }
+  h1 { font-size: 1.15rem; margin: 0; text-wrap: balance; }
+  .lead { margin: 4px 0 0; color: var(--muted); font-size: 0.85rem; line-height: 1.5; }
+  .lead code { font-family: var(--font); background: var(--accent-soft); color: var(--fg); padding: 1px 6px; border-radius: 6px; }
+  .card { background: var(--card); border-radius: 12px; padding: 14px; box-shadow: 0 1px 3px rgba(15, 23, 42, 0.08); display: grid; gap: 10px; min-width: 0; }
+  .card-title { font-size: 0.78rem; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; color: var(--muted); }
+  .photo {
+    height: 120px; border-radius: 8px; border: 1px dashed var(--line);
+    background: repeating-linear-gradient(0deg, var(--card) 0 22px, var(--accent-soft) 22px 23px);
+    display: flex; align-items: flex-end; padding: 8px; color: var(--muted); font-size: 0.8rem;
+  }
+  .comments { display: grid; gap: 8px; }
+  .comment { display: grid; gap: 2px; min-width: 0; }
+  .comment-author { font-size: 0.8rem; font-weight: 700; }
+  .comment-content { font-size: 0.92rem; line-height: 1.45; white-space: pre-wrap; overflow-wrap: anywhere; }
+  .input-wrap { position: relative; }
+  .input-row { display: flex; gap: 6px; align-items: flex-end; }
+  .field {
+    flex: 1; min-width: 0; padding: 0.5rem 0.7rem; border: 1px solid var(--line); border-radius: 8px;
+    font: inherit; font-size: 1rem; line-height: 1.4; color: var(--fg); background: var(--card); outline: none; resize: none;
+  }
+  textarea.field { min-height: 42px; field-sizing: content; max-height: 160px; }
+  .field:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+  .kb-btn {
+    width: 42px; height: 42px; flex-shrink: 0; border-radius: 8px; border: 1px solid var(--line);
+    background: var(--card); color: var(--muted); display: grid; place-items: center; cursor: pointer;
+  }
+  .kb-btn[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+  .kb-btn:focus-visible, .send:focus-visible, .k:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .send { height: 42px; padding: 0 14px; border: none; border-radius: 8px; background: var(--accent); color: var(--accent-ink); font: inherit; font-weight: 600; cursor: pointer; }
+
+  .state { font-family: var(--mono); font-size: 0.74rem; line-height: 1.6; color: var(--fg); overflow-x: auto; white-space: pre; background: var(--bg); border-radius: 8px; padding: 10px; }
+
+  /* ---------- Bàn phím: phần chung ---------- */
+  .kb { background: var(--kb-bg); user-select: none; -webkit-user-select: none; display: grid; gap: 6px; padding: 8px; }
+  .k {
+    min-height: 42px; min-width: 0; border: none; border-radius: 7px; background: var(--key); color: var(--fg);
+    font: inherit; font-size: 1.12rem; line-height: 1.1; padding: 2px; cursor: pointer;
+    box-shadow: 0 1px 0 var(--key-shadow); touch-action: manipulation; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .k:active { background: var(--accent-soft); }
+  .k.alt { background: var(--key-alt); font-size: 0.9rem; font-weight: 600; }
+  .k.small { font-size: 0.86rem; }
+  .k.on { background: var(--accent); color: var(--accent-ink); }
+  .k.wide { grid-column: span 2; }
+  .k.tpl { font-size: 0.95rem; }
+  .k.placeholder { visibility: hidden; }
+  .row { display: grid; gap: 5px; }
+  .row10 { grid-template-columns: repeat(10, minmax(0, 1fr)); }
+  .recent { display: flex; gap: 5px; align-items: center; overflow-x: auto; height: 38px; flex-shrink: 0; }
+  /* Hàng Gần đây và hàng tab nhóm: không hiện thanh cuộn, nhấn giữ rồi kéo (chuột) hoặc vuốt (cảm ứng) để lướt ngang */
+  .recent, .tabs { scrollbar-width: none; overscroll-behavior-x: contain; cursor: grab; }
+  .recent::-webkit-scrollbar, .tabs::-webkit-scrollbar { display: none; }
+  .recent.dragging, .tabs.dragging { cursor: grabbing; }
+  .recent.dragging *, .tabs.dragging * { cursor: grabbing; }
+  .recent .lbl { font-size: 0.72rem; color: var(--muted); flex-shrink: 0; padding-right: 2px; }
+  .recent .k { min-height: 34px; min-width: 40px; padding: 0 8px; flex-shrink: 0; }
+  .recent .empty { font-size: 0.78rem; color: var(--muted); }
+  .actions { display: grid; grid-template-columns: repeat(8, minmax(0, 1fr)); gap: 5px; }
+  .chip {
+    border: none; background: transparent; color: var(--muted); font: inherit; font-size: 0.85rem; font-weight: 600;
+    padding: 10px 12px; border-radius: 999px; white-space: nowrap; cursor: pointer; flex-shrink: 0;
+  }
+  .chip.on { background: var(--card); color: var(--accent); box-shadow: 0 1px 0 var(--key-shadow); }
+
+  /* Điện thoại: ngăn kéo đáy */
+  .drawer {
+    position: fixed; left: 0; right: 0; bottom: 0; z-index: 40;
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+    padding-left: env(safe-area-inset-left, 0px); padding-right: env(safe-area-inset-right, 0px);
+    background: var(--kb-bg); box-shadow: 0 -6px 18px rgba(15, 23, 42, 0.14);
+    animation: up 0.16s ease-out;
+  }
+  @keyframes up { from { transform: translateY(16px); opacity: 0.4; } }
+  @media (prefers-reduced-motion: reduce) { .drawer { animation: none; } }
+  .drawer .kb { max-width: 560px; margin: 0 auto; }
+
+  /* Máy tính: popover dưới ô nhập */
+  .popover {
+    position: absolute; right: 0; top: calc(100% + 6px); z-index: 30; width: min(540px, 100%);
+    border-radius: 12px; overflow: hidden; box-shadow: 0 12px 32px rgba(15, 23, 42, 0.22); border: 1px solid var(--key-alt);
+  }
+  .is-desktop .mob-only { display: none !important; }
+  .is-desktop .k { min-height: 34px; font-size: 1rem; }
+  .is-desktop .actions { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+
+  /* ---------- Biến thể A: tab trên + lưới ---------- */
+  .tabs { display: flex; gap: 2px; overflow-x: auto; }
+  /* Chiều cao cố định: đổi tab không làm bàn phím co giãn; nhóm nhiều ký hiệu thì cuộn bên trong */
+  .gridA { display: grid; grid-template-columns: repeat(8, minmax(0, 1fr)); gap: 5px; height: 150px; overflow-y: auto; align-content: start; }
+  .is-desktop .gridA { grid-template-columns: repeat(10, minmax(0, 1fr)); height: 220px; }
+  .gridA .k.tpl { grid-column: span 2; }
+
+  /* ---------- Biến thể B: kiểu máy tính cầm tay ---------- */
+  .bMain { display: grid; grid-template-columns: 72px minmax(0, 1fr) 128px; gap: 6px; height: 190px; }
+  .is-desktop .bMain { grid-template-columns: 96px minmax(0, 1fr); height: 220px; }
+  .rail { display: grid; gap: 3px; overflow-y: auto; align-content: start; scrollbar-width: none; }
+  .rail .chip { border-radius: 7px; text-align: left; padding: 7px 6px; font-size: 0.74rem; white-space: normal; line-height: 1.15; }
+  .gridB { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 5px; overflow-y: auto; align-content: start; }
+  .is-desktop .gridB { grid-template-columns: repeat(7, minmax(0, 1fr)); }
+  .gridB .k.tpl { grid-column: span 2; }
+  .numpad { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 5px; align-content: start; }
+  .numpad .k { min-height: 42px; font-size: 1.15rem; background: var(--card); }
+
+  /* ---------- Biến thể C: cuộn liền + lớp 123 ---------- */
+  .cTop { display: flex; gap: 6px; align-items: center; }
+  .cTop .layer { flex-shrink: 0; min-width: 64px; }
+  .cTop .tabs { flex: 1; min-width: 0; }
+  .cScroll { height: 205px; overflow-y: auto; display: grid; gap: 10px; align-content: start; scroll-behavior: smooth; position: relative; }
+  .is-desktop .cScroll { height: 250px; }
+  @media (prefers-reduced-motion: reduce) { .cScroll { scroll-behavior: auto; } }
+  .cSec h4 { margin: 0 0 5px; font-size: 0.72rem; letter-spacing: 0.05em; text-transform: uppercase; color: var(--muted); }
+  .cGrid { display: grid; grid-template-columns: repeat(8, minmax(0, 1fr)); gap: 5px; }
+  .is-desktop .cGrid { grid-template-columns: repeat(10, minmax(0, 1fr)); }
+  .cGrid .k.tpl { grid-column: span 2; }
+  .cNum { height: 205px; display: grid; gap: 5px; align-content: start; }
+  .cNum .k { min-height: 46px; }
+
+  /* ---------- Thanh chuyển biến thể (không thuộc thiết kế) ---------- */
+  .proto {
+    position: fixed; left: 50%; transform: translateX(-50%); z-index: 50;
+    bottom: calc(14px + env(safe-area-inset-bottom, 0px));
+    display: flex; align-items: center; gap: 4px; padding: 4px; border-radius: 999px;
+    background: var(--proto); color: var(--proto-ink); box-shadow: 0 6px 20px rgba(15, 23, 42, 0.35);
+    font-size: 0.8rem; max-width: calc(100% - 24px);
+  }
+  .proto.at-top { bottom: auto; top: calc(10px + env(safe-area-inset-top, 0px)); }
+  .proto button { border: none; background: transparent; color: inherit; font: inherit; cursor: pointer; border-radius: 999px; padding: 7px 11px; white-space: nowrap; }
+  .proto button:hover { background: rgba(248, 250, 252, 0.12); }
+  .proto .name { font-weight: 700; padding: 0 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .proto .dev { border: 1px solid rgba(248, 250, 252, 0.3); }
+</style>
+
+<div class="page">
+  <header>
+    <h1>Bàn phím toán · prototype</h1>
+    <p class="lead">Bấm nút bàn phím cạnh ô nhập rồi thử gõ: <code>f′(x) = 3x² − 6x ≥ 0 ⇔ x ∈ (−∞; 0] ∪ [2; +∞)</code>, <code>uₙ₊₁ = 2uₙ</code>, <code>e²ˣ⁺¹</code>, <code>lim(x→+∞) (2x+1)/(x−3)</code>. Dùng thanh đen phía dưới để đổi bố cục A / B / C và chế độ điện thoại / máy tính.</p>
+  </header>
+
+  <section class="card" aria-label="Nhận xét theo ảnh">
+    <div class="card-title">Ảnh 1 · Nhận xét theo ảnh</div>
+    <div class="photo">Ảnh bài làm của học sinh</div>
+    <div class="comments" id="comments-photo"></div>
+    <div class="input-wrap">
+      <div class="input-row">
+        <textarea id="f-photo" class="field" rows="1" placeholder="Nhận xét cho ảnh này... (Ctrl+V để dán ảnh)"></textarea>
+        <button type="button" class="kb-btn" data-for="f-photo" aria-pressed="false" aria-label="Mở bàn phím toán" title="Bàn phím toán">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><rect x="2" y="5" width="20" height="14" rx="2.5"/><path d="M6 9h.01M10 9h.01M14 9h.01M18 9h.01M6 12.5h.01M18 12.5h.01M8 16h8"/><path d="M10.5 12.5h3" /></svg>
+        </button>
+        <button type="button" class="send" data-send="f-photo">Gửi</button>
+      </div>
+    </div>
+  </section>
+
+  <section class="card" aria-label="Thảo luận">
+    <div class="card-title">Thảo luận · ô một dòng</div>
+    <div class="comments" id="comments-disc"></div>
+    <div class="input-wrap">
+      <div class="input-row">
+        <input id="f-disc" class="field" type="text" placeholder="Trả lời thảo luận..." />
+        <button type="button" class="kb-btn" data-for="f-disc" aria-pressed="false" aria-label="Mở bàn phím toán" title="Bàn phím toán">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><rect x="2" y="5" width="20" height="14" rx="2.5"/><path d="M6 9h.01M10 9h.01M14 9h.01M18 9h.01M6 12.5h.01M18 12.5h.01M8 16h8"/><path d="M10.5 12.5h3" /></svg>
+        </button>
+        <button type="button" class="send" data-send="f-disc">Gửi</button>
+      </div>
+    </div>
+  </section>
+
+  <section class="card" aria-label="Trạng thái">
+    <div class="card-title">Trạng thái (để kiểm tra)</div>
+    <div class="state" id="state"></div>
+  </section>
+</div>
+
+<div id="drawer" class="drawer" hidden></div>
+
+<nav class="proto" id="proto" aria-label="Chuyển biến thể prototype">
+  <button type="button" id="p-prev" aria-label="Biến thể trước">‹</button>
+  <span class="name" id="p-name"></span>
+  <button type="button" id="p-next" aria-label="Biến thể sau">›</button>
+  <button type="button" class="dev" id="p-dev"></button>
+</nav>
+
+<script>
+(() => {
+  // ---------- Dữ liệu ký hiệu ----------
+  const SUP = { '0':'⁰','1':'¹','2':'²','3':'³','4':'⁴','5':'⁵','6':'⁶','7':'⁷','8':'⁸','9':'⁹','+':'⁺','-':'⁻','−':'⁻','=':'⁼','(':'⁽',')':'⁾',
+    a:'ᵃ',b:'ᵇ',c:'ᶜ',d:'ᵈ',e:'ᵉ',f:'ᶠ',g:'ᵍ',h:'ʰ',i:'ⁱ',j:'ʲ',k:'ᵏ',l:'ˡ',m:'ᵐ',n:'ⁿ',o:'ᵒ',p:'ᵖ',r:'ʳ',s:'ˢ',t:'ᵗ',u:'ᵘ',v:'ᵛ',w:'ʷ',x:'ˣ',y:'ʸ',z:'ᶻ' };
+  const SUB = { '0':'₀','1':'₁','2':'₂','3':'₃','4':'₄','5':'₅','6':'₆','7':'₇','8':'₈','9':'₉','+':'₊','-':'₋','−':'₋','=':'₌','(':'₍',')':'₎',
+    a:'ₐ',e:'ₑ',h:'ₕ',i:'ᵢ',j:'ⱼ',k:'ₖ',l:'ₗ',m:'ₘ',n:'ₙ',o:'ₒ',p:'ₚ',r:'ᵣ',s:'ₛ',t:'ₜ',u:'ᵤ',v:'ᵥ',x:'ₓ' };
+
+  const TEMPLATES = [
+    { label: '√(▢)', tpl: '√(‸)', title: 'Căn bậc hai' },
+    { label: '▢/▢', tpl: '(‸)/()', title: 'Phân số' },
+    { label: '|▢|', tpl: '|‸|', title: 'Giá trị tuyệt đối' },
+    { label: 'lim', tpl: 'lim(x→‸) ', title: 'Giới hạn' },
+    { label: '∫▢dx', tpl: '∫(‸)dx', title: 'Tích phân' },
+    { label: 'log₂▢', tpl: 'log₂(‸)', title: 'Logarit cơ số 2' },
+    { label: 'ln▢', tpl: 'ln(‸)' },
+    { label: '∛(▢)', tpl: '∛(‸)', title: 'Căn bậc ba' },
+    { label: '(▢; ▢)', tpl: '(‸; )', title: 'Khoảng hoặc tọa độ' },
+    { label: '[▢; ▢]', tpl: '[‸; ]', title: 'Đoạn' },
+    { label: '{▢}', tpl: '{‸}', title: 'Tập hợp' },
+    { label: 'f(▢)', tpl: 'f(‸)' },
+    { label: 'sin▢', tpl: 'sin(‸)' },
+    { label: 'cos▢', tpl: 'cos(‸)' },
+    { label: 'Cₙᵏ', ins: 'C', mode: 'sub', title: 'Tổ hợp: gõ n, bấm xⁿ, gõ k' },
+    { label: 'Aₙᵏ', ins: 'A', mode: 'sub', title: 'Chỉnh hợp: gõ n, bấm xⁿ, gõ k' },
+    { label: 'vt AB', ins: 'vt ', title: 'Vectơ' },
+  ].map((t) => ({ ...t, tplKey: true }));
+
+  const k = (label, ins, title) => ({ label, ins: ins ?? label, title });
+  const GROUPS = [
+    { id: 'mau', name: 'Mẫu', keys: TEMPLATES },
+    { id: 'co-ban', name: 'Cơ bản', keys: ['+','−','×','÷','±','=','≠','≈','<','>','≤','≥','√','∛','π','∞','°','′','%','½','⅓','¼','⅔','¾','(',')','[',']','{','}','|',';'].map((s) => k(s)) },
+    { id: 'tap-hop', name: 'Tập hợp & Logic', keys: ['∈','∉','⊂','⊄','⊆','∪','∩','∅','\\','ℕ','ℕ*','ℤ','ℚ','ℝ','∀','∃','⇒','⇔','∴','∵','¬','∨','∧'].map((s) => k(s)) },
+    { id: 'ham-so', name: 'Hàm số & Giải tích', keys: [k('f′','f′(x)'),k('f″','f″(x)'),k('′'),k('→'),k('↗'),k('↘'),k('lim','lim'),k('∫'),k('dx',' dx'),k('Δ'),k('∑'),k('log','log'),k('ln','ln'),k('sin','sin'),k('cos','cos'),k('tan','tan'),k('cot','cot'),k('e'),k('+∞'),k('−∞')] },
+    { id: 'hinh', name: 'Hình học & Vectơ', keys: [k('∠'),k('△'),k('⊥'),k('∥'),k('≅'),k('∽'),k('°'),k('vt','vt ','Vectơ: vt AB'),k('cung','cung ','Cung: cung AB'),k('⌒'),k('·','·','Tích vô hướng'),k('Oxy','Oxy'),k('Oxyz','Oxyz'),k('√'),k('π')] },
+    { id: 'to-hop', name: 'Tổ hợp & Xác suất', keys: [k('!'),{ label:'Cₙᵏ', ins:'C', mode:'sub', title:'Gõ n, bấm xⁿ, gõ k' },{ label:'Aₙᵏ', ins:'A', mode:'sub', title:'Gõ n, bấm xⁿ, gõ k' },{ label:'Pₙ', ins:'P', mode:'sub' },k('Ω'),k('P(A)','P(A)'),k('Ā','Ā'),k('x̄','x̄'),k('◌̄','̄','Gạch trên chữ vừa gõ'),k('σ'),k('s²')] },
+    { id: 'hy-lap', name: 'Hy Lạp', keys: ['α','β','γ','δ','ε','θ','λ','μ','ρ','σ','φ','ω','Δ','Σ','Ω','π'].map((s) => k(s)) },
+  ];
+  const DIGITS = '1234567890'.split('').map((s) => k(s));
+  const VARS = ['x','y','z','n','k','a','b','c','t',','].map((s) => k(s));
+
+  const VARIANTS = [
+    { key: 'A', name: 'Tab trên + lưới', render: renderA },
+    { key: 'B', name: 'Kiểu máy tính cầm tay', render: renderB },
+    { key: 'C', name: 'Cuộn liền + lớp 123', render: renderC },
+  ];
+
+  // ---------- Trạng thái ----------
+  const store = {
+    get(key, fallback) { try { const v = localStorage.getItem('mk-proto-' + key); return v == null ? fallback : JSON.parse(v); } catch { return fallback; } },
+    set(key, v) { try { localStorage.setItem('mk-proto-' + key, JSON.stringify(v)); } catch { /* bỏ qua */ } },
+  };
+  const hashVariant = location.hash.replace('#', '').toUpperCase();
+  const state = {
+    variant: VARIANTS.some((v) => v.key === hashVariant) ? hashVariant : store.get('variant', 'A'),
+    device: store.get('device', 'auto'),
+    open: null,
+    mode: null,
+    tabA: 'mau', tabB: 'mau', layerC: 'sym',
+    recents: store.get('recents', []),
+    last: '—',
+  };
+
+  const comments = {
+    'f-photo': [{ author: 'Cô Hạnh', text: 'Bước 2 em sai: f′(x) = 3x² − 6x, không phải 3x² − 6.\nXét dấu lại trên (−∞; 0) ∪ (2; +∞) nhé.' }],
+    'f-disc': [{ author: 'Nguyễn Minh Khoa (HS)', text: 'Cô ơi câu 3: lim(x→+∞) (2x+1)/(x−3) = 2 đúng không ạ?' }],
+  };
+
+  const $ = (sel, root = document) => root.querySelector(sel);
+  const drawer = $('#drawer');
+  let popover = null;
+  let registry = [];
+  let internal = false;
+  let refocusing = false;
+
+  const isMobile = () => state.device === 'mobile' || (state.device === 'auto' && matchMedia('(pointer: coarse)').matches);
+  const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
+
+  // ---------- Chèn ký tự ----------
+  function mapChars(text) {
+    const table = state.mode === 'sup' ? SUP : state.mode === 'sub' ? SUB : null;
+    if (!table) return text;
+    return [...text].map((c) => table[c] ?? c).join('');
+  }
+
+  function insertAtCaret(field, text, caretFromStart) {
+    const start = field.selectionStart;
+    internal = true;
+    let ok = false;
+    try { ok = document.execCommand('insertText', false, text); } catch { ok = false; }
+    internal = false;
+    if (!ok) {
+      field.setRangeText(text, field.selectionStart, field.selectionEnd, 'end');
+      field.dispatchEvent(new Event('input', { bubbles: true }));
+    }
+    if (caretFromStart != null) field.setSelectionRange(start + caretFromStart, start + caretFromStart);
+  }
+
+  function pressKey(key) {
+    const field = state.open;
+    if (!field) return;
+    if (key.tpl) {
+      const at = key.tpl.indexOf('‸');
+      insertAtCaret(field, key.tpl.replace('‸', ''), at);
+      setMode(null);
+    } else {
+      const text = [...key.ins].length === 1 ? mapChars(key.ins) : key.ins;
+      insertAtCaret(field, text);
+      if (key.mode) setMode(key.mode);
+    }
+    state.last = key.label;
+    if (!DIGITS.includes(key) && !VARS.includes(key)) addRecent(key);
+    renderState();
+  }
+
+  function act(name) {
+    const field = state.open;
+    if (!field) return;
+    const s = field.selectionStart, e = field.selectionEnd;
+    switch (name) {
+      case 'sup': case 'sub': setMode(state.mode === name ? null : name); break;
+      case 'left': field.setSelectionRange(Math.max(0, s - 1), Math.max(0, s - 1)); break;
+      case 'right': field.setSelectionRange(e + 1, e + 1); break;
+      case 'space': setMode(null); insertAtCaret(field, ' '); break;
+      case 'enter':
+        setMode(null);
+        if (field.tagName === 'TEXTAREA') insertAtCaret(field, '\n'); else send(field.id);
+        break;
+      case 'bksp':
+        internal = true;
+        try { document.execCommand('delete'); } finally { internal = false; }
+        break;
+      case 'abc': close({ restoreOsKeyboard: true }); break;
+      case 'close': close(); field.focus(); break;
+      case 'layer': state.layerC = state.layerC === 'sym' ? 'num' : 'sym'; renderKeyboard(); break;
+    }
+    state.last = name;
+    renderState();
+  }
+
+  function setMode(mode) {
+    state.mode = mode;
+    document.querySelectorAll('[data-act="sup"]').forEach((b) => b.classList.toggle('on', mode === 'sup'));
+    document.querySelectorAll('[data-act="sub"]').forEach((b) => b.classList.toggle('on', mode === 'sub'));
+    renderState();
+  }
+
+  function addRecent(key) {
+    const plain = { label: key.label, ins: key.ins, tpl: key.tpl, mode: key.mode, title: key.title, tplKey: key.tplKey };
+    state.recents = [plain, ...state.recents.filter((r) => r.label !== key.label)].slice(0, 8);
+    store.set('recents', state.recents);
+    document.querySelectorAll('.recent-slot').forEach((el) => { el.innerHTML = recentInner(); });
+  }
+
+  // ---------- Dựng bàn phím ----------
+  function keyBtn(key, cls = '') {
+    registry.push(key);
+    const tplCls = key.tplKey ? ' tpl' : '';
+    return `<button type="button" tabindex="-1" class="k${tplCls} ${cls}" data-i="${registry.length - 1}"${key.title ? ` title="${esc(key.title)}"` : ''}>${esc(key.label)}</button>`;
+  }
+  const actBtn = (name, label, cls = '', title = '') =>
+    `<button type="button" tabindex="-1" class="k alt ${cls}${state.mode === name ? ' on' : ''}" data-act="${name}"${title ? ` title="${title}"` : ''}>${label}</button>`;
+
+  function recentInner() {
+    const keys = state.recents.length ? state.recents.map((r) => keyBtn(r)).join('') : '<span class="empty">Chưa dùng ký hiệu nào</span>';
+    return `<span class="lbl">Gần đây</span>${keys}`;
+  }
+  const recentRow = () => `<div class="recent recent-slot">${recentInner()}</div>`;
+
+  function actionsRow() {
+    const mob = isMobile();
+    return `<div class="actions">
+      ${actBtn('sup', 'xⁿ', '', 'Chế độ mũ (tắt khi bấm lại, dấu cách hoặc Enter)')}
+      ${actBtn('sub', 'xₙ', '', 'Chế độ chỉ số dưới')}
+      ${actBtn('left', '←', 'mob-only')}
+      ${actBtn('right', '→', 'mob-only')}
+      ${actBtn('space', 'cách', 'mob-only')}
+      ${actBtn('bksp', '⌫', 'mob-only')}
+      ${actBtn('enter', '↵', 'mob-only', 'Xuống dòng')}
+      ${mob ? actBtn('abc', 'ABC', '', 'Về bàn phím máy') : actBtn('close', 'Đóng ✕', 'wide', 'Đóng (Esc)')}
+    </div>`;
+  }
+  const tabsRow = (current, attr, names) =>
+    `<div class="tabs">${GROUPS.map((g) => `<button type="button" tabindex="-1" class="chip${g.id === current ? ' on' : ''}" ${attr}="${g.id}">${esc(names ? names(g) : g.name)}</button>`).join('')}</div>`;
+
+  function renderA() {
+    const g = GROUPS.find((x) => x.id === state.tabA);
+    return `<div class="kb kbA">
+      ${recentRow()}
+      ${tabsRow(state.tabA, 'data-tab-a')}
+      <div class="gridA">${g.keys.map((x) => keyBtn(x)).join('')}</div>
+      <div class="row row10 mob-only">${DIGITS.map((x) => keyBtn(x)).join('')}</div>
+      <div class="row row10 mob-only">${VARS.map((x) => keyBtn(x)).join('')}</div>
+      ${actionsRow()}
+    </div>`;
+  }
+
+  function renderB() {
+    const g = GROUPS.find((x) => x.id === state.tabB);
+    const pad = ['7','8','9','4','5','6','1','2','3','0','.',','].map((s) => keyBtn(DIGITS.find((d) => d.ins === s) || k(s)));
+    return `<div class="kb kbB">
+      ${recentRow()}
+      <div class="bMain">
+        <div class="rail">${GROUPS.map((x) => `<button type="button" tabindex="-1" class="chip${x.id === state.tabB ? ' on' : ''}" data-tab-b="${x.id}">${esc(x.name)}</button>`).join('')}</div>
+        <div class="gridB">${g.keys.map((x) => keyBtn(x)).join('')}</div>
+        <div class="numpad mob-only">${pad.join('')}</div>
+      </div>
+      <div class="row row10 mob-only">${['x','y','z','n','k','a','b','c','t','='].map((s) => keyBtn(VARS.find((v) => v.ins === s) || k(s))).join('')}</div>
+      ${actionsRow()}
+    </div>`;
+  }
+
+  function renderC() {
+    const mob = isMobile();
+    const body = state.layerC === 'num' && mob
+      ? `<div class="cNum">
+          <div class="row row10">${DIGITS.map((x) => keyBtn(x)).join('')}</div>
+          <div class="row row10">${VARS.map((x) => keyBtn(x)).join('')}</div>
+          <div class="row row10">${['+','−','×','÷','=','<','>','(',')','.'].map((s) => keyBtn(k(s))).join('')}</div>
+          <div class="row row10">${['≤','≥','≠','±','√','π','∞','°','′',';'].map((s) => keyBtn(k(s))).join('')}</div>
+        </div>`
+      : `<div class="cScroll">
+          <section class="cSec" data-sec="gan-day"><h4>Gần đây</h4><div class="recent recent-slot">${recentInner()}</div></section>
+          ${GROUPS.map((g) => `<section class="cSec" data-sec="${g.id}"><h4>${esc(g.name)}</h4><div class="cGrid">${g.keys.map((x) => keyBtn(x)).join('')}</div></section>`).join('')}
+        </div>`;
+    const layerBtn = mob ? actBtn('layer', state.layerC === 'num' ? 'π ∑' : '123 xy', 'layer', 'Đổi lớp ký hiệu / số và biến') : '';
+    const chips = state.layerC === 'num' && mob ? '<div class="tabs"></div>' : tabsRow('', 'data-jump-c', (g) => g.name.split(' &')[0]);
+    return `<div class="kb kbC"><div class="cTop">${layerBtn}${chips}</div>${body}${actionsRow()}</div>`;
+  }
+
+  function renderKeyboard() {
+    const host = isMobile() ? drawer : popover;
+    if (!host) return;
+    registry = [];
+    const prevTabsScroll = host.querySelector('.tabs')?.scrollLeft ?? 0;
+    host.classList.toggle('is-desktop', !isMobile());
+    host.innerHTML = VARIANTS.find((v) => v.key === state.variant).render();
+    // Giữ vị trí cuộn của hàng tab và luôn để tab đang chọn nằm trong tầm nhìn
+    const tabs = host.querySelector('.tabs');
+    if (tabs) {
+      tabs.scrollLeft = prevTabsScroll;
+      const on = tabs.querySelector('.chip.on');
+      if (on) {
+        const left = on.offsetLeft - tabs.offsetLeft;
+        if (left < tabs.scrollLeft) tabs.scrollLeft = left - 8;
+        else if (left + on.offsetWidth > tabs.scrollLeft + tabs.clientWidth) tabs.scrollLeft = left + on.offsetWidth - tabs.clientWidth + 8;
+      }
+    }
+    // Máy tính: lăn chuột dọc thì lướt ngang hàng tab / Gần đây;
+    // nhấn giữ chuột rồi kéo cũng lướt ngang (cảm ứng đã vuốt được sẵn)
+    host.querySelectorAll('.tabs, .recent').forEach((row) => {
+      let drag = null;
+      let dragged = false;
+      row.addEventListener('pointerdown', (ev) => {
+        if (ev.pointerType === 'touch') return;
+        drag = { x: ev.clientX, left: row.scrollLeft, id: ev.pointerId };
+        dragged = false;
+      });
+      row.addEventListener('pointermove', (ev) => {
+        if (!drag || ev.pointerId !== drag.id) return;
+        const dx = ev.clientX - drag.x;
+        if (!dragged && Math.abs(dx) < 5) return;
+        if (!dragged) { dragged = true; row.classList.add('dragging'); row.setPointerCapture(ev.pointerId); }
+        row.scrollLeft = drag.left - dx;
+      });
+      const endDrag = () => { drag = null; row.classList.remove('dragging'); };
+      row.addEventListener('pointerup', endDrag);
+      row.addEventListener('pointercancel', endDrag);
+      // Vừa kéo xong thì không tính là bấm vào tab / ký hiệu bên dưới
+      row.addEventListener('click', (ev) => {
+        if (!dragged) return;
+        dragged = false;
+        ev.stopPropagation();
+        ev.preventDefault();
+      }, true);
+      row.addEventListener('wheel', (ev) => {
+        if (Math.abs(ev.deltaY) <= Math.abs(ev.deltaX) || row.scrollWidth <= row.clientWidth) return;
+        row.scrollLeft += ev.deltaY;
+        ev.preventDefault();
+      }, { passive: false });
+    });
+    const scroller = host.querySelector('.cScroll');
+    if (scroller) {
+      const spy = () => {
+        const secs = [...scroller.querySelectorAll('.cSec')];
+        const cur = secs.filter((s) => s.offsetTop - scroller.offsetTop <= scroller.scrollTop + 8).pop();
+        host.querySelectorAll('[data-jump-c]').forEach((c) => c.classList.toggle('on', cur && c.dataset.jumpC === cur.dataset.sec));
+      };
+      scroller.addEventListener('scroll', spy, { passive: true });
+      spy();
+    }
+    if (isMobile()) document.body.style.paddingBottom = drawer.offsetHeight + 24 + 'px';
+  }
+
+  // ---------- Mở / đóng ----------
+  function refocus(field) {
+    const s = field.selectionStart, e = field.selectionEnd;
+    refocusing = true;
+    field.blur();
+    field.focus({ preventScroll: true });
+    try { field.setSelectionRange(s, e); } catch { /* bỏ qua */ }
+    refocusing = false;
+  }
+
+  function open(field) {
+    if (state.open && state.open !== field) close();
+    state.open = field;
+    if (isMobile()) {
+      field.setAttribute('inputmode', 'none');
+      if (document.activeElement === field) refocus(field); else field.focus({ preventScroll: true });
+      drawer.hidden = false;
+      renderKeyboard();
+      const top = window.innerHeight - drawer.offsetHeight;
+      const r = field.getBoundingClientRect();
+      if (r.bottom > top - 12 || r.top < 0) window.scrollBy({ top: r.bottom - top + 24, behavior: 'smooth' });
+      $('#proto').classList.add('at-top');
+    } else {
+      popover = document.createElement('div');
+      popover.className = 'popover';
+      field.closest('.input-wrap').appendChild(popover);
+      renderKeyboard();
+      field.focus();
+    }
+    syncButtons();
+    renderState();
+  }
+
+  function close({ restoreOsKeyboard = false } = {}) {
+    const field = state.open;
+    if (!field) return;
+    state.open = null;
+    setMode(null);
+    drawer.hidden = true;
+    drawer.innerHTML = '';
+    if (popover) { popover.remove(); popover = null; }
+    document.body.style.paddingBottom = '';
+    field.removeAttribute('inputmode');
+    if (restoreOsKeyboard) refocus(field);
+    $('#proto').classList.remove('at-top');
+    syncButtons();
+    renderState();
+  }
+
+  function syncButtons() {
+    document.querySelectorAll('.kb-btn').forEach((b) => b.setAttribute('aria-pressed', String(state.open?.id === b.dataset.for)));
+  }
+
+  // ---------- Sự kiện trên bàn phím (một bộ xử lý chung cho mọi biến thể) ----------
+  function kbHost(el) { return el.closest('#drawer, .popover'); }
+  let repeatTimer = null;
+  const stopRepeat = () => { clearTimeout(repeatTimer); clearInterval(repeatTimer); repeatTimer = null; };
+
+  document.addEventListener('pointerdown', (ev) => {
+    const host = kbHost(ev.target);
+    if (host) {
+      ev.preventDefault(); // giữ con trỏ trong ô nhập
+      const b = ev.target.closest('[data-act="bksp"]');
+      if (b) {
+        act('bksp');
+        repeatTimer = setTimeout(() => { repeatTimer = setInterval(() => act('bksp'), 70); }, 420);
+      }
+      return;
+    }
+    if (ev.target.closest('.kb-btn, .send')) { ev.preventDefault(); return; }
+    if (state.open && !isMobile() && !ev.target.closest('.input-wrap')) close();
+  });
+  ['pointerup', 'pointercancel', 'pointerleave'].forEach((t) => document.addEventListener(t, stopRepeat));
+  document.addEventListener('mousedown', (ev) => { if (kbHost(ev.target)) ev.preventDefault(); });
+
+  document.addEventListener('click', (ev) => {
+    const host = kbHost(ev.target);
+    if (host) {
+      const key = ev.target.closest('[data-i]');
+      const a = ev.target.closest('[data-act]');
+      const ta = ev.target.closest('[data-tab-a]');
+      const tb = ev.target.closest('[data-tab-b]');
+      const jc = ev.target.closest('[data-jump-c]');
+      if (key) pressKey(registry[+key.dataset.i]);
+      else if (a && a.dataset.act !== 'bksp') act(a.dataset.act);
+      else if (ta) { state.tabA = ta.dataset.tabA; renderKeyboard(); }
+      else if (tb) { state.tabB = tb.dataset.tabB; renderKeyboard(); }
+      else if (jc) {
+        const sc = host.querySelector('.cScroll');
+        const sec = host.querySelector(`[data-sec="${jc.dataset.jumpC}"]`);
+        sc.scrollTop = sec.offsetTop - sc.offsetTop;
+      }
+      return;
+    }
+    const kb = ev.target.closest('.kb-btn');
+    if (kb) {
+      const field = document.getElementById(kb.dataset.for);
+      if (state.open === field) close({ restoreOsKeyboard: isMobile() }); else open(field);
+      return;
+    }
+    const s = ev.target.closest('.send');
+    if (s) send(s.dataset.send);
+  });
+
+  document.addEventListener('keydown', (ev) => {
+    if (ev.key === 'Escape' && state.open) { const f = state.open; close(); f.focus(); return; }
+    const typing = ev.target.matches('input, textarea, [contenteditable]');
+    if (!typing && (ev.key === 'ArrowLeft' || ev.key === 'ArrowRight')) cycle(ev.key === 'ArrowLeft' ? -1 : 1);
+    if (ev.target.id === 'f-disc' && ev.key === 'Enter') { ev.preventDefault(); setMode(null); send('f-disc'); }
+  });
+
+  // ---------- Ô nhập ----------
+  document.querySelectorAll('.field').forEach((field) => {
+    // Chế độ mũ/chỉ số cũng áp dụng cho bàn phím thật (máy tính)
+    field.addEventListener('beforeinput', (ev) => {
+      if (internal || !state.mode) return;
+      if (ev.inputType === 'insertLineBreak' || ev.inputType === 'insertParagraph') { setMode(null); return; }
+      if (ev.inputType !== 'insertText' || !ev.data) return;
+      if (ev.data === ' ') { setMode(null); return; }
+      ev.preventDefault();
+      field.setRangeText(mapChars(ev.data), field.selectionStart, field.selectionEnd, 'end');
+      field.dispatchEvent(new Event('input', { bubbles: true }));
+    });
+    field.addEventListener('input', renderState);
+    field.addEventListener('focusout', (ev) => {
+      if (refocusing || state.open !== field) return;
+      if (ev.relatedTarget && kbHost(ev.relatedTarget)) { field.focus({ preventScroll: true }); return; }
+      setTimeout(() => {
+        if (state.open === field && document.activeElement !== field && isMobile()) close();
+      }, 0);
+    });
+    field.addEventListener('click', renderState);
+    field.addEventListener('keyup', renderState);
+  });
+
+  function send(id) {
+    const field = document.getElementById(id);
+    const text = field.value.trim();
+    if (!text) return;
+    comments[id].push({ author: 'Bạn', text });
+    field.value = '';
+    setMode(null);
+    renderComments();
+    renderState();
+  }
+
+  function renderComments() {
+    const draw = (id, el) => {
+      $(el).innerHTML = comments[id].map((c) => `<div class="comment"><div class="comment-author">${esc(c.author)}</div><div class="comment-content">${esc(c.text)}</div></div>`).join('');
+    };
+    draw('f-photo', '#comments-photo');
+    draw('f-disc', '#comments-disc');
+  }
+
+  // ---------- Thanh chuyển biến thể ----------
+  function cycle(dir) {
+    const i = VARIANTS.findIndex((v) => v.key === state.variant);
+    setVariant(VARIANTS[(i + dir + VARIANTS.length) % VARIANTS.length].key);
+  }
+  function setVariant(key) {
+    state.variant = key;
+    store.set('variant', key);
+    try { history.replaceState(null, '', '#' + key); } catch { /* bỏ qua */ }
+    renderSwitcher();
+    if (state.open) renderKeyboard();
+    renderState();
+  }
+  function renderSwitcher() {
+    const v = VARIANTS.find((x) => x.key === state.variant);
+    $('#p-name').textContent = `${v.key} (${v.name})`;
+    const dev = { auto: `Tự động: ${matchMedia('(pointer: coarse)').matches ? 'điện thoại' : 'máy tính'}`, mobile: 'Điện thoại', desktop: 'Máy tính' }[state.device];
+    $('#p-dev').textContent = dev;
+  }
+  $('#p-prev').addEventListener('click', () => cycle(-1));
+  $('#p-next').addEventListener('click', () => cycle(1));
+  $('#p-dev').addEventListener('click', () => {
+    const f = state.open;
+    if (f) close();
+    state.device = { auto: 'mobile', mobile: 'desktop', desktop: 'auto' }[state.device];
+    store.set('device', state.device);
+    renderSwitcher();
+    if (f) open(f);
+    renderState();
+  });
+
+  // ---------- Bảng trạng thái ----------
+  function renderState() {
+    const f = state.open || (document.activeElement?.classList?.contains('field') ? document.activeElement : null);
+    const tail = f ? [...f.value].slice(-10) : [];
+    const codes = tail.map((c) => `${c === '\n' ? '↵' : c} U+${c.codePointAt(0).toString(16).toUpperCase().padStart(4, '0')}`).join('  ');
+    $('#state').textContent = [
+      `biến thể      : ${state.variant} (${VARIANTS.find((v) => v.key === state.variant).name})`,
+      `thiết bị      : ${isMobile() ? 'điện thoại → ngăn kéo đáy' : 'máy tính → popover'} (${state.device})`,
+      `bàn phím mở   : ${state.open ? state.open.id : 'không'}`,
+      `inputmode ô   : ${f ? (f.getAttribute('inputmode') || '(mặc định)') : '—'}`,
+      `chế độ        : ${state.mode === 'sup' ? 'MŨ (xⁿ)' : state.mode === 'sub' ? 'CHỈ SỐ (xₙ)' : 'thường'}`,
+      `con trỏ       : ${f ? `${f.selectionStart}–${f.selectionEnd} / ${f.value.length}` : '—'}`,
+      `phím vừa bấm  : ${state.last}`,
+      `gần đây       : ${state.recents.map((r) => r.label).join('  ') || '(trống)'}`,
+      `10 ký tự cuối : ${codes || '—'}`,
+    ].join('\n');
+  }
+
+  matchMedia('(pointer: coarse)').addEventListener?.('change', () => { renderSwitcher(); renderState(); });
+  renderComments();
+  renderSwitcher();
+  renderState();
+})();
+</script>

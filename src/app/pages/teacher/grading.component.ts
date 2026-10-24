@@ -13,19 +13,39 @@ import { FirestoreService } from '../../services/firestore.service';
 import { ImageService } from '../../services/image.service';
 import { AuthService } from '../../services/auth.service';
 import { Submission, Grade, SubmissionComment } from '../../models';
+import { AttachmentDraft, notesOf } from '../../services/image.service';
+import { CommentAttachmentsComponent } from '../../shared/components/comment-attachments.component';
+import { CommentAttachmentsEditorComponent } from '../../shared/components/comment-attachments-editor.component';
+import { AutoGrowDirective } from '../../shared/auto-grow.directive';
 import { RefreshButtonComponent } from '../../shared/components/refresh-button.component';
+import { MathTextComponent } from '../../shared/math/math-text.component';
+import { FormulaButtonComponent } from '../../shared/math/formula-button.component';
+import { FormulaPreviewComponent } from '../../shared/math/formula-preview.component';
 import { firstValueFrom } from 'rxjs';
 
 @Component({
   selector: 'app-grading',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterModule, RefreshButtonComponent],
+  imports: [
+    CommonModule,
+    FormsModule,
+    RouterModule,
+    RefreshButtonComponent,
+    CommentAttachmentsComponent,
+    CommentAttachmentsEditorComponent,
+    AutoGrowDirective,
+    MathTextComponent,
+    FormulaButtonComponent,
+    FormulaPreviewComponent,
+  ],
   styles: [
     `
       :host {
         display: block;
         min-height: 100vh;
         background: #f5f7fa;
+        /* Nút Gửi và nút ghim 🖇️ (khung Ảnh đính kèm) cùng rộng để tâm thẳng hàng. */
+        --send-btn-width: 64px;
       }
       .app-header {
         background: #2563eb;
@@ -225,10 +245,8 @@ import { firstValueFrom } from 'rxjs';
         border: 1px solid #e2e8f0;
         border-radius: 8px;
         font-size: 0.85rem;
+        line-height: 1.4;
         outline: none;
-        resize: vertical;
-        min-height: 36px;
-        max-height: 80px;
         font-family: inherit;
       }
       .comment-input:focus {
@@ -259,7 +277,9 @@ import { firstValueFrom } from 'rxjs';
         border-color: #2563eb;
       }
       .send-btn {
-        padding: 0.45rem 0.9rem;
+        width: var(--send-btn-width);
+        flex-shrink: 0;
+        padding: 0.45rem 0;
         background: #2563eb;
         color: #fff;
         border: none;
@@ -428,16 +448,18 @@ import { firstValueFrom } from 'rxjs';
         flex-shrink: 0;
       }
       .menu-btn {
-        background: none;
-        border: none;
+        background: #fff;
+        border: 1px solid #cbd5e1;
         cursor: pointer;
         font-size: 1.1rem;
-        padding: 0 4px;
-        color: #94a3b8;
-        border-radius: 4px;
+        line-height: 1;
+        padding: 2px 6px;
+        color: #64748b;
+        border-radius: 6px;
       }
       .menu-btn:hover {
         background: #f1f5f9;
+        border-color: #94a3b8;
         color: #1e293b;
       }
       .menu-popup {
@@ -489,6 +511,8 @@ import { firstValueFrom } from 'rxjs';
         border: 1px solid #e2e8f0;
         border-radius: 6px;
         font-size: 0.85rem;
+        line-height: 1.4;
+        font-family: inherit;
       }
       .edit-actions {
         display: flex;
@@ -710,28 +734,31 @@ import { firstValueFrom } from 'rxjs';
                 <div class="comment-author">{{ c.authorName }}</div>
                 @if (editingId() === c.id) {
                   <div class="edit-area" (click)="$event.stopPropagation()">
-                    <input
-                      class="edit-input"
-                      [(ngModel)]="editContent"
-                      placeholder="Nội dung..."
+                    <formula-preview [field]="editField" [text]="editContent()" />
+                    <div class="fx-row">
+                      <textarea
+                        #editField
+                        class="edit-input"
+                        rows="1"
+                        autoGrow
+                        enterkeyhint="enter"
+                        [(ngModel)]="editContent"
+                        placeholder="Nội dung... (Ctrl+V để dán ảnh)"
+                        (paste)="editEditor.onPaste($event)"
+                      ></textarea>
+                      <formula-button [field]="editField" />
+                    </div>
+                    <comment-attachments-editor
+                      #editEditor
+                      [(items)]="editAttachments"
                     />
-                    <label class="reply-img-btn">
-                      🖇️
-                      <input
-                        type="file"
-                        accept="image/*"
-                        hidden
-                        (change)="onEditImageSelected($event)"
-                      />
-                    </label>
-                    @if (editImage()) {
-                      <span class="reply-img-preview"
-                        >{{ editImageName() }} ✓</span
-                      >
-                    }
                     <div class="edit-actions">
-                      <button class="edit-save" (click)="saveEdit(c)">
-                        Lưu
+                      <button
+                        class="edit-save"
+                        [disabled]="savingEdit()"
+                        (click)="saveEdit(c)"
+                      >
+                        {{ savingEdit() ? 'Đang lưu...' : 'Lưu' }}
                       </button>
                       <button class="edit-cancel" (click)="cancelEdit()">
                         Hủy
@@ -739,14 +766,12 @@ import { firstValueFrom } from 'rxjs';
                     </div>
                   </div>
                 } @else {
-                  <div class="comment-content">{{ c.content }}</div>
-                  @if (c.imageUrl) {
-                    <img
-                      [src]="c.imageUrl"
-                      class="reply-image"
-                      (click)="zoomedImage.set(c.imageUrl)"
-                    />
-                  }
+                  <div class="comment-content"><math-text [text]="c.content" /></div>
+                  <comment-attachments
+                    [imageIds]="c.imageIds"
+                    [imageNotes]="c.imageNotes"
+                    [legacyUrl]="c.imageUrl"
+                  />
                 }
                 <div class="comment-time">
                   {{ c.createdAt | date: 'dd/MM/yyyy HH:mm' }}
@@ -770,38 +795,31 @@ import { firstValueFrom } from 'rxjs';
               Chưa có bình luận cho ảnh này
             </div>
           }
+          <formula-preview [field]="newCommentField" [text]="newCommentText" />
           <div class="comment-input-row">
             <textarea
+              #newCommentField
               class="comment-input"
-              placeholder="Nhận xét cho ảnh này..."
+              placeholder="Nhận xét cho ảnh này... (Ctrl+V để dán ảnh)"
               [(ngModel)]="newCommentText"
               rows="1"
+              autoGrow
+              enterkeyhint="enter"
+              (paste)="composer.onPaste($event)"
             ></textarea>
-            <label class="reply-img-btn">
-              🖇️
-              <input
-                type="file"
-                accept="image/*"
-                hidden
-                (change)="onCommentImageSelected($event)"
-              />
-            </label>
-            @if (commentImage()) {
-              <span
-                class="reply-img-preview"
-                (click)="clearCommentImage()"
-                title="Xóa ảnh"
-                >{{ commentImageName() }} ✓</span
-              >
-            }
+            <formula-button [field]="newCommentField" />
             <button
               class="send-btn"
-              [disabled]="!newCommentText.trim() && !commentImage()"
+              [disabled]="
+                sendingComment() ||
+                (!newCommentText.trim() && !commentDrafts().length)
+              "
               (click)="sendComment()"
             >
-              Gửi
+              {{ sendingComment() ? '...' : 'Gửi' }}
             </button>
           </div>
+          <comment-attachments-editor #composer [(items)]="commentDrafts" />
         </div>
       </div>
 
@@ -821,11 +839,17 @@ import { firstValueFrom } from 'rxjs';
           </div>
           <div class="form-group" style="flex:2;">
             <label>Nhận xét chung</label>
-            <textarea
-              class="form-textarea"
-              [(ngModel)]="overallComment"
-              placeholder="Nhận xét chung cho bài làm..."
-            ></textarea>
+            <formula-preview [field]="overallField" [text]="overallComment" />
+            <div class="fx-row">
+              <textarea
+                #overallField
+                class="form-textarea"
+                enterkeyhint="enter"
+                [(ngModel)]="overallComment"
+                placeholder="Nhận xét chung cho bài làm..."
+              ></textarea>
+              <formula-button [field]="overallField" />
+            </div>
           </div>
           <button
             class="btn-save"
@@ -939,8 +963,8 @@ studentName = '';
   imageComments = signal<SubmissionComment[]>([]);
   newCommentText = '';
   imageCommentsMap = signal<Record<number, SubmissionComment[]>>({});
-  commentImage = signal('');
-  commentImageName = signal('');
+  commentDrafts = signal<AttachmentDraft[]>([]);
+  sendingComment = signal(false);
   zoomedImage = signal<string | null>(null);
   boldActive = false;
   italicActive = false;
@@ -967,8 +991,8 @@ studentName = '';
   openMenuId = signal('');
   editingId = signal('');
   editContent = signal('');
-  editImage = signal('');
-  editImageName = signal('');
+  editAttachments = signal<AttachmentDraft[]>([]);
+  savingEdit = signal(false);
 
   ngOnInit(): void {
     this.submissionId = this.route.snapshot.paramMap.get('submissionId') || '';
@@ -1106,41 +1130,31 @@ studentName = '';
 
   async sendComment(): Promise<void> {
     const text = this.newCommentText.trim();
-    const imageUrl = this.commentImage();
+    const drafts = this.commentDrafts();
     const profile = this.authService.currentProfile;
-    if ((!text && !imageUrl) || !this.submission || !profile) return;
+    if ((!text && !drafts.length) || !this.submission || !profile) return;
+    if (this.sendingComment()) return;
 
-    await this.firestoreService.addComment({
-      submissionId: this.submissionId,
-      imageIndex: this.currentPage,
-      authorId: profile.uid,
-      authorName: profile.fullName,
-      authorAvatarUrl: profile.avatarUrl || '',
-      authorRole: 'teacher',
-      content: text,
-      imageUrl: imageUrl || '',
-    });
-
-    this.newCommentText = '';
-    this.clearCommentImage();
-    this.loadComments();
-  }
-
-  async onCommentImageSelected(event: Event): Promise<void> {
-    const input = event.target as HTMLInputElement;
-    const file = input?.files?.[0];
-    if (!file) return;
+    this.sendingComment.set(true);
     try {
-      const compressed = await this.imageService.compressImage(file);
-      this.commentImage.set(compressed);
-      this.commentImageName.set(file.name);
-    } catch {}
-    input.value = '';
-  }
-
-  clearCommentImage(): void {
-    this.commentImage.set('');
-    this.commentImageName.set('');
+      const imageIds = await this.imageService.persistAttachments(drafts);
+      await this.firestoreService.addComment({
+        submissionId: this.submissionId,
+        imageIndex: this.currentPage,
+        authorId: profile.uid,
+        authorName: profile.fullName,
+        authorAvatarUrl: profile.avatarUrl || '',
+        authorRole: 'teacher',
+        content: text,
+        imageIds,
+        imageNotes: notesOf(drafts),
+      });
+      this.newCommentText = '';
+      this.commentDrafts.set([]);
+      this.loadComments();
+    } finally {
+      this.sendingComment.set(false);
+    }
   }
 
   openDrawer(): void {
@@ -1523,6 +1537,13 @@ studentName = '';
           this.submissionId,
           'graded',
         );
+        if (this.submission.assignmentId && this.submission.studentId) {
+          await this.firestoreService.syncSubmissionsGraded(
+            this.submission.assignmentId,
+            this.submission.studentId,
+            this.submission.attemptNumber || 1,
+          );
+        }
       }
       this.savedScore = this.scoreValue;
       this.savedComment = this.overallComment;
@@ -1553,51 +1574,45 @@ studentName = '';
     this.openMenuId.update((c) => (c === id ? '' : id));
   }
 
-  startEdit(item: any): void {
+  async startEdit(item: SubmissionComment): Promise<void> {
+    this.openMenuId.set('');
+    this.editAttachments.set(await this.imageService.loadAttachmentDrafts(item));
     this.editingId.set(item.id);
     this.editContent.set(item.content || '');
-    this.editImage.set('');
-    this.editImageName.set('');
-    this.openMenuId.set('');
   }
 
   cancelEdit(): void {
     this.editingId.set('');
     this.editContent.set('');
-    this.editImage.set('');
-    this.editImageName.set('');
-  }
-
-  async onEditImageSelected(event: Event): Promise<void> {
-    const input = event.target as HTMLInputElement;
-    const file = input?.files?.[0];
-    if (!file) return;
-    try {
-      const compressed = await this.imageService.compressImage(file);
-      this.editImage.set(compressed);
-      this.editImageName.set(file.name);
-    } catch {}
-    input.value = '';
+    this.editAttachments.set([]);
   }
 
   async saveEdit(c: SubmissionComment): Promise<void> {
-    const content = this.editContent() || '';
-    const imageUrl = this.editImage() || c.imageUrl || '';
-    await this.firestoreService.updateComment(c.id, { content, imageUrl });
-    this.imageComments.update((list) =>
-      list.map((x) => (x.id === c.id ? { ...x, content, imageUrl } : x)),
-    );
-    this.imageCommentsMap.update((map) => {
-      const next: Record<number, SubmissionComment[]> = {};
-      Object.keys(map).forEach((key) => {
-        const idx = Number(key);
-        next[idx] = map[idx].map((x) =>
-          x.id === c.id ? { ...x, content, imageUrl } : x,
-        );
+    if (this.savingEdit()) return;
+    this.savingEdit.set(true);
+    try {
+      const content = this.editContent() || '';
+      const drafts = this.editAttachments();
+      const imageIds = await this.imageService.persistAttachments(drafts);
+      const changes = { content, imageIds, imageNotes: notesOf(drafts), imageUrl: '' };
+      await this.firestoreService.updateComment(c.id, changes);
+      const removed = (c.imageIds || []).filter((id) => !imageIds.includes(id));
+      if (removed.length) this.imageService.deleteCommentImages(removed);
+      this.imageComments.update((list) =>
+        list.map((x) => (x.id === c.id ? { ...x, ...changes } : x)),
+      );
+      this.imageCommentsMap.update((map) => {
+        const next: Record<number, SubmissionComment[]> = {};
+        Object.keys(map).forEach((key) => {
+          const idx = Number(key);
+          next[idx] = map[idx].map((x) => (x.id === c.id ? { ...x, ...changes } : x));
+        });
+        return next;
       });
-      return next;
-    });
-    this.cancelEdit();
+      this.cancelEdit();
+    } finally {
+      this.savingEdit.set(false);
+    }
   }
 
   async deleteItem(c: SubmissionComment): Promise<void> {

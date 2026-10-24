@@ -1,4 +1,4 @@
-import { Injectable, inject } from '@angular/core';
+import { Injectable, inject, signal } from '@angular/core';
 import {
   Firestore,
   collection,
@@ -9,9 +9,28 @@ import {
   updateDoc,
 } from '@angular/fire/firestore';
 
+/** Số Ảnh đính kèm tối đa của một Nhận xét theo ảnh. */
+export const MAX_COMMENT_ATTACHMENTS = 3;
+
+/** Một Ảnh đính kèm đang soạn/sửa: có `imageId` là ảnh đã lưu, chưa có là ảnh mới chọn. */
+export interface AttachmentDraft {
+  imageId?: string;
+  dataUrl: string;
+  /** Ghi chú ảnh, hiển thị sau "Hình N: ". */
+  note?: string;
+}
+
+/** Ghi chú ảnh theo đúng thứ tự ảnh, để lưu song song với `imageIds`. */
+export function notesOf(drafts: AttachmentDraft[]): string[] {
+  return drafts.map((d) => (d.note || '').trim());
+}
+
 @Injectable({ providedIn: 'root' })
 export class ImageService {
   private firestore = inject(Firestore);
+
+  /** URL ảnh đính kèm vừa xem gần nhất để đánh dấu viền xanh trên toàn trang. */
+  activeAttachmentUrl = signal<string | null>(null);
 
   compressImage(
     file: File,
@@ -24,8 +43,12 @@ export class ImageService {
       reader.onload = () => {
         const img = new Image();
         img.onload = () => {
-          const dimSteps = [maxDim, 1600, 1280, 1024].filter((d) => d > 0);
-          const qualitySteps = [quality, 0.8, 0.7, 0.6];
+          const dimSteps = [...new Set([maxDim, 1920, 1600, 1280, 1024])].filter(
+            (d) => d > 0 && d <= maxDim,
+          );
+          const qualitySteps = [...new Set([quality, 0.88, 0.8, 0.7, 0.6])].filter(
+            (q) => q <= quality,
+          );
           let dataUrl = this.encodeWithSize(img, dimSteps[0], qualitySteps[0]);
           for (const dim of dimSteps) {
             for (const q of qualitySteps) {
@@ -42,6 +65,23 @@ export class ImageService {
       reader.onerror = reject;
       reader.readAsDataURL(file);
     });
+  }
+
+  /**
+   * Ảnh dán từ clipboard (thường là ảnh chụp màn hình PNG): vừa giới hạn thì giữ nguyên file,
+   * không nén lại nên không mờ chữ; quá lớn mới chuyển JPEG chất lượng cao, cạnh dài tới 2560px.
+   */
+  async compressPastedImage(file: File, maxBytes = 900000): Promise<string> {
+    const original = await new Promise<string>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result as string);
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+    if (original.length <= maxBytes && /^data:image\/(png|jpeg|webp|gif);/.test(original)) {
+      return original;
+    }
+    return this.compressImage(file, 2560, 0.92, maxBytes);
   }
 
   private encodeWithSize(
@@ -162,6 +202,69 @@ export class ImageService {
     const d = await getDoc(doc(this.firestore, 'gradedImages', imageId));
     if (!d.exists()) return null;
     return (d.data() as any)['base64Data'] || null;
+  }
+
+  // ==================== ẢNH ĐÍNH KÈM BÌNH LUẬN ====================
+  // Mỗi ảnh một document trong `commentImages` vì mỗi ảnh tới ~900KB, không nhét chung
+  // nhiều ảnh vào một bình luận được (giới hạn 1MB/document).
+  private commentImageCache = new Map<string, Promise<string | null>>();
+
+  async saveCommentImage(base64Data: string): Promise<string> {
+    const ref = await addDoc(collection(this.firestore, 'commentImages'), {
+      base64Data,
+      createdAt: new Date().toISOString(),
+    });
+    this.commentImageCache.set(ref.id, Promise.resolve(base64Data));
+    return ref.id;
+  }
+
+  getCommentImage(imageId: string): Promise<string | null> {
+    let cached = this.commentImageCache.get(imageId);
+    if (!cached) {
+      cached = getDoc(doc(this.firestore, 'commentImages', imageId))
+        .then((d) => (d.exists() ? (d.data() as any)['base64Data'] || null : null))
+        .catch(() => {
+          this.commentImageCache.delete(imageId);
+          return null;
+        });
+      this.commentImageCache.set(imageId, cached);
+    }
+    return cached;
+  }
+
+  /** Lưu các ảnh mới trong danh sách, trả về mã ảnh đúng theo thứ tự Hình 1, Hình 2… */
+  persistAttachments(drafts: AttachmentDraft[]): Promise<string[]> {
+    return Promise.all(
+      drafts.map((d) => d.imageId ?? this.saveCommentImage(d.dataUrl)),
+    );
+  }
+
+  /** Dựng danh sách ảnh để sửa từ một bình luận (kể cả bình luận cũ chỉ có imageUrl). */
+  async loadAttachmentDrafts(c: {
+    imageIds?: string[];
+    imageNotes?: string[];
+    imageUrl?: string;
+  }): Promise<AttachmentDraft[]> {
+    if (c.imageIds?.length) {
+      const urls = await Promise.all(c.imageIds.map((id) => this.getCommentImage(id)));
+      return c.imageIds
+        .map((imageId, i) => ({
+          imageId,
+          dataUrl: urls[i] || '',
+          note: c.imageNotes?.[i] || '',
+        }))
+        .filter((d) => d.dataUrl);
+    }
+    return c.imageUrl ? [{ dataUrl: c.imageUrl }] : [];
+  }
+
+  async deleteCommentImages(imageIds: string[]): Promise<void> {
+    await Promise.all(
+      imageIds.map((id) => {
+        this.commentImageCache.delete(id);
+        return deleteDoc(doc(this.firestore, 'commentImages', id)).catch(() => {});
+      }),
+    );
   }
 
   async deleteSubmissionImages(imageIds: string[]): Promise<void> {

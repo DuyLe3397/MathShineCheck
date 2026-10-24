@@ -9,6 +9,9 @@ import { TeacherNotificationBellComponent } from '../../shared/components/teache
 import { RefreshButtonComponent } from '../../shared/components/refresh-button.component';
 import { firstValueFrom } from 'rxjs';
 import { SchoolClass, Group, Assignment } from '../../models';
+import { FormulaButtonComponent } from '../../shared/math/formula-button.component';
+import { FormulaPreviewComponent } from '../../shared/math/formula-preview.component';
+import { MathPlainPipe } from '../../shared/math/math-plain.pipe';
 
 @Component({
   selector: 'app-assignment-management',
@@ -19,6 +22,9 @@ import { SchoolClass, Group, Assignment } from '../../models';
     RouterModule,
     NavbarComponent,
     TeacherNotificationBellComponent, RefreshButtonComponent,
+    FormulaButtonComponent,
+    FormulaPreviewComponent,
+    MathPlainPipe,
   ],
   styles: [
     `
@@ -448,11 +454,17 @@ import { SchoolClass, Group, Assignment } from '../../models';
             </div>
             <div class="form-group" style="margin-top: 12px;">
               <label>Mô tả</label>
-              <textarea
-                class="form-textarea"
-                [(ngModel)]="newAssignment.description"
-                placeholder="Mô tả nội dung bài tập..."
-              ></textarea>
+              <formula-preview [field]="descField" [text]="newAssignment.description" />
+              <div class="fx-row">
+                <textarea
+                  #descField
+                  class="form-textarea"
+                  enterkeyhint="enter"
+                  [(ngModel)]="newAssignment.description"
+                  placeholder="Mô tả nội dung bài tập..."
+                ></textarea>
+                <formula-button [field]="descField" />
+              </div>
             </div>
             <div style="margin-top: 16px;">
               <button
@@ -493,8 +505,8 @@ import { SchoolClass, Group, Assignment } from '../../models';
                   </td>
                   <td>{{ a.sessionDate | date: 'dd/MM/yyyy' }}</td>
                   <td>
-                    {{ a.description | slice: 0 : 60
-                    }}{{ a.description.length > 60 ? '...' : '' }}
+                    {{ (a.description | mathPlain) | slice: 0 : 60
+                    }}{{ (a.description | mathPlain).length > 60 ? '...' : '' }}
                   </td>
                   <td>{{ a.createdAt | date: 'dd/MM/yyyy' }}</td>
                   <td>

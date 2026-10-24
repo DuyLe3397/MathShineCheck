@@ -1,0 +1,1113 @@
+<title>Công thức kiểu Casio</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<!--
+  PROTOTYPE — vứt đi sau khi thử xong, KHÔNG phải code production.
+  Câu hỏi: mô hình lai (ADR 0006) có dùng thuận trên điện thoại không?
+    - Chữ: gõ bằng bàn phím máy trong ô chữ thường
+    - Mọi ký hiệu/công thức: nút f(x) mở Bảng soạn công thức (MathLive 0.111.1) → chèn \(…LaTeX…\) vào ô chữ
+    - Hiển thị: KaTeX 0.19.0; Email thông báo: dạng một dòng
+  Font KaTeX (dùng chung cho MathLive) nằm ở math-formula.prototype.katex.css, được tải bằng fetch.
+-->
+<script src="https://cdn.jsdelivr.net/npm/katex@0.19.0/dist/katex.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/mathlive@0.111.1/mathlive.min.js"></script>
+<style>
+  /* Layout: một cột giống trang Chấm bài; nút f(x) mở Bảng soạn công thức trượt lên, nằm ngay trên bàn phím của MathLive.
+     Giao diện sáng có chủ đích, khớp app MathShine. */
+  :root {
+    --bg: #f1f5f9;
+    --card: #ffffff;
+    --fg: #1e293b;
+    --muted: #64748b;
+    --line: #e2e8f0;
+    --accent: #2563eb;
+    --accent-ink: #ffffff;
+    --accent-soft: #dbeafe;
+    --kb-bg: #e3e8ef;
+    --key: #ffffff;
+    --key-alt: #cfd7e3;
+    --key-shadow: #a9b4c4;
+    --warn: #b45309;
+    --font: 'Segoe UI', system-ui, -apple-system, Roboto, 'Noto Sans', Tahoma, sans-serif;
+    --mono: ui-monospace, 'Cascadia Mono', Consolas, 'Roboto Mono', monospace;
+    --ML__static-fonts: 1; /* font KaTeX đã được nhúng, MathLive không tự tải nữa */
+    color-scheme: light;
+  }
+  * { box-sizing: border-box; }
+  body {
+    background: var(--bg); color: var(--fg); font-family: var(--font);
+    padding-left: max(16px, env(safe-area-inset-left, 0px));
+    padding-right: max(16px, env(safe-area-inset-right, 0px));
+    padding-block: 16px 40px;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .page { max-width: 720px; margin: 0 auto; display: grid; gap: 14px; }
+  h1 { font-size: 1.15rem; margin: 0; text-wrap: balance; }
+  .lead { margin: 4px 0 0; color: var(--muted); font-size: 0.85rem; line-height: 1.55; }
+  .card { background: var(--card); border-radius: 12px; padding: 14px; box-shadow: 0 1px 3px rgba(15, 23, 42, 0.08); display: grid; gap: 10px; min-width: 0; }
+  .card-title { font-size: 0.78rem; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; color: var(--muted); }
+  .photo {
+    height: 110px; border-radius: 8px; border: 1px dashed var(--line);
+    background: repeating-linear-gradient(0deg, var(--card) 0 22px, var(--accent-soft) 22px 23px);
+    display: flex; align-items: flex-end; padding: 8px; color: var(--muted); font-size: 0.8rem;
+  }
+  .comments { display: grid; gap: 10px; }
+  .comment { display: grid; gap: 2px; min-width: 0; }
+  .comment-author { font-size: 0.8rem; font-weight: 700; }
+  .comment-content { font-size: 0.95rem; line-height: 1.5; white-space: pre-wrap; overflow-wrap: anywhere; min-width: 0; }
+  .comment-content .katex-display, .preview .katex-display { margin: 0; }
+  /* Công thức dài tự xuống dòng sau các dấu = + − ÷… như chữ thường; chỉ một khối không ngắt được mà vẫn rộng hơn khung mới thu nhỏ (xem fitFormulas) */
+  .f { display: inline; white-space: normal; padding: 1px 0; }
+  .input-wrap { position: relative; display: grid; gap: 6px; }
+  .input-row { display: flex; gap: 6px; align-items: flex-end; }
+  .field {
+    flex: 1; min-width: 0; padding: 0.5rem 0.7rem; border: 1px solid var(--line); border-radius: 8px;
+    font: inherit; font-size: 1rem; line-height: 1.4; color: var(--fg); background: var(--card); outline: none; resize: none;
+  }
+  textarea.field { min-height: 42px; field-sizing: content; max-height: 160px; }
+  .field:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+  .kb-btn {
+    width: 42px; height: 42px; flex-shrink: 0; border-radius: 8px; border: 1px solid var(--line);
+    background: var(--card); color: var(--muted); display: grid; place-items: center; cursor: pointer;
+  }
+  .kb-btn[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+  .fx { font-family: KaTeX_Main, 'Times New Roman', serif; font-size: 1.05rem; line-height: 1; white-space: nowrap; }
+  .fx i { font-family: KaTeX_Math, 'Times New Roman', serif; }
+  .send { height: 42px; padding: 0 14px; border: none; border-radius: 8px; background: var(--accent); color: var(--accent-ink); font: inherit; font-weight: 600; cursor: pointer; }
+  .kb-btn:focus-visible, .send:focus-visible, .k:focus-visible, .tool:focus-visible, .f[role="button"]:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .preview { background: var(--bg); border-radius: 8px; padding: 8px 10px; font-size: 0.95rem; line-height: 1.5; white-space: pre-wrap; overflow-wrap: anywhere; }
+  .preview .lbl { display: block; font-size: 0.72rem; color: var(--muted); margin-bottom: 2px; white-space: normal; }
+  .preview .f[role="button"] { cursor: pointer; border-radius: 6px; box-shadow: inset 0 0 0 1px var(--accent-soft); background: var(--card); padding: 1px 4px; -webkit-box-decoration-break: clone; box-decoration-break: clone; }
+  .state { display: grid; gap: 8px; }
+  .state h3 { margin: 0; font-size: 0.75rem; color: var(--muted); font-weight: 700; }
+  .state pre { margin: 0; font-family: var(--mono); font-size: 0.74rem; line-height: 1.55; white-space: pre-wrap; overflow-wrap: anywhere; background: var(--bg); border-radius: 8px; padding: 8px 10px; }
+  .tools { display: flex; flex-wrap: wrap; gap: 6px; }
+  .tool { border: 1px solid var(--line); background: var(--card); color: var(--fg); font: inherit; font-size: 0.82rem; padding: 6px 10px; border-radius: 999px; cursor: pointer; }
+  .tool[aria-pressed="true"] { border-color: var(--accent); color: var(--accent); background: var(--accent-soft); }
+
+  /* Bàn phím của MathLive: cùng một cỡ trên điện thoại và máy tính (tab nhóm nhỏ, phím đủ cao cho ∑ ∫ có cận, bàn phím cao 250px) */
+  body {
+    --keycap-height: 48px;
+    --keycap-font-size: 16px;
+    --keycap-small-font-size: 13px;
+    --keycap-extra-small-font-size: 11px;
+    --keycap-glyph-size: 17px;
+    --keycap-gap: 4px;
+    --keyboard-toolbar-font-size: 12px;
+  }
+  .MLK__toolbar .left > .layer-switch { padding-inline: 7px; }
+
+  /* ---------- Bảng soạn công thức ---------- */
+  .scrim { position: fixed; inset: 0; z-index: 55; background: rgba(15, 23, 42, 0.3); }
+  .sheet {
+    position: fixed; left: 0; right: 0; bottom: var(--ml-kb-h, 0px); z-index: 56;
+    max-width: 720px; margin: 0 auto; background: var(--card); border-radius: 14px 14px 0 0;
+    box-shadow: 0 -8px 24px rgba(15, 23, 42, 0.18);
+    padding-block: 12px; padding-left: max(14px, env(safe-area-inset-left, 0px)); padding-right: max(14px, env(safe-area-inset-right, 0px));
+    display: grid; gap: 10px;
+  }
+  .sheet-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+  .sheet-title { display: grid; gap: 1px; min-width: 0; flex: 1; }
+  .fmt { display: flex; gap: 4px; flex-shrink: 0; }
+  .fmt button { width: 34px; height: 34px; border: 1px solid var(--line); border-radius: 8px; background: var(--card); color: var(--fg); font: inherit; font-size: 1rem; cursor: pointer; }
+  .fmt button:active { background: var(--accent-soft); }
+  .fmt button[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+  .sheet-head b { font-size: 0.95rem; }
+  .sheet-hint { font-size: 0.78rem; line-height: 16px; height: 16px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .sheet-hint.warn { color: var(--warn); font-weight: 600; }
+  /* Ô soạn cao theo công thức (76–150px); cao hơn nữa thì thu nhỏ nhẹ rồi cuộn dọc (xem fitField).
+     Rộng hơn màn hình thì cuộn ngang, không kéo bảng soạn tràn ra ngoài.
+     Cả hai chiều cuộn đều nằm ở vùng nội dung bên trong MathLive (part=content), KHÔNG ở ô ngoài:
+     MathLive tính chỗ bấm theo độ cuộn của chính vùng này, cuộn ở ô ngoài làm con trỏ đặt lệch hàng trăm px.
+     Đệm đặt ở vùng nội dung để thanh cuộn nằm sát mép ô. Kiểu thanh cuộn được chèn vào shadow DOM (xem SHADOW_CSS). */
+  .sheet > *, .mf-wrap { min-width: 0; }
+  math-field {
+    display: block; width: 100%; min-width: 0; max-width: 100%; min-height: 76px; overflow: hidden; font-size: 1.55rem; padding: 0;
+    border: 1px solid var(--line); border-radius: 10px; background: var(--card); color: var(--fg);
+    --caret-color: var(--accent); --selection-background-color: var(--accent-soft); --placeholder-color: var(--accent);
+  }
+  math-field::part(content) {
+    overflow: auto; width: 100%; min-width: 0; min-height: 66px; max-height: 140px; box-sizing: border-box;
+    padding: 6px 12px; align-items: flex-start;
+    /* Cử chỉ chạm do trang tự xử lý (vuốt = cuộn, giữ rồi kéo = dịch con trỏ); để trình duyệt tự cuộn sẽ huỷ ngang các cử chỉ đó */
+    touch-action: none; -webkit-touch-callout: none;
+  }
+  math-field:focus-within { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+  /* Đang chạm giữ để kéo con trỏ */
+  math-field.caret-drag { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent); background: var(--accent-soft); }
+  math-field::part(virtual-keyboard-toggle), math-field::part(menu-toggle) { display: none; }
+  /* Chọn số dòng cho Hệ n / Hoặc n: phủ lên ô soạn nên bảng không đổi chiều cao */
+  .mf-wrap { position: relative; }
+  .pick {
+    position: absolute; inset: 0; z-index: 2; display: flex; align-items: center; gap: 8px;
+    padding: 6px 8px 6px 12px; border-radius: 10px; background: var(--accent-soft); border: 1px solid var(--accent);
+  }
+  .pick[hidden] { display: none; }
+  .pick-title { font-size: 0.8rem; font-weight: 600; white-space: nowrap; }
+  .pick-row { flex: 1; min-width: 0; display: flex; gap: 4px; overflow-x: auto; scrollbar-width: none; }
+  .pick-row::-webkit-scrollbar { display: none; }
+  .pick-row button, .pick-close {
+    flex-shrink: 0; min-width: 30px; height: 38px; padding: 0; border-radius: 8px; border: 1px solid var(--line);
+    background: var(--card); color: var(--fg); font: inherit; font-size: 1rem; font-weight: 700; cursor: pointer;
+  }
+  .pick-close { min-width: 34px; height: 34px; border-radius: 999px; font-weight: 400; }
+  /* Chữ Hy Lạp to hơn một chút */
+  .MLK__keycap.mk-big { font-size: 1.3em; }
+  .mk-stack { display: flex; flex-direction: column; align-items: center; line-height: 1.1; font-size: 13px; }
+  .mk-stack b { font-size: 15px; }
+  #mf-cancel { flex-shrink: 0; height: 34px; padding: 0 12px; border: 1px solid var(--line); border-radius: 999px; background: var(--card); color: var(--fg); font: inherit; font-size: 0.85rem; font-weight: 600; cursor: pointer; }
+  #mf-insert { height: 44px; border: none; border-radius: 10px; background: var(--accent); color: var(--accent-ink); font: inherit; font-weight: 700; cursor: pointer; }
+  #mf-insert:disabled { opacity: 0.45; cursor: not-allowed; }
+  .load-error { color: var(--warn); font-size: 0.85rem; }
+</style>
+
+<div class="page">
+  <header>
+    <h1>Công thức kiểu Casio · prototype</h1>
+    <p class="lead">Gõ chữ bình thường bằng bàn phím máy. Cần công thức (phân số, căn, tích phân có cận, hệ, vectơ, hay cả ≤ ∈ ℝ) thì bấm <b><i>f</i>(<i>x</i>)</b> cạnh ô nhập để mở bảng soạn, rồi bấm <b>Chèn công thức</b>. Bấm vào công thức ở phần xem trước để sửa lại.</p>
+    <p class="load-error" id="load-error" hidden></p>
+  </header>
+
+  <section class="card" aria-label="Nhận xét theo ảnh">
+    <div class="card-title">Ảnh 1 · Nhận xét theo ảnh</div>
+    <div class="photo">Ảnh bài làm của học sinh</div>
+    <div class="comments" id="comments-f-photo"></div>
+    <div class="input-wrap">
+      <div class="input-row">
+        <textarea id="f-photo" class="field" rows="1" enterkeyhint="enter" placeholder="Nhận xét cho ảnh này..."></textarea>
+        <button type="button" class="kb-btn" data-for="f-photo" aria-pressed="false" aria-label="Mở bàn phím toán" title="Bàn phím toán">
+          <span class="fx" aria-hidden="true"><i>f</i>(<i>x</i>)</span>
+        </button>
+        <button type="button" class="send" data-send="f-photo">Gửi</button>
+      </div>
+      <div class="preview" id="preview-f-photo" hidden></div>
+    </div>
+  </section>
+
+  <section class="card" aria-label="Thảo luận">
+    <div class="card-title">Thảo luận</div>
+    <div class="comments" id="comments-f-disc"></div>
+    <div class="input-wrap">
+      <div class="input-row">
+        <textarea id="f-disc" class="field" rows="1" enterkeyhint="enter" placeholder="Trả lời thảo luận..."></textarea>
+        <button type="button" class="kb-btn" data-for="f-disc" aria-pressed="false" aria-label="Mở bàn phím toán" title="Bàn phím toán">
+          <span class="fx" aria-hidden="true"><i>f</i>(<i>x</i>)</span>
+        </button>
+        <button type="button" class="send" data-send="f-disc">Gửi</button>
+      </div>
+      <div class="preview" id="preview-f-disc" hidden></div>
+    </div>
+  </section>
+
+  <section class="card" aria-label="Trạng thái">
+    <div class="card-title">Kiểm tra</div>
+    <div class="state">
+      <h3 id="st-src-title">Chuỗi lưu trên Firestore</h3>
+      <pre id="st-src"></pre>
+      <h3>Email thông báo sẽ hiện</h3>
+      <pre id="st-mail"></pre>
+      <h3>Trạng thái</h3>
+      <pre id="st-misc"></pre>
+    </div>
+  </section>
+</div>
+
+<div id="scrim" class="scrim" hidden></div>
+<div id="sheet" class="sheet" role="dialog" aria-label="Soạn công thức" hidden>
+  <div class="sheet-head">
+    <div class="sheet-title"><b>Soạn công thức</b><span class="sheet-hint" id="sheet-hint">Gõ hoặc bấm phím bên dưới</span></div>
+    <div class="fmt" role="group" aria-label="Định dạng">
+      <button type="button" data-fmt="bold" title="In đậm" aria-label="In đậm"><b>B</b></button>
+      <button type="button" data-fmt="underline" title="Gạch chân" aria-label="Gạch chân"><u>U</u></button>
+      <button type="button" id="mf-newline" title="Xuống dòng (Enter)" aria-label="Xuống dòng">↵</button>
+    </div>
+    <button type="button" id="mf-cancel" aria-label="Hủy, đóng bảng soạn">Hủy ✕</button>
+  </div>
+  <div class="mf-wrap">
+    <math-field id="mf" math-virtual-keyboard-policy="sandboxed"></math-field>
+    <div class="pick" id="pick" hidden>
+      <span class="pick-title" id="pick-title">Hệ gồm mấy dòng?</span>
+      <div class="pick-row" id="pick-row"></div>
+      <button type="button" class="pick-close" id="pick-close" aria-label="Đóng">✕</button>
+    </div>
+  </div>
+  <button type="button" id="mf-insert">Chèn</button>
+</div>
+
+<script>
+(() => {
+  const $ = (s, r = document) => r.querySelector(s);
+  const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
+  const store = {
+    get(k, d) { try { const v = localStorage.getItem('mf-proto-' + k); return v == null ? d : JSON.parse(v); } catch { return d; } },
+    set(k, v) { try { localStorage.setItem('mf-proto-' + k, JSON.stringify(v)); } catch { /* bỏ qua */ } },
+  };
+  const hasKatex = typeof katex !== 'undefined';
+  const hasMathLive = typeof MathfieldElement !== 'undefined';
+  if (!hasKatex || !hasMathLive) {
+    const e = $('#load-error');
+    e.hidden = false;
+    e.textContent = `Không tải được ${[!hasKatex && 'KaTeX', !hasMathLive && 'MathLive'].filter(Boolean).join(' và ')} từ CDN, công thức sẽ hiện dạng mã.`;
+  }
+
+  // Font KaTeX nhúng base64 (dùng chung cho KaTeX và MathLive)
+  fetch('math-formula.prototype.katex.css').then((r) => (r.ok ? r.text() : Promise.reject(r.status))).then((css) => {
+    const st = document.createElement('style');
+    st.textContent = css;
+    document.head.appendChild(st);
+  }).catch(() => { /* font dự phòng của máy */ });
+
+  // ---------- Công thức trong chuỗi: \( … \) ----------
+  // \frac → \dfrac: phân số luôn lớn như Casio, kể cả trong khung nhiều dòng / hệ (ở đó \displaystyle bên ngoài không có tác dụng)
+  const MACROS = { '\\differentialD': '\\mathrm{d}', '\\exponentialE': '\\mathrm{e}', '\\imaginaryI': '\\mathrm{i}', '\\placeholder': '\\square', '\\frac': '\\dfrac' };
+  const state = {
+    big: true, // phân số luôn lớn như Casio (\displaystyle)
+    editing: null,
+    lastSent: null,
+  };
+
+  function segments(text) {
+    const out = [];
+    const re = /\\\(([\s\S]*?)\\\)/g;
+    let last = 0, m;
+    while ((m = re.exec(text))) {
+      if (m.index > last) out.push({ type: 't', s: last, e: m.index, value: text.slice(last, m.index) });
+      out.push({ type: 'f', s: m.index, e: re.lastIndex, latex: m[1] });
+      last = re.lastIndex;
+    }
+    if (last < text.length) out.push({ type: 't', s: last, e: text.length, value: text.slice(last) });
+    return out;
+  }
+  const hasFormula = (text) => /\\\([\s\S]*?\\\)/.test(text);
+
+  function renderLatex(el, latex, { big = state.big } = {}) {
+    if (!hasKatex) { el.textContent = latex; return; }
+    katex.render((big ? '\\displaystyle ' : '') + latex, el, {
+      throwOnError: false, trust: false, strict: 'ignore', maxSize: 8, maxExpand: 300, macros: { ...MACROS },
+    });
+  }
+
+  // Công thức xuống dòng tại các điểm ngắt của KaTeX; khối nào không ngắt được (phân số, hệ…) mà rộng hơn khung thì thu nhỏ cả công thức (không nhỏ hơn 55%)
+  function fitFormulas(root) {
+    root.querySelectorAll('.f').forEach((span) => {
+      span.style.fontSize = '';
+      const box = span.parentElement.closest('.comment-content, .preview');
+      if (!box) return;
+      const cs = getComputedStyle(box);
+      const avail = box.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight) - 8;
+      const widest = Math.max(0, ...[...span.querySelectorAll('.katex-base')].map((b) => b.getBoundingClientRect().width));
+      if (avail > 0 && widest > avail) span.style.fontSize = Math.max(0.55, avail / widest).toFixed(3) + 'em';
+    });
+  }
+  let fitTimer = 0;
+  window.addEventListener('resize', () => {
+    clearTimeout(fitTimer);
+    fitTimer = setTimeout(() => fitFormulas(document), 100);
+  });
+  document.fonts?.ready.then(() => fitFormulas(document)); // đo lại khi font KaTeX tải xong
+
+  function renderMixed(el, text, { editableFor = null } = {}) {
+    el.textContent = '';
+    for (const seg of segments(text)) {
+      if (seg.type === 't') { el.appendChild(document.createTextNode(seg.value)); continue; }
+      const span = document.createElement('span');
+      span.className = 'f';
+      renderLatex(span, seg.latex);
+      if (editableFor) {
+        span.setAttribute('role', 'button');
+        span.tabIndex = 0;
+        span.title = 'Bấm để sửa công thức';
+        span.dataset.s = seg.s; span.dataset.e = seg.e; span.dataset.field = editableFor;
+      }
+      el.appendChild(span);
+    }
+  }
+
+  // ---------- LaTeX → một dòng (cho Email thông báo) ----------
+  const SUP = { '0':'⁰','1':'¹','2':'²','3':'³','4':'⁴','5':'⁵','6':'⁶','7':'⁷','8':'⁸','9':'⁹','+':'⁺','-':'⁻','−':'⁻','=':'⁼','(':'⁽',')':'⁾',
+    a:'ᵃ',b:'ᵇ',c:'ᶜ',d:'ᵈ',e:'ᵉ',f:'ᶠ',g:'ᵍ',h:'ʰ',i:'ⁱ',j:'ʲ',k:'ᵏ',l:'ˡ',m:'ᵐ',n:'ⁿ',o:'ᵒ',p:'ᵖ',r:'ʳ',s:'ˢ',t:'ᵗ',u:'ᵘ',v:'ᵛ',w:'ʷ',x:'ˣ',y:'ʸ',z:'ᶻ' };
+  const SUB = { '0':'₀','1':'₁','2':'₂','3':'₃','4':'₄','5':'₅','6':'₆','7':'₇','8':'₈','9':'₉','+':'₊','-':'₋','−':'₋','=':'₌','(':'₍',')':'₎',
+    a:'ₐ',e:'ₑ',h:'ₕ',i:'ᵢ',j:'ⱼ',k:'ₖ',l:'ₗ',m:'ₘ',n:'ₙ',o:'ₒ',p:'ₚ',r:'ᵣ',s:'ₛ',t:'ₜ',u:'ᵤ',v:'ᵥ',x:'ₓ' };
+  const SUP_LINE = { ...SUP, '°': '°', '′': '′' }; // 60^{\circ} → 60°, f^{\prime} → f′
+  const SYM = { le:'≤', leq:'≤', ge:'≥', geq:'≥', ne:'≠', neq:'≠', pm:'±', mp:'∓', times:'×', div:'÷', cdot:'·', infty:'∞', pi:'π', to:'→', rightarrow:'→',
+    Rightarrow:'⇒', Leftrightarrow:'⇔', in:'∈', notin:'∉', subset:'⊂', subseteq:'⊆', cup:'∪', cap:'∩', emptyset:'∅', varnothing:'∅', forall:'∀', exists:'∃',
+    angle:'∠', triangle:'△', perp:'⊥', parallel:'∥', circ:'°', degree:'°', approx:'≈', equiv:'≡', cong:'≅', sim:'∼', prime:'′', square:'▢', ldots:'…', cdots:'⋯',
+    alpha:'α', beta:'β', gamma:'γ', delta:'δ', epsilon:'ε', varepsilon:'ε', theta:'θ', lambda:'λ', mu:'μ', rho:'ρ', sigma:'σ', varphi:'φ', phi:'φ', omega:'ω',
+    Delta:'Δ', Sigma:'Σ', Omega:'Ω', sum:'∑', prod:'∏', int:'∫', setminus:'\\', backslash:'\\', lbrace:'{', rbrace:'}', vert:'|', mid:'|', lvert:'|', rvert:'|', '{':'{', '}':'}', '|':'‖' };
+  const WORDS = new Set(['sin', 'cos', 'tan', 'cot', 'log', 'ln', 'lim', 'max', 'min', 'exp']);
+  const SPACE = { ',': '', ';': ' ', ':': ' ', '!': '', ' ': ' ', quad: ' ', qquad: ' ' };
+  const BB = { R: 'ℝ', N: 'ℕ', Z: 'ℤ', Q: 'ℚ', C: 'ℂ' };
+  const IGNORE = new Set(['displaystyle', 'textstyle', 'limits', 'nolimits', 'mathstrut']);
+  const simple = (s) => /^[\p{L}\p{N}.,′]+$/u.test(s) || /^\(.*\)$/.test(s);
+  const wrap = (s) => (simple(s) ? s : '(' + s + ')');
+  function script(s, table, ch) {
+    const plain = s.replace(/\s+/g, '');
+    if (plain && [...plain].every((c) => table[c])) return [...plain].map((c) => table[c]).join('');
+    return [...plain].length === 1 ? ch + plain : ch + '(' + s + ')';
+  }
+  function toLine(src) {
+    let i = 0, out = '', lastCmd = null;
+    const skipWs = () => { while (src[i] === ' ') i++; };
+    const readCmd = () => { const m = /^\\([A-Za-z]+|.)/.exec(src.slice(i)); i += m ? m[0].length : 1; return m ? m[1] : ''; };
+    function readGroup() {
+      skipWs();
+      if (src[i] === '{') {
+        let depth = 0; const start = i + 1;
+        for (; i < src.length; i++) {
+          if (src[i] === '\\') { i++; continue; }
+          if (src[i] === '{') depth++;
+          else if (src[i] === '}' && --depth === 0) { const g = src.slice(start, i); i++; return g; }
+        }
+        return src.slice(start);
+      }
+      if (src[i] === '\\') { const s0 = i; readCmd(); return src.slice(s0, i); }
+      return src[i++] ?? '';
+    }
+    function readOpt() { skipWs(); if (src[i] !== '[') return null; const end = src.indexOf(']', i); const g = src.slice(i + 1, end); i = end + 1; return g; }
+    function readDelim() {
+      skipWs();
+      if (src[i] === '\\') { const n = readCmd(); return n === '.' ? '' : (SYM[n] ?? n); }
+      const c = src[i++]; return c === '.' ? '' : c;
+    }
+    while (i < src.length) {
+      const c = src[i];
+      if (c === '\\') {
+        const name = readCmd();
+        let cmd = null;
+        if (name === 'frac' || name === 'dfrac' || name === 'tfrac') { const a = toLine(readGroup()), b = toLine(readGroup()); out += wrap(a) + '/' + wrap(b); }
+        else if (name === 'sqrt') { const n = readOpt(); const a = toLine(readGroup()); const p = n == null ? '√' : n === '3' ? '∛' : n === '4' ? '∜' : script(toLine(n), SUP_LINE, '^') + '√'; out += p + wrap(a); }
+        else if (name === 'left' || name === 'right' || name === 'bigl' || name === 'bigr') out += readDelim();
+        else if (name === 'overrightarrow' || name === 'vec') out += 'vt ' + toLine(readGroup());
+        else if (name === 'widehat' || name === 'hat') out += 'góc ' + toLine(readGroup());
+        else if (name === 'overline' || name === 'bar') { const a = toLine(readGroup()); out += [...a].length === 1 ? a + '̄' : '(' + a + ')‾'; }
+        else if (name === 'mathbb') { const g = toLine(readGroup()); out += BB[g] ?? g; }
+        else if (['mathrm', 'text', 'textrm', 'operatorname', 'mathit', 'mathbf', 'boldsymbol', 'bm', 'underline', 'textbf', 'textit'].includes(name)) out += toLine(readGroup());
+        else if (name === 'placeholder') { readGroup(); out += '▢'; }
+        else if (name === 'begin') {
+          const env = readGroup();
+          if (env === 'array') readGroup();
+          const endTag = '\\end{' + env + '}';
+          const idx = src.indexOf(endTag, i);
+          const body = src.slice(i, idx < 0 ? src.length : idx);
+          i = idx < 0 ? src.length : idx + endTag.length;
+          const rows = body.split('\\\\').map((r) => toLine(r).trim()).filter(Boolean);
+          if (env === 'cases') out += '{ ' + rows.join('; ') + ' }';
+          else if (env.endsWith('matrix')) out += '(' + rows.join('; ') + ')';
+          else if (out.endsWith('[')) out += ' ' + rows.join('; ') + ' ]'; // tuyển: \left[ … \right.
+          else if (env === 'array') out += rows.join('\n'); // các dòng đã xuống dòng trong Bảng soạn công thức
+          else out += rows.join('; ');
+        }
+        else if (name === '\\') out += '; ';
+        else if (name in SPACE) out += SPACE[name];
+        else if (IGNORE.has(name)) { /* bỏ */ }
+        else if (WORDS.has(name)) { out += name; if (/[A-Za-z0-9]/.test(src[i] ?? '')) out += ' '; cmd = name; }
+        else if (name in SYM) out += SYM[name];
+        else out += name;
+        lastCmd = cmd;
+        continue;
+      }
+      if (c === '^' || c === '_') {
+        i++;
+        const inner = toLine(readGroup());
+        out += c === '_' && lastCmd === 'lim' ? '(' + inner + ') ' : script(inner, c === '^' ? SUP_LINE : SUB, c);
+        lastCmd = null;
+        continue;
+      }
+      if (c === '{') { out += toLine(readGroup()); lastCmd = null; continue; }
+      i++;
+      if (c === '}') continue;
+      out += c === '&' || c === '~' ? ' ' : c === '-' ? '−' : c === "'" ? '′' : c;
+      if (c !== ' ') lastCmd = null;
+    }
+    return out.replace(/ {2,}/g, ' ').trim();
+  }
+  function toEmail(text) {
+    const body = segments(text).map((s) => (s.type === 't' ? s.value : toLine(s.latex))).join('');
+    return hasFormula(text) ? body + '\n\nMở trên MathShine để xem công thức: https://mathshine-check-274.web.app/…' : body;
+  }
+
+  // ---------- Bảng soạn công thức (MathLive) ----------
+  const sheet = $('#sheet'), scrim = $('#scrim'), mf = $('#mf'), hint = $('#sheet-hint'), insertBtn = $('#mf-insert');
+  // Phím chứa ký hiệu rộng (lim, ∫ có cận, log, ∑) được nới rộng thay vì thu nhỏ; mỗi hàng tối đa 10 đơn vị
+  const wide = (latex, width = 1.5) => ({ latex, width });
+  // Tab abc là chữ cái thường (chữ đứng), không phải biến toán in nghiêng
+  const letter = (c) => ({ latex: `\\mathrm{${c}}`, class: 'mk-big', shift: { latex: `\\mathrm{${c.toUpperCase()}}`, class: 'mk-big' } });
+  const greek = (names) => names.split(' ').map((n) => ({ latex: '\\' + n, class: 'mk-big' }));
+  // Nhãn hai dòng cho phím Hệ / Hoặc: chữ ở trên, số dòng ở dưới, để vừa một ô
+  const stack = (word, n) => `<span class="mk-stack">${word}<b>${n}</b></span>`;  // Hệ (ngoặc nhọn) hoặc "hoặc" (ngoặc vuông) gồm n dòng, mỗi dòng một ô trống
+  function systemLatex(kind, n) {
+    const rows = Array(n).fill('#?').join('\\\\');
+    return kind === 'cases' ? `\\begin{cases}${rows}\\end{cases}` : `\\left[\\begin{gathered}${rows}\\end{gathered}\\right.`;
+  }
+  const LAYOUTS = [
+    { label: 'Cơ bản', rows: [
+      [String.raw`\frac{#@}{#?}`, String.raw`#@^{2}`, String.raw`#@^{#?}`, String.raw`\sqrt{#0}`, String.raw`\sqrt[#?]{#0}`, String.raw`\left|#0\right|`, '[(]', '[)]', String.raw`\pi`, '[backspace]'],
+      ['[7]', '[8]', '[9]', String.raw`\div`, String.raw`\times`, 'x', 'y', String.raw`\le`, String.raw`\ge`, String.raw`\ne`],
+      ['[4]', '[5]', '[6]', '[-]', '[+]', 'a', 'b', 'n', 'k', '[=]'],
+      ['[1]', '[2]', '[3]', '[0]', '[.]', '[,]', ';', String.raw`\pm`, '[left]', '[right]'],
+    ] },
+    { label: 'Giải tích', rows: [
+      [wide(String.raw`\lim_{x\to#?}`), wide(String.raw`\lim_{x\to+\infty}`, 2), wide(String.raw`\int_{#?}^{#?}#0\,dx`, 2), wide(String.raw`\int #0\,dx`), String.raw`\infty`, String.raw`\to`, '[backspace]'],
+      [String.raw`#@'`, wide(String.raw`\log_{#?}#0`), String.raw`\ln`, String.raw`e^{#?}`, String.raw`\sin`, String.raw`\cos`, String.raw`\tan`, String.raw`\cot`, '[left]'],
+      [
+        { label: stack('Hệ', 2), latex: systemLatex('cases', 2) }, { label: stack('Hệ', 3), latex: systemLatex('cases', 3) }, { label: stack('Hệ', 'n'), class: 'mk-pick', insert: ' ' },
+        { label: stack('Hoặc', 2), latex: systemLatex('or', 2) }, { label: stack('Hoặc', 3), latex: systemLatex('or', 3) }, { label: stack('Hoặc', 'n'), class: 'mk-pick', insert: ' ' },
+        String.raw`\approx`, { latex: String.raw`\textstyle\sum_{#?}^{#?}`, insert: String.raw`\sum_{#?}^{#?}`, width: 1.5 }, '[right]',
+      ],
+      // Mọi tab đều 4 hàng để bàn phím không đổi chiều cao khi chuyển tab
+      [wide(String.raw`\lim_{x\to#?^{+}}`), wide(String.raw`\lim_{x\to#?^{-}}`), wide(String.raw`\left.#0\right|_{#?}^{#?}`), String.raw`#@''`, wide(String.raw`\max_{#?}`), wide(String.raw`\min_{#?}`), wide(String.raw`f\left(#?\right)`)],
+    ] },
+    { label: 'Tập hợp', rows: [
+      [String.raw`\overrightarrow{#0}`, String.raw`\widehat{#0}`, String.raw`\angle`, String.raw`\triangle`, String.raw`\perp`, String.raw`\parallel`, String.raw`#@^{\circ}`, String.raw`\cdot`, String.raw`\overline{#0}`, '[backspace]'],
+      [String.raw`\in`, String.raw`\notin`, String.raw`\subset`, String.raw`\cup`, String.raw`\cap`, String.raw`\emptyset`, String.raw`\mathbb{R}`, String.raw`\mathbb{N}`, String.raw`\mathbb{Z}`, String.raw`\mathbb{Q}`],
+      [String.raw`\mathrm{C}_{#?}^{#?}`, String.raw`\mathrm{A}_{#?}^{#?}`, String.raw`\mathrm{P}_{#?}`, String.raw`#@!`, String.raw`\forall`, String.raw`\exists`, String.raw`\Rightarrow`, String.raw`\Leftrightarrow`, '[left]', '[right]'],
+      [String.raw`\subseteq`, String.raw`\setminus`, String.raw`\mathbb{N}^{*}`, wide(String.raw`\left[#?;#?\right]`), wide(String.raw`\left(#?;#?\right)`), String.raw`\left\{#?\right\}`, String.raw`\backsim`, String.raw`\cong`],
+    ] },
+    // abc và αβγ tự dựng, cũng 4 hàng như các tab khác (bản có sẵn của MathLive cao 5 hàng)
+    { label: 'abc', rows: [
+      [...'qwertyuiop'].map(letter),
+      [...'asdfghjkl'].map(letter).concat('[backspace]'),
+      ['[shift]', ...[...'zxcvbnm'].map(letter), '[left]', '[right]'],
+      [':', String.raw`\%`, { label: 'dấu cách', insert: String.raw`\;`, width: 5, class: 'action' }, String.raw`\ldots`],
+    ] },
+    // Không trùng ký hiệu với tab khác: π ở Cơ bản, ( ) ở Cơ bản; phím ⌫ ← → được lặp ở mọi tab
+    { label: 'αβγ', rows: [
+      greek('alpha beta gamma delta epsilon zeta eta theta lambda mu'),
+      greek('nu xi kappa rho sigma tau varphi chi psi omega'),
+      greek('Gamma Delta Theta Lambda Xi Pi Sigma Phi Psi Omega'),
+      greek('varepsilon vartheta varrho varsigma phi varpi Upsilon').concat('[left]', '[right]', '[backspace]'),
+    ] },
+  ];
+  // Mỗi ký hiệu chỉ có ở một tab (trừ phím điều khiển). Gọi kiểm tra ngay khi tải để phát hiện trùng lặp.
+  const CONTROL_KEYS = new Set(['[backspace]', '[left]', '[right]', '[shift]']);
+  function duplicateKeys() {
+    const seen = new Map(), dups = [];
+    for (const layout of LAYOUTS) for (const row of layout.rows) for (const kc of row) {
+      if (CONTROL_KEYS.has(kc)) continue;
+      // Hệ n / Hoặc n không chèn gì (mở hộp chọn số dòng) nên phân biệt theo nhãn
+      const id = typeof kc === 'string' ? kc : kc.class === 'mk-pick' ? kc.label : (kc.insert ?? kc.latex ?? kc.label);
+      if (seen.has(id)) dups.push(`${id} (${seen.get(id)} & ${layout.label})`); else seen.set(id, layout.label);
+    }
+    return dups;
+  }
+  if (duplicateKeys().length) console.warn('Phím trùng giữa các tab:', duplicateKeys());
+
+  // Phím chỉ có chữ (Hệ 2, Hệ 3, Hoặc) mà dài hơn ô thì co cỡ chữ cho vừa; phím ký hiệu giữ nguyên cỡ
+  function fitKeycaps() {
+    document.querySelectorAll('.MLK__layer.is-visible .MLK__keycap').forEach((kc) => {
+      if (kc.querySelector('.ML__latex')) return;
+      kc.style.fontSize = '';
+      const fs = parseFloat(getComputedStyle(kc).fontSize);
+      const need = kc.scrollWidth, have = kc.clientWidth - 6;
+      if (need > have && have > 0) kc.style.fontSize = Math.max(10, fs * have / need).toFixed(1) + 'px';
+    });
+  }
+
+  // Ô soạn cao dần theo công thức; quá 150px thì thu nhỏ nhẹ (tối đa còn 85%), phần còn lại cuộn dọc
+  const MF_FONT = 1.55; // rem
+  const MF_MIN_SCALE = 0.85;
+  // Tính cỡ chữ cần có từ cỡ hiện tại (không bỏ cỡ rồi đặt lại: mỗi lần đổi cỡ MathLive phải vẽ lại cả công thức),
+  // và chỉ đổi khi chênh đáng kể
+  let mfScale = 1;
+  function fitField() {
+    const content = mfContent();
+    if (!content) return;
+    const cs = getComputedStyle(content);
+    const pad = parseFloat(cs.paddingTop) + parseFloat(cs.paddingBottom);
+    const maxH = parseFloat(cs.maxHeight) - pad;
+    const natural = (content.scrollHeight - pad) / mfScale; // chiều cao công thức ở cỡ chữ gốc
+    const target = Math.min(1, Math.max(MF_MIN_SCALE, maxH / natural));
+    if (!Number.isFinite(target) || Math.abs(target - mfScale) < 0.02) return;
+    mfScale = target;
+    mf.style.fontSize = target === 1 ? '' : (MF_FONT * target).toFixed(3) + 'rem';
+  }
+  // Vùng nội dung bên trong MathLive: nơi duy nhất được cuộn (ngang và dọc)
+  const mfContent = () => mf.shadowRoot?.querySelector('.ML__content');
+  // Thanh cuộn của vùng nội dung nằm trong shadow DOM nên CSS của trang không tới được: chèn thẳng vào shadow root.
+  // Ẩn sẵn, :host(.show-bars) thì hiện (xem showBars). Thanh ngang dày 10px, thanh dọc 6px.
+  const SHADOW_CSS = `
+    .ML__content::-webkit-scrollbar { width: 6px; height: 10px; }
+    .ML__content::-webkit-scrollbar-corner, .ML__content::-webkit-scrollbar-track { background: transparent; }
+    .ML__content::-webkit-scrollbar-thumb { background: transparent; border-radius: 999px; }
+    :host(.show-bars) .ML__content::-webkit-scrollbar-thumb { background: #a9b4c4; }
+    @supports not selector(::-webkit-scrollbar) {
+      .ML__content { scrollbar-width: thin; scrollbar-color: transparent transparent; }
+      :host(.show-bars) .ML__content { scrollbar-color: #a9b4c4 transparent; }
+    }`;
+  function injectShadowCss() {
+    const sr = mf.shadowRoot;
+    // Gỡ khối nút bàn phím/menu (đã ẩn): nếu còn, sau mỗi phím MathLive đọc offsetHeight để căn khối này,
+    // ép trình duyệt tính lại bố cục ngay lập tức → gõ nhanh bị trễ (đo bằng profiler: hàm tốn nhất của MathLive)
+    sr?.querySelector('.ML__toggles')?.remove();
+    if (!sr || sr.getElementById('mk-shadow-css')) return;
+    const st = document.createElement('style');
+    st.id = 'mk-shadow-css';
+    st.textContent = SHADOW_CSS;
+    sr.appendChild(st);
+    mfContent()?.addEventListener('scroll', () => showBars(), { passive: true });
+  }
+
+  // B / U là công tắc: bật thì các ký tự gõ tiếp được in đậm / gạch chân, tắt thì gõ tiếp như thường.
+  // Đang chọn sẵn một đoạn thì chỉ áp dụng cho đoạn đó, không bật công tắc.
+  // B: nhớ vị trí lúc bật, mỗi lần gõ thì in đậm lại cả đoạn từ đó tới con trỏ (MathLive chỉ giữ kiểu cho 1 ký tự).
+  // U: bật thì chèn khung \underline{…} và gõ vào trong; tắt thì đưa con trỏ ra hẳn ngoài khung.
+  const fmt = { bold: false, boldFrom: null, underline: false, underlineFrom: null, underlineValue: null };
+  const fmtBtn = (name) => document.querySelector(`.fmt [data-fmt="${name}"]`);
+  function setFmt(name, on) {
+    fmt[name] = on;
+    fmtBtn(name).setAttribute('aria-pressed', String(on));
+  }
+  function resetFmt() {
+    setFmt('bold', false); setFmt('underline', false);
+    fmt.boldFrom = fmt.underlineFrom = fmt.underlineValue = null;
+  }
+  let styling = false;
+  mf.addEventListener('input', () => {
+    if (!fmt.bold || fmt.boldFrom == null || styling) return;
+    const pos = mf.position;
+    fmt.boldFrom = Math.min(fmt.boldFrom, pos);
+    if (pos <= fmt.boldFrom) return;
+    styling = true;
+    try { mf.applyStyle({ variantStyle: 'bold' }, { range: [fmt.boldFrom, pos], operation: 'set' }); } finally { styling = false; }
+    updateInsertState();
+  });
+  // Đoạn LaTeX từ from tới con trỏ là trọn một khung \underline{…} thì con trỏ đã ra ngoài khung
+  function outsideUnderline(from) {
+    const v = mf.getValue(from, mf.position, 'latex');
+    if (!v.startsWith('\\underline{')) return false;
+    let depth = 0;
+    for (let i = '\\underline'.length; i < v.length; i++) {
+      if (v[i] === '\\') { i++; continue; }
+      if (v[i] === '{') depth++;
+      else if (v[i] === '}' && --depth === 0) return i === v.length - 1;
+    }
+    return false;
+  }
+  document.querySelector('.fmt').addEventListener('pointerdown', (ev) => ev.preventDefault()); // giữ con trỏ trong ô soạn
+  // Xuống dòng như trình soạn văn bản: cắt dòng tại con trỏ, phần sau con trỏ chuyển xuống dòng mới, con trỏ ở đầu dòng mới.
+  // - Đang ở trong khung nhiều dòng (hệ, hoặc, các dòng đã xuống) thì cắt dòng đó.
+  // - Chưa có khung thì bọc cả công thức vào khung nhiều dòng canh trái.
+  // - Con trỏ ở trong phân số, căn, mũ… thì cắt ngay sau cả khối đó (không cắt đôi phân số).
+  // Cách làm: chèn một dấu mốc tại con trỏ, tách chuỗi LaTeX quanh dấu mốc, nạp lại rồi đưa con trỏ về chỗ dấu mốc.
+  const MARK = '\\text{¶}';
+  const ROW_ENVS = /^(array|cases|gathered|aligned|matrix|pmatrix|bmatrix)$/;
+  function newline() {
+    mf.focus();
+    if (!mf.value.trim()) return;
+    if (!mf.selectionIsCollapsed) mf.executeCommand('deleteBackward');
+    mf.insert(MARK, { selectionMode: 'after' });
+    const v = mf.getValue('latex');
+    const at = v.indexOf(MARK);
+    if (at < 0) return;
+    let left = v.slice(0, at), right = v.slice(at + MARK.length);
+
+    // Ngữ cảnh tại con trỏ: các khung \begin…\end và ngoặc { } đang mở
+    const stack = [];
+    for (let i = 0; i < left.length; i++) {
+      if (left.startsWith('\\begin{', i)) { const e = left.indexOf('}', i + 7); stack.push({ env: left.slice(i + 7, e) }); i = e; }
+      else if (left.startsWith('\\end{', i)) { stack.pop(); i = left.indexOf('}', i + 5); }
+      else if (left[i] === '\\') i++; // bỏ qua ký tự sau dấu \ (\{ \} \\ …)
+      else if (left[i] === '{') stack.push({ brace: true });
+      else if (left[i] === '}') stack.pop();
+    }
+    // Đang ở trong { } (phân số, căn, mũ…): dời điểm cắt ra sau cả khối, kể cả các nhóm { } / ^ _ đi kèm
+    let open = 0;
+    while (stack.length && stack[stack.length - 1].brace) { stack.pop(); open++; }
+    if (open) {
+      let j = 0, depth = open;
+      for (; j < right.length && depth > 0; j++) {
+        if (right[j] === '\\') { j++; continue; }
+        if (right[j] === '{') depth++; else if (right[j] === '}') depth--;
+      }
+      const skipGroup = () => {
+        if (right[j] !== '{') { j++; return; }
+        let d = 0;
+        for (; j < right.length; j++) {
+          if (right[j] === '\\') { j++; continue; }
+          if (right[j] === '{') d++; else if (right[j] === '}' && --d === 0) { j++; return; }
+        }
+      };
+      while (j < right.length && (right[j] === '{' || right[j] === '^' || right[j] === '_')) {
+        if (right[j] !== '{') j++;
+        skipGroup();
+      }
+      left += right.slice(0, j);
+      right = right.slice(j);
+    }
+    const inRows = stack.length && ROW_ENVS.test(stack[stack.length - 1].env);
+    // Phần còn lại của dòng rỗng thì dòng mới để \mathstrut (vô hình, giữ chiều cao dòng) thay vì ô ▢
+    const restEmpty = inRows ? /^\s*(\\\\|\\end\{)/.test(right) : !right.trim();
+    const head = (restEmpty ? '\\mathstrut' : '') + MARK;
+    mf.value = inRows
+      ? `${left}\\\\${head}${right}`
+      : `\\begin{array}{l}${left}\\\\${head}${right}\\end{array}`;
+    caretToMark();
+    updateInsertState();
+  }
+  $('#mf-newline').addEventListener('click', newline);
+
+  // Đưa con trỏ về chỗ dấu mốc rồi xoá dấu mốc (dùng lệnh xoá gốc của MathLive, không qua xoá dòng bên dưới)
+  let rawDelete = () => mf.executeCommand('deleteBackward');
+  function caretToMark() {
+    for (let p = 0; p <= mf.lastOffset; p++) {
+      if (mf.getValue(p, p + 1, 'latex') === MARK) { mf.position = p + 1; rawDelete(); return; }
+    }
+  }
+
+  // Xoá lùi (Backspace máy tính và phím ⌫ ảo) như trình soạn văn bản:
+  // con trỏ ở đầu một dòng (hoặc dòng đang trống) trong khung nhiều dòng / hệ thì nối dòng đó lên cuối dòng trên
+  // (dòng trống thì mất hẳn); còn đúng một dòng thì bỏ khung nhiều dòng. Trường hợp khác để MathLive xoá như thường.
+  const EMPTY_ROW = /^(\s|\\mathstrut|\\vphantom\{\(\})*$/;
+  function joinLineBackward() {
+    if (!mf.selectionIsCollapsed || !/\\begin\{/.test(mf.value)) return false;
+    mf.insert(MARK, { selectionMode: 'after' });
+    const v = mf.getValue('latex');
+    const at = v.indexOf(MARK);
+    const undo = () => { rawDelete(); return false; };
+    if (at < 0) return undo();
+    const left = v.slice(0, at), right = v.slice(at + MARK.length);
+    // Tìm khung nhiều dòng đang chứa con trỏ, và chỗ bắt đầu dòng hiện tại trong khung đó
+    const stack = [];
+    for (let i = 0; i < left.length; i++) {
+      const top = stack[stack.length - 1];
+      if (left.startsWith('\\begin{', i)) {
+        const e = left.indexOf('}', i + 7);
+        const env = left.slice(i + 7, e);
+        i = e;
+        if (env === 'array' && left[i + 1] === '{') i = left.indexOf('}', i + 1); // bỏ qua {l}
+        stack.push({ env, rowStart: i + 1, sep: -1 });
+      } else if (left.startsWith('\\end{', i)) { stack.pop(); i = left.indexOf('}', i + 5); }
+      else if (left.startsWith('\\\\', i)) { if (top && top.env) { top.sep = i; top.rowStart = i + 2; } i++; }
+      else if (left[i] === '\\') i++;
+      else if (left[i] === '{') stack.push({ brace: true });
+      else if (left[i] === '}') stack.pop();
+    }
+    const top = stack[stack.length - 1];
+    if (!top || !top.env || !ROW_ENVS.test(top.env) || top.sep < 0) return undo(); // không ở đầu dòng thứ 2 trở đi
+    if (!EMPTY_ROW.test(left.slice(top.rowStart))) return undo();          // con trỏ không ở đầu dòng
+    let nv = left.slice(0, top.sep) + MARK + right.replace(/^(\s|\\mathstrut|\\vphantom\{\(\})+/, '');
+    // Khung nhiều dòng của chính Bảng soạn (array{l}) mà chỉ còn một dòng thì bỏ khung
+    const m = /^\\begin\{array\}\{l\}([\s\S]*)\\end\{array\}$/.exec(nv);
+    if (m && !hasRowSep(m[1])) nv = m[1];
+    mf.value = nv;
+    caretToMark();
+    updateInsertState();
+    return true;
+  }
+  // Còn dấu ngắt dòng \\ ở ngay cấp này không (bỏ qua các khung lồng bên trong)
+  function hasRowSep(s) {
+    let depth = 0;
+    for (let i = 0; i < s.length; i++) {
+      if (s.startsWith('\\begin{', i)) { depth++; i = s.indexOf('}', i + 7); }
+      else if (s.startsWith('\\end{', i)) { depth--; i = s.indexOf('}', i + 5); }
+      else if (s.startsWith('\\\\', i)) { if (depth === 0) return true; i++; }
+      else if (s[i] === '\\') i++;
+    }
+    return false;
+  }
+
+  // Ô soạn tự cuộn (cả ngang lẫn dọc) để con trỏ luôn nằm trong tầm nhìn khi gõ
+  // Chỉ cuộn khi con trỏ đã ra ngoài khung, và không cuộn ngay sau khi bấm/chạm đặt con trỏ:
+  // nếu không, chữ vừa bấm bị trượt khỏi chỗ ngón tay và người dùng thấy "bấm không trúng".
+  let lastPointer = 0;
+  mf.addEventListener('pointerdown', () => { lastPointer = performance.now(); }, true);
+  function keepCaretVisible() {
+    if (performance.now() - lastPointer < 400) return;
+    const caret = mf.shadowRoot?.querySelector('.ML__caret, .ML__text-caret'), sc = mfContent();
+    if (!caret || !sc) return;
+    const c = caret.getBoundingClientRect(), box = sc.getBoundingClientRect();
+    if (!c.width && !c.height) return;
+    const barH = sc.offsetHeight - sc.clientHeight; // chừa chỗ thanh cuộn ngang
+    if (c.right > box.right) sc.scrollLeft += c.right - box.right + 12;
+    else if (c.left < box.left) sc.scrollLeft -= box.left - c.left + 12;
+    if (c.bottom > box.bottom - barH) sc.scrollTop += c.bottom - box.bottom + barH + 4;
+    else if (c.top < box.top) sc.scrollTop -= box.top - c.top + 4;
+  }
+  // Gộp: tối đa một lần mỗi khung hình dù gõ nhanh
+  let caretFrame = 0;
+  const scheduleCaret = () => { if (!caretFrame) caretFrame = requestAnimationFrame(() => { caretFrame = 0; keepCaretVisible(); }); };
+  ['input', 'selection-change'].forEach((t) => mf.addEventListener(t, scheduleCaret));
+
+  // Thanh cuộn: hiện khi chạm vào màn hình (lúc đang soạn), khi cuộn hoặc gõ; 5 giây sau lần cuối thì tự ẩn
+  const BARS_MS = 5000;
+  let barsTimer = 0;
+  function showBars() {
+    mf.classList.add('show-bars');
+    clearTimeout(barsTimer);
+    barsTimer = setTimeout(() => mf.classList.remove('show-bars'), BARS_MS);
+  }
+  document.addEventListener('pointerdown', () => { if (state.editing) showBars(); }, true);
+  mf.addEventListener('input', showBars, { passive: true });
+
+  // Cảm ứng (chuột trên máy tính giữ nguyên: kéo để bôi đen, lăn để cuộn):
+  // - chạm nhẹ: đặt con trỏ (MathLive tự làm)
+  // - vuốt: cuộn ngang/dọc (MathLive mặc định hiểu là bôi đen)
+  // - chạm giữ ~0,45 giây rồi kéo: dịch con trỏ từng chữ (ngang) / từng dòng (dọc), như giữ phím cách trên bàn phím điện thoại
+  const HOLD_MS = 500, STEP_X = 14, STEP_Y = 28;
+  let pan = null;
+  mf.addEventListener('pointerdown', (ev) => {
+    if (ev.pointerType !== 'touch') return;
+    const sc = mfContent(); if (!sc) return;
+    pan = { id: ev.pointerId, x: ev.clientX, y: ev.clientY, left: sc.scrollLeft, top: sc.scrollTop, sc, mode: 'tap', sx: ev.clientX, sy: ev.clientY };
+    pan.timer = setTimeout(() => {
+      if (!pan || pan.mode !== 'tap') return;
+      pan.mode = 'caret';
+      mf.classList.add('caret-drag');
+      try { navigator.vibrate?.(10); } catch { /* bỏ qua */ }
+    }, HOLD_MS);
+  }, true);
+  mf.addEventListener('pointermove', (ev) => {
+    if (!pan || ev.pointerId !== pan.id) return;
+    const dx = ev.clientX - pan.x, dy = ev.clientY - pan.y;
+    if (pan.mode === 'tap') {
+      if (Math.hypot(dx, dy) < 8) return;
+      clearTimeout(pan.timer);
+      pan.mode = 'scroll';
+    }
+    ev.stopImmediatePropagation(); ev.preventDefault();
+    if (pan.mode === 'scroll') {
+      pan.sc.scrollLeft = pan.left - dx;
+      pan.sc.scrollTop = pan.top - dy;
+      return;
+    }
+    // Chế độ kéo con trỏ: mỗi STEP_X px là một chữ, mỗi STEP_Y px là một dòng
+    while (ev.clientX - pan.sx >= STEP_X) { mf.executeCommand('moveToNextChar'); pan.sx += STEP_X; }
+    while (pan.sx - ev.clientX >= STEP_X) { mf.executeCommand('moveToPreviousChar'); pan.sx -= STEP_X; }
+    while (ev.clientY - pan.sy >= STEP_Y) { mf.executeCommand('moveDown'); pan.sy += STEP_Y; }
+    while (pan.sy - ev.clientY >= STEP_Y) { mf.executeCommand('moveUp'); pan.sy -= STEP_Y; }
+    lastPointer = 0; // cho phép tự cuộn theo con trỏ ngay
+    keepCaretVisible();
+  }, true);
+  mf.addEventListener('contextmenu', (ev) => { if (pan) ev.preventDefault(); });
+  const endPan = (ev) => {
+    if (!pan || ev.pointerId !== pan.id) return;
+    clearTimeout(pan.timer);
+    if (pan.mode !== 'tap') { ev.stopImmediatePropagation(); ev.preventDefault(); }
+    mf.classList.remove('caret-drag');
+    pan = null;
+  };
+  mf.addEventListener('pointerup', endPan, true);
+  mf.addEventListener('pointercancel', endPan, true);
+  // Chạm / bấm (không kéo) vào vùng trống: đặt con trỏ vào đúng dòng gần nhất (giống snapCaret trong formula-editor.component.ts)
+  let tapDown = null;
+  mf.addEventListener('pointerdown', (ev) => { tapDown = { x: ev.clientX, y: ev.clientY }; }, true);
+  mf.addEventListener('pointerup', (ev) => {
+    const start = tapDown; tapDown = null;
+    if (!start || Math.hypot(ev.clientX - start.x, ev.clientY - start.y) > 6) return;
+    const x = ev.clientX, y = ev.clientY;
+    setTimeout(() => { if (mf.selectionIsCollapsed) snapCaret(x, y); }, 0);
+  }, true);
+  function snapCaret(x, y) {
+    const latex = mf.shadowRoot?.querySelector('.ML__content .ML__latex');
+    if (!latex) return;
+    const glyphs = [...latex.querySelectorAll('span')].filter((s) => !s.children.length && (s.textContent || '').trim() && !s.closest('.ML__caret'))
+      .map((s) => s.getBoundingClientRect()).filter((r) => r.width > 0 && r.height > 0);
+    if (!glyphs.length) return;
+    if (glyphs.some((r) => x >= r.left - 2 && x <= r.right + 2 && y >= r.top - 2 && y <= r.bottom + 2)) return;
+    const heights = glyphs.map((r) => r.height).sort((a, b) => a - b);
+    const normal = heights[Math.floor(heights.length / 2)] * 1.8;
+    const rows = [];
+    for (const r of glyphs.filter((g) => g.height <= normal).sort((a, b) => a.top - b.top)) {
+      const cy = (r.top + r.bottom) / 2;
+      const row = rows.find((w) => cy >= w.top && cy <= w.bottom);
+      if (row) { row.items.push(r); row.top = Math.min(row.top, r.top); row.bottom = Math.max(row.bottom, r.bottom); }
+      else rows.push({ top: r.top, bottom: r.bottom, items: [r] });
+    }
+    const dist = (w) => (y < w.top ? w.top - y : y > w.bottom ? y - w.bottom : 0);
+    const row = rows.reduce((a, b) => (dist(b) < dist(a) ? b : a));
+    row.items.sort((a, b) => a.left - b.left);
+    const first = row.items[0], last = row.items[row.items.length - 1];
+    const mid = (r) => (r.left + r.right) / 2;
+    let target, bias;
+    if (x <= first.left) { target = first; bias = -1; }
+    else if (x >= last.right) { target = last; bias = 1; }
+    else { target = row.items.reduce((a, b) => (Math.abs(mid(b) - x) < Math.abs(mid(a) - x) ? b : a)); bias = x < mid(target) ? -1 : 1; }
+    const offset = mf.getOffsetFromPoint(mid(target), (target.top + target.bottom) / 2, { bias });
+    if (typeof offset === 'number' && offset >= 0) mf.position = offset;
+  }
+  mf.addEventListener('keydown', (ev) => {
+    if (ev.key === 'Enter' && !ev.isComposing) { ev.preventDefault(); ev.stopImmediatePropagation(); newline(); }
+  }, true);
+
+  document.querySelector('.fmt').addEventListener('click', (ev) => {
+    const b = ev.target.closest('[data-fmt]'); if (!b) return;
+    const name = b.dataset.fmt;
+    mf.focus();
+    if (name === 'underline' && fmt.underline) {
+      // Tắt: chưa gõ gì thì bỏ khung gạch chân trống, có rồi thì đưa con trỏ ra hẳn sau khung (kể cả đang ở trong phân số…)
+      if (mf.value === fmt.underlineValue) mf.executeCommand('undo');
+      else for (let i = 0; i < 12 && !outsideUnderline(fmt.underlineFrom); i++) mf.executeCommand('moveAfterParent');
+      fmt.underlineFrom = fmt.underlineValue = null;
+      setFmt('underline', false);
+    } else if (name === 'bold' && fmt.bold) {
+      mf.applyStyle({ variantStyle: '' }); // ký tự gõ tiếp trở lại bình thường
+      fmt.boldFrom = null;
+      setFmt('bold', false);
+    } else if (!mf.selectionIsCollapsed) {
+      if (name === 'bold') mf.applyStyle({ variantStyle: 'bold' }, { operation: 'toggle' });
+      else mf.executeCommand(['insert', String.raw`\underline{#@}`, { selectionMode: 'after' }]);
+    } else if (name === 'bold') {
+      fmt.boldFrom = mf.position;
+      mf.applyStyle({ variantStyle: 'bold' }); // ký tự gõ ngay sau
+      setFmt('bold', true);
+    } else {
+      fmt.underlineFrom = mf.position;
+      mf.executeCommand(['insert', String.raw`\underline{#?}`, { selectionMode: 'placeholder' }]);
+      fmt.underlineValue = mf.value;
+      setFmt('underline', true);
+    }
+    updateInsertState();
+  });
+  let lastGeometryChange = 0;
+
+  let kbReady = false;
+  function setupMathLive() {
+    if (!hasMathLive || kbReady) return;
+    kbReady = true;
+    try { MathfieldElement.soundsDirectory = null; } catch { /* bỏ qua */ }
+    mf.smartFence = true;
+    injectShadowCss();
+    // Sau mỗi phím MathLive gọi scrollIntoView() nội bộ 2 lần: vẽ lại ngay + đo bố cục + cuộn tới con trỏ, ép trình duyệt
+    // tính lại bố cục đồng bộ (~200ms/25 phím trên máy chậm). Hàm này cũng là nơi MathLive vẽ lại công thức nên không bỏ được:
+    // gộp lại tối đa một lần mỗi khung hình. Bỏ phần cuộn cả trang của nó (bảng soạn cố định, không cần).
+    mf.onScrollIntoView = () => {};
+    const inner = mf._mathfield;
+    if (inner && typeof inner.scrollIntoView === 'function') {
+      const original = inner.scrollIntoView.bind(inner);
+      let frame = 0;
+      inner.scrollIntoView = () => {
+        if (frame) return;
+        frame = requestAnimationFrame(() => { frame = 0; original(); scheduleCaret(); });
+      };
+    }
+    // Chặn lệnh xoá lùi để xoá được cả dòng (joinLineBackward). Phím ⌫ ảo gọi performWithFeedback(deleteBackward),
+    // Backspace máy tính gọi deleteBackward; cả hai đều đi qua executeCommand của đối tượng nội bộ.
+    if (inner && typeof inner.executeCommand === 'function') {
+      const exec = inner.executeCommand.bind(inner);
+      let busy = false;
+      rawDelete = () => { const was = busy; busy = true; try { return exec('deleteBackward'); } finally { busy = was; } };
+      const isDeleteBackward = (c) => c === 'deleteBackward' || c === 'performWithFeedback(deleteBackward)'
+        || (Array.isArray(c) && (c[0] === 'deleteBackward' || (c[0] === 'performWithFeedback' && c[1] === 'deleteBackward')));
+      inner.executeCommand = (cmd, ...rest) => {
+        if (!busy && isDeleteBackward(cmd)) {
+          busy = true;
+          try { if (joinLineBackward()) return true; } finally { busy = false; }
+        }
+        return exec(cmd, ...rest);
+      };
+    }
+    mf.popoverPolicy = 'off';
+    mf.mathModeSpace = '\\;'; // dấu cách trên bàn phím máy chèn khoảng trắng (mặc định MathLive bỏ qua trong công thức)
+    mf.menuItems = [];
+    const kb = window.mathVirtualKeyboard;
+    kb.layouts = LAYOUTS;
+    const place = () => {
+      const h = kb.visible ? kb.boundingRect.height : 0;
+      lastGeometryChange = performance.now();
+      document.documentElement.style.setProperty('--ml-kb-h', h + 'px');
+      requestAnimationFrame(fitKeycaps);
+    };
+    kb.addEventListener('geometrychange', place);
+    kb.addEventListener('virtual-keyboard-toggle', place);
+    // Đổi tab (lớp phím) thì co ký hiệu của tab mới cho vừa ô
+    document.addEventListener('click', (ev) => { if (ev.target.closest('.MLK__toolbar')) setTimeout(fitKeycaps, 30); });
+    mf.addEventListener('input', updateInsertState);
+    mf.addEventListener('keydown', (ev) => { if (ev.key === 'Escape') { ev.preventDefault(); closeEditor(false); } }, true);
+  }
+
+  function formulaAt(field) {
+    const p = field.selectionStart;
+    if (p !== field.selectionEnd) return null;
+    return segments(field.value).find((s) => s.type === 'f' && s.s < p && p < s.e) ?? null;
+  }
+  // Bấm f(x): con trỏ đang nằm trong một công thức thì sửa công thức đó, không thì soạn công thức mới tại con trỏ
+  function openEditor(field, { range, latex = '', template } = {}) {
+    if (!hasMathLive) return;
+    setupMathLive();
+    const inside = range ? null : formulaAt(field);
+    state.editing = {
+      field,
+      range: range ?? (inside ? [inside.s, inside.e] : [field.selectionStart, field.selectionEnd]),
+      isEdit: !!(range || inside),
+    };
+    if (inside) latex = inside.latex;
+    field.blur();
+    scrim.hidden = false; sheet.hidden = false;
+    insertBtn.textContent = state.editing.isEdit ? 'Lưu' : 'Chèn';
+    mfScale = 1; mf.style.fontSize = '';
+    mf.value = latex;
+    resetFmt();
+    injectShadowCss();
+    mf.focus();
+    mf.applyStyle({ variantStyle: '' });
+    if (template) mf.executeCommand(['insert', template, { selectionMode: 'placeholder' }]);
+    window.mathVirtualKeyboard.show({ animate: true });
+    flushInsertState();
+    renderState();
+  }
+  function currentLatex() {
+    let v = '';
+    try { v = mf.getValue('latex-expanded'); } catch { v = mf.value; }
+    // \mathstrut chỉ để dòng mới trống không hiện ô ▢; dòng đã có nội dung thì bỏ đi cho chuỗi lưu gọn
+    // (MathLive xuất \mathstrut thành \vphantom{(} ở định dạng latex-expanded)
+    return (v || '').replace(/(\\mathstrut|\\vphantom\{\(\})\s*(?!\s*(\\\\|\\end\{))/g, '').trim();
+  }
+  // Gõ nhanh: việc kiểm tra nút Chèn / dòng gợi ý / cỡ chữ chỉ chạy khi ngừng gõ ~0,15 giây (mỗi lần chạy phải đọc lại
+  // cả chuỗi LaTeX và đo bố cục). Bấm Chèn thì luôn kiểm tra lại ngay (flushInsertState).
+  const IDLE_MS = 150;
+  let insertTimer = 0;
+  function updateInsertState() {
+    clearTimeout(insertTimer);
+    insertTimer = setTimeout(flushInsertState, IDLE_MS);
+  }
+  function flushInsertState() {
+    clearTimeout(insertTimer);
+    fitField();
+    const v = currentLatex();
+    const blank = /\\placeholder/.test(v);
+    const text = blank ? 'Còn ô trống ▢, điền hết rồi bấm Chèn' : v ? 'Bấm Chèn để đưa vào nhận xét' : 'Gõ hoặc bấm phím bên dưới';
+    if (insertBtn.disabled !== (!v || blank)) insertBtn.disabled = !v || blank;
+    if (hint.textContent !== text) { hint.textContent = text; hint.classList.toggle('warn', blank); }
+    return !insertBtn.disabled;
+  }
+  function closeEditor(commit) {
+    const ed = state.editing; if (!ed) return;
+    const { field, range } = ed;
+    let caret = range[1];
+    if (commit) {
+      const text = '\\(' + currentLatex() + '\\)';
+      field.setRangeText(text, range[0], range[1], 'end');
+      field.dispatchEvent(new Event('input', { bubbles: true }));
+      caret = range[0] + text.length;
+    }
+    state.editing = null;
+    pick.hidden = true;
+    window.mathVirtualKeyboard.hide({ animate: false });
+    mf.blur();
+    sheet.hidden = true; scrim.hidden = true;
+    document.documentElement.style.setProperty('--ml-kb-h', '0px');
+    field.focus({ preventScroll: true });
+    try { field.setSelectionRange(caret, caret); } catch { /* bỏ qua */ }
+    updatePreview(field); renderState();
+  }
+  // Hệ n / Hoặc n: chặn phím trước khi MathLive xử lý, hỏi số dòng rồi chèn
+  const pick = $('#pick'), pickRow = $('#pick-row');
+  let pickKind = null;
+  window.addEventListener('pointerdown', (ev) => {
+    const kc = ev.target.closest?.('.MLK__keycap.mk-pick');
+    if (!kc) return;
+    ev.preventDefault(); ev.stopImmediatePropagation();
+    pickKind = kc.textContent.trim().startsWith('Hệ') ? 'cases' : 'or';
+    $('#pick-title').textContent = pickKind === 'cases' ? 'Hệ mấy dòng?' : 'Hoặc mấy dòng?';
+    // 2 và 3 dòng đã có phím riêng nên chỉ hỏi từ 4 dòng trở lên
+    pickRow.innerHTML = [4, 5, 6, 7, 8, 9].map((n) => `<button type="button" data-n="${n}">${n}</button>`).join('');
+    pick.hidden = false;
+  }, true);
+  ['pointerup', 'click'].forEach((t) => window.addEventListener(t, (ev) => {
+    if (ev.target.closest?.('.MLK__keycap.mk-pick')) { ev.preventDefault(); ev.stopImmediatePropagation(); }
+  }, true));
+  pickRow.addEventListener('click', (ev) => {
+    const b = ev.target.closest('[data-n]'); if (!b) return;
+    pick.hidden = true;
+    mf.focus();
+    mf.executeCommand(['insert', systemLatex(pickKind, +b.dataset.n), { selectionMode: 'placeholder' }]);
+    updateInsertState();
+  });
+  $('#pick-close').addEventListener('click', () => { pick.hidden = true; mf.focus(); });
+
+  // Bỏ qua lần bấm ngay sau khi bàn phím đổi cỡ: bảng soạn vừa xê dịch, ngón tay có thể chạm nhầm nút
+  const settled = () => performance.now() - lastGeometryChange > 350;
+  $('#mf-cancel').addEventListener('click', () => { if (settled()) closeEditor(false); });
+  insertBtn.addEventListener('click', () => { if (flushInsertState() && settled()) closeEditor(true); });
+
+  // ---------- Sự kiện chung ----------
+  document.addEventListener('pointerdown', (ev) => {
+    if (ev.target.closest('.kb-btn, .send, .preview')) ev.preventDefault(); // giữ con trỏ trong ô nhập
+  });
+  document.addEventListener('click', (ev) => {
+    const f = ev.target.closest('.preview .f[role="button"]');
+    if (f) { editFormula(f); return; }
+    const kb = ev.target.closest('.kb-btn');
+    if (kb) { openEditor(document.getElementById(kb.dataset.for)); return; }
+    const s = ev.target.closest('.send');
+    if (s) send(s.dataset.send);
+  });
+  function editFormula(span) {
+    const field = document.getElementById(span.dataset.field);
+    const s = +span.dataset.s, e = +span.dataset.e;
+    const seg = segments(field.value).find((x) => x.type === 'f' && x.s === s && x.e === e);
+    if (seg) openEditor(field, { range: [s, e], latex: seg.latex });
+  }
+  document.addEventListener('keydown', (ev) => {
+    if (ev.key === 'Escape' && state.editing) { closeEditor(false); return; }
+    if (ev.key === 'Enter' && ev.target.matches?.('.preview .f[role="button"]')) { ev.preventDefault(); editFormula(ev.target); }
+  });
+  document.querySelectorAll('.field').forEach((field) => {
+    field.addEventListener('input', () => { updatePreview(field); renderState(); });
+    ['click', 'keyup', 'focus'].forEach((t) => field.addEventListener(t, renderState));
+  });
+
+  function updatePreview(field) {
+    const el = document.getElementById('preview-' + field.id);
+    if (!hasFormula(field.value)) { el.hidden = true; el.textContent = ''; return; }
+    el.hidden = false;
+    el.textContent = '';
+    const lbl = document.createElement('span');
+    lbl.className = 'lbl';
+    lbl.textContent = 'Xem trước (bấm vào để sửa)';
+    el.appendChild(lbl);
+    const body = document.createElement('span');
+    renderMixed(body, field.value, { editableFor: field.id });
+    el.appendChild(body);
+    fitFormulas(el);
+  }
+
+  // ---------- Bình luận mẫu, gửi ----------
+  const comments = {
+    'f-photo': [
+      { author: 'Cô Hạnh', text: String.raw`Bước 2 em sai: \(f'(x)=3x^{2}-6x\), không phải \(3x^{2}-6\). Xét dấu lại: \(f'(x)\ge 0\Leftrightarrow x\in(-\infty;0]\cup[2;+\infty)\).` },
+      { author: 'Cô Hạnh', text: String.raw`Câu 4 đáp số đúng là \(\int_{0}^{1}\left(x^{2}+1\right)\,dx=\frac{4}{3}\) nhé, em quên cộng 1.` },
+    ],
+    'f-disc': [
+      { author: 'Nguyễn Minh Khoa (HS)', text: String.raw`Cô ơi câu 3: \(\lim_{x\to+\infty}\frac{2x+1}{x-3}=2\) đúng không ạ? Còn hệ \(\begin{cases}x+y=3\\2x-y=0\end{cases}\) em ra \(x=1\).` },
+    ],
+  };
+  function renderComments() {
+    for (const id of Object.keys(comments)) {
+      const box = document.getElementById('comments-' + id);
+      box.textContent = '';
+      for (const c of comments[id]) {
+        const wrapEl = document.createElement('div'); wrapEl.className = 'comment';
+        const a = document.createElement('div'); a.className = 'comment-author'; a.textContent = c.author;
+        const body = document.createElement('div'); body.className = 'comment-content';
+        renderMixed(body, c.text);
+        wrapEl.append(a, body); box.appendChild(wrapEl);
+      }
+      fitFormulas(box);
+    }
+  }
+  function send(id) {
+    const field = document.getElementById(id);
+    const text = field.value.trim(); if (!text) return;
+    comments[id].push({ author: 'Bạn', text });
+    state.lastSent = text;
+    field.value = '';
+    updatePreview(field); renderComments(); renderState();
+  }
+
+  // ---------- Bảng kiểm tra ----------
+  function renderState() {
+    const f = state.editing?.field || (document.activeElement?.classList?.contains('field') ? document.activeElement : null);
+    const live = f && f.value ? f.value : null;
+    const src = live ?? state.lastSent ?? comments['f-photo'][0].text;
+    $('#st-src-title').textContent = live ? 'Chuỗi lưu trên Firestore (ô đang gõ)' : state.lastSent ? 'Chuỗi lưu trên Firestore (bình luận vừa gửi)' : 'Chuỗi lưu trên Firestore (bình luận mẫu đầu tiên)';
+    $('#st-src').textContent = src;
+    $('#st-mail').textContent = toEmail(src);
+    $('#st-misc').textContent = [
+      `bảng soạn  :${state.editing ? (state.editing.isEdit ? 'đang sửa công thức' : 'đang soạn công thức mới') + ' · ' + currentLatex() : 'đóng'}`,
+      `thư viện   : KaTeX ${hasKatex ? katex.version : 'lỗi'} · MathLive ${hasMathLive ? (window.MathLive?.version?.mathlive ?? 'đã tải') : 'lỗi'}`,
+    ].join('\n');
+  }
+  if (hasMathLive) customElements.whenDefined('math-field').then(setupMathLive);
+  renderComments(); renderState();
+})();
+</script>

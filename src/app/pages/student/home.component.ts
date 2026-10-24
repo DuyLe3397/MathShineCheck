@@ -8,6 +8,7 @@ import { AuthService } from '../../services/auth.service';
 import { FirestoreService } from '../../services/firestore.service';
 import { StudentNotificationService } from '../../services/student-notification.service';
 import { StudentNavbarComponent } from './student-navbar.component';
+import { MathPlainPipe } from '../../shared/math/math-plain.pipe';
 import {
   Assignment,
   Submission,
@@ -40,7 +41,7 @@ interface PendingRequest {
 @Component({
   selector: 'app-student-home',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterModule, StudentNavbarComponent],
+  imports: [CommonModule, FormsModule, RouterModule, StudentNavbarComponent, MathPlainPipe],
   styles: [
     `
       :host {
@@ -347,7 +348,7 @@ interface PendingRequest {
                   {{ item.sessionDate | date: 'dd/MM/yyyy' }}
                 </div>
                 @if (item.description) {
-                  <div class="assignment-desc">{{ item.description }}</div>
+                  <div class="assignment-desc">{{ item.description | mathPlain }}</div>
                 }
               </div>
               @if (item.isCompleted) {
@@ -553,14 +554,45 @@ export class StudentHomeComponent implements OnInit, OnDestroy {
     });
 
     return assignments.map((assignment) => {
-      const subs = (submissionsByAssignment.get(assignment.id) || [])
-        .slice()
-        .sort((a, b) => {
-          const aNum = a.attemptNumber ?? Number.MAX_SAFE_INTEGER;
-          const bNum = b.attemptNumber ?? Number.MAX_SAFE_INTEGER;
-          if (aNum !== bNum) return aNum - bNum;
-          return (a.submittedAt || '').localeCompare(b.submittedAt || '');
-        });
+      const rawSubs = submissionsByAssignment.get(assignment.id) || [];
+
+      // Nhóm theo attemptNumber: nếu có nhiều bản ghi trùng lần nộp (do lag/concurrency cũ),
+      // ưu tiên bản đã chấm, sau đó ưu tiên bản nộp mới nhất theo submittedAt.
+      const subsByAttempt = new Map<number, Submission>();
+      for (const sub of rawSubs) {
+        const attempt = sub.attemptNumber || 1;
+        const existing = subsByAttempt.get(attempt);
+        if (!existing) {
+          subsByAttempt.set(attempt, sub);
+        } else {
+          const existingGrade = gradeBySubmissionId.get(existing.id);
+          const subGrade = gradeBySubmissionId.get(sub.id);
+          const hasExistingGrade =
+            existingGrade &&
+            existingGrade.scoreValue !== undefined &&
+            existingGrade.scoreValue !== null;
+          const hasSubGrade =
+            subGrade &&
+            subGrade.scoreValue !== undefined &&
+            subGrade.scoreValue !== null;
+
+          if (!hasExistingGrade && hasSubGrade) {
+            subsByAttempt.set(attempt, sub);
+          } else if (!hasExistingGrade && !hasSubGrade) {
+            if ((sub.submittedAt || '') > (existing.submittedAt || '')) {
+              subsByAttempt.set(attempt, sub);
+            }
+          }
+        }
+      }
+
+      const subs = Array.from(subsByAttempt.values()).sort((a, b) => {
+        const aNum = a.attemptNumber ?? Number.MAX_SAFE_INTEGER;
+        const bNum = b.attemptNumber ?? Number.MAX_SAFE_INTEGER;
+        if (aNum !== bNum) return aNum - bNum;
+        return (a.submittedAt || '').localeCompare(b.submittedAt || '');
+      });
+
       const attempts: AttemptInfo[] = [];
       let bestScore: number | undefined;
       let isCompleted = false;
@@ -589,12 +621,17 @@ export class StudentHomeComponent implements OnInit, OnDestroy {
         });
       }
 
+      const maxAttempt =
+        attempts.length > 0
+          ? Math.max(...attempts.map((a) => a.attemptNumber))
+          : 0;
+
       return {
         ...assignment,
         attempts,
         bestScore,
         isCompleted,
-        nextAttemptNumber: subs.length + 1,
+        nextAttemptNumber: maxAttempt + 1,
       };
     });
   }
@@ -646,7 +683,9 @@ export class StudentHomeComponent implements OnInit, OnDestroy {
       const subs = await firstValueFrom(
         this.firestoreService.getAllSubmissionsByStudentAndAssignment(studentId, assignmentId),
       );
-      return subs.length > 0 ? subs[subs.length - 1].attemptNumber || subs.length : 1;
+      if (subs.length === 0) return 1;
+      const attemptNumbers = subs.map((s) => s.attemptNumber || 1);
+      return Math.max(...attemptNumbers);
     } catch {
       return 1;
     }

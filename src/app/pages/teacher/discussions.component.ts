@@ -11,6 +11,10 @@ import { TeacherNotificationBellComponent } from '../../shared/components/teache
 import { RefreshButtonComponent } from '../../shared/components/refresh-button.component';
 import { ImageService } from '../../services/image.service';
 import { Group, SchoolClass, Discussion, DiscussionReply } from '../../models';
+import { AutoGrowDirective } from '../../shared/auto-grow.directive';
+import { MathTextComponent } from '../../shared/math/math-text.component';
+import { FormulaButtonComponent } from '../../shared/math/formula-button.component';
+import { FormulaPreviewComponent } from '../../shared/math/formula-preview.component';
 
 interface DiscussionWithReplies extends Discussion {
   replies: DiscussionReply[];
@@ -27,6 +31,10 @@ interface DiscussionWithReplies extends Discussion {
     RouterModule,
     NavbarComponent,
     TeacherNotificationBellComponent, RefreshButtonComponent,
+    AutoGrowDirective,
+    MathTextComponent,
+    FormulaButtonComponent,
+    FormulaPreviewComponent,
   ],
   styles: [
     `
@@ -287,6 +295,8 @@ interface DiscussionWithReplies extends Discussion {
         font-size: 0.95rem;
         color: #1e293b;
         margin-bottom: 0.25rem;
+        white-space: pre-wrap;
+        overflow-wrap: anywhere;
       }
       .discussion-meta {
         font-size: 0.75rem;
@@ -344,6 +354,7 @@ interface DiscussionWithReplies extends Discussion {
       .reply-content {
         color: #334155;
         word-break: break-word;
+        white-space: pre-wrap;
       }
       .reply-time {
         font-size: 0.7rem;
@@ -359,9 +370,14 @@ interface DiscussionWithReplies extends Discussion {
         display: flex;
         gap: 0.5rem;
         margin-top: 0.5rem;
+        align-items: flex-end;
       }
       .reply-input {
         flex: 1;
+        min-width: 0;
+        font-family: inherit;
+        line-height: 1.4;
+        resize: none;
         padding: 0.45rem 0.65rem;
         border: 1px solid #e2e8f0;
         border-radius: 8px;
@@ -462,16 +478,18 @@ interface DiscussionWithReplies extends Discussion {
         flex-shrink: 0;
       }
       .menu-btn {
-        background: none;
-        border: none;
+        background: #fff;
+        border: 1px solid #cbd5e1;
         cursor: pointer;
         font-size: 1.1rem;
-        padding: 0 4px;
-        color: #94a3b8;
-        border-radius: 4px;
+        line-height: 1;
+        padding: 2px 6px;
+        color: #64748b;
+        border-radius: 6px;
       }
       .menu-btn:hover {
         background: #f1f5f9;
+        border-color: #94a3b8;
         color: #1e293b;
       }
       .menu-popup {
@@ -523,6 +541,9 @@ interface DiscussionWithReplies extends Discussion {
         border: 1px solid #e2e8f0;
         border-radius: 6px;
         font-size: 0.85rem;
+        font-family: inherit;
+        line-height: 1.4;
+        resize: none;
       }
       .edit-actions {
         display: flex;
@@ -625,11 +646,17 @@ interface DiscussionWithReplies extends Discussion {
               <div class="create-form">
                 <div class="form-group">
                   <label>Nội dung câu hỏi</label>
-                  <textarea
-                    class="form-input"
-                    placeholder="Nhập nội dung câu hỏi..."
-                    [(ngModel)]="newContent"
-                  ></textarea>
+                  <formula-preview [field]="newField" [text]="newContent" />
+                  <div class="fx-row">
+                    <textarea
+                      #newField
+                      class="form-input"
+                      enterkeyhint="enter"
+                      placeholder="Nhập nội dung câu hỏi..."
+                      [(ngModel)]="newContent"
+                    ></textarea>
+                    <formula-button [field]="newField" />
+                  </div>
                 </div>
                 <div class="form-actions">
                   <button class="form-btn btn-cancel" (click)="cancelNew()">
@@ -689,11 +716,19 @@ interface DiscussionWithReplies extends Discussion {
                   <div class="discussion-header">
                     @if (editingId() === d.id) {
                       <div class="edit-area" (click)="$event.stopPropagation()">
-                        <input
-                          class="edit-input"
-                          [(ngModel)]="editContent"
-                          placeholder="Nội dung..."
-                        />
+                        <formula-preview [field]="editField" [text]="editContent()" />
+                        <div class="fx-row">
+                          <textarea
+                            #editField
+                            class="edit-input"
+                            rows="1"
+                            autoGrow
+                            enterkeyhint="enter"
+                            [(ngModel)]="editContent"
+                            placeholder="Nội dung..."
+                          ></textarea>
+                          <formula-button [field]="editField" />
+                        </div>
                         <label class="reply-img-btn">
                           🖇️
                           <input
@@ -719,7 +754,7 @@ interface DiscussionWithReplies extends Discussion {
                       </div>
                     } @else {
                       <div>
-                        <div class="discussion-title">{{ d.content }}</div>
+                        <div class="discussion-title"><math-text [text]="d.content" /></div>
                         @if (d.imageUrl) {
                           <img
                             [src]="d.imageUrl"
@@ -797,11 +832,19 @@ interface DiscussionWithReplies extends Discussion {
                               class="edit-area"
                               (click)="$event.stopPropagation()"
                             >
-                              <input
-                                class="edit-input"
-                                [(ngModel)]="editContent"
-                                placeholder="Nội dung..."
-                              />
+                              <formula-preview [field]="replyEditField" [text]="editContent()" />
+                              <div class="fx-row">
+                                <textarea
+                                  #replyEditField
+                                  class="edit-input"
+                                  rows="1"
+                                  autoGrow
+                                  enterkeyhint="enter"
+                                  [(ngModel)]="editContent"
+                                  placeholder="Nội dung..."
+                                ></textarea>
+                                <formula-button [field]="replyEditField" />
+                              </div>
                               <label class="reply-img-btn">
                                 🖇️
                                 <input
@@ -832,7 +875,7 @@ interface DiscussionWithReplies extends Discussion {
                               </div>
                             </div>
                           } @else {
-                            <div class="reply-content">{{ reply.content }}</div>
+                            <div class="reply-content"><math-text [text]="reply.content" /></div>
                             @if (reply.imageUrl) {
                               <img
                                 [src]="reply.imageUrl"
@@ -874,15 +917,20 @@ interface DiscussionWithReplies extends Discussion {
                       </div>
                     }
 
+                    <formula-preview [field]="replyField" [text]="replyTexts()[d.id]" />
                     <div class="reply-form">
-                      <input
+                      <textarea
+                        #replyField
                         class="reply-input"
-                        type="text"
+                        rows="1"
+                        autoGrow
+                        enterkeyhint="enter"
                         placeholder="Viết phản hồi..."
                         [ngModel]="replyTexts()[d.id] || ''"
                         (ngModelChange)="updateReplyText(d.id, $event)"
                         (click)="$event.stopPropagation()"
-                      />
+                      ></textarea>
+                      <formula-button [field]="replyField" />
                       <label
                         class="reply-img-btn"
                         (click)="$event.stopPropagation()"

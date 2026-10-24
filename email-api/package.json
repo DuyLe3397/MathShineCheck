@@ -1,0 +1,15 @@
+{
+  "name": "mathshine-email-api",
+  "private": true,
+  "type": "module",
+  "description": "Gửi Email thông báo cho giáo viên khi học sinh nộp bài, bình luận hoặc thảo luận (xem docs/adr/0003).",
+  "scripts": {
+    "test": "node --test"
+  },
+  "engines": {
+    "node": "22.x"
+  },
+  "dependencies": {
+    "nodemailer": "^6.9.16"
+  }
+}

@@ -7,6 +7,7 @@ import { AuthService } from '../../services/auth.service';
 import { NavbarComponent } from '../../shared/components/navbar.component';
 import { TeacherNotificationBellComponent } from '../../shared/components/teacher-notification-bell.component';
 import { RefreshButtonComponent } from '../../shared/components/refresh-button.component';
+import { MathTextComponent } from '../../shared/math/math-text.component';
 import { Assignment, Student, Submission, Grade } from '../../models';
 import { firstValueFrom, forkJoin } from 'rxjs';
 
@@ -21,7 +22,7 @@ interface StudentSubmissionRow {
 @Component({
   selector: 'app-assignment-detail',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterModule, NavbarComponent, TeacherNotificationBellComponent, RefreshButtonComponent],
+  imports: [CommonModule, FormsModule, RouterModule, NavbarComponent, TeacherNotificationBellComponent, RefreshButtonComponent, MathTextComponent],
   styles: [
     `
       :host {
@@ -391,7 +392,7 @@ interface StudentSubmissionRow {
               <span
                 >Ngày: {{ assignment.sessionDate | date: 'dd/MM/yyyy' }}</span
               >
-              <span>{{ assignment.description }}</span>
+              <span style="white-space: pre-wrap;"><math-text [text]="assignment.description" /></span>
             </div>
           </div>
 
@@ -595,11 +596,9 @@ export class AssignmentDetailComponent implements OnInit {
   ): void {
     const rows: StudentSubmissionRow[] = [];
     for (const student of students) {
-      const studentSubmissions = submissions
-        .filter((s) => s.studentId === student.uid)
-        .sort((a, b) => (b.attemptNumber || 0) - (a.attemptNumber || 0));
+      const rawSubmissions = submissions.filter((s) => s.studentId === student.uid);
 
-      if (studentSubmissions.length === 0) {
+      if (rawSubmissions.length === 0) {
         rows.push({
           student,
           submission: null,
@@ -609,6 +608,40 @@ export class AssignmentDetailComponent implements OnInit {
         });
         continue;
       }
+
+      // Nhóm theo attemptNumber: nếu có nhiều bản ghi trùng lần nộp (do lag/concurrency cũ),
+      // ưu tiên bản đã chấm, sau đó ưu tiên bản nộp mới nhất theo submittedAt.
+      const subsByAttempt = new Map<number, Submission>();
+      for (const sub of rawSubmissions) {
+        const attempt = sub.attemptNumber || 1;
+        const existing = subsByAttempt.get(attempt);
+        if (!existing) {
+          subsByAttempt.set(attempt, sub);
+        } else {
+          const existingGrade = grades.find((g) => g && g.submissionId === existing.id);
+          const subGrade = grades.find((g) => g && g.submissionId === sub.id);
+          const hasExistingGrade =
+            existingGrade &&
+            existingGrade.scoreValue !== undefined &&
+            existingGrade.scoreValue !== null;
+          const hasSubGrade =
+            subGrade &&
+            subGrade.scoreValue !== undefined &&
+            subGrade.scoreValue !== null;
+
+          if (!hasExistingGrade && hasSubGrade) {
+            subsByAttempt.set(attempt, sub);
+          } else if (!hasExistingGrade && !hasSubGrade) {
+            if ((sub.submittedAt || '') > (existing.submittedAt || '')) {
+              subsByAttempt.set(attempt, sub);
+            }
+          }
+        }
+      }
+
+      const studentSubmissions = Array.from(subsByAttempt.values()).sort(
+        (a, b) => (b.attemptNumber || 0) - (a.attemptNumber || 0),
+      );
 
       for (const sub of studentSubmissions) {
         const grade =
@@ -647,9 +680,7 @@ export class AssignmentDetailComponent implements OnInit {
 
     try {
       await this.firestoreService.deleteSubmissionFull(sub.id);
-      row.submission = null;
-      row.grade = null;
-      row.status = 'Chưa nộp';
+      await this.refresh();
     } catch (err: any) {
       alert('Lỗi khi xóa: ' + (err.message || ''));
     }

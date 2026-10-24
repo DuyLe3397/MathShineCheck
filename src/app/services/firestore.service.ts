@@ -42,6 +42,10 @@ import {
   TeacherNotification,
   HiddenAssignments,
 } from '../models';
+import { environment } from '../../environments/environment';
+
+/** Loại sự kiện mà email-api nhận để gửi Email thông báo. */
+type EmailNoticeKind = 'submission' | 'comment' | 'discussion' | 'reply';
 
 @Injectable({ providedIn: 'root' })
 export class FirestoreService {
@@ -187,6 +191,7 @@ export class FirestoreService {
         where('authorId', '==', uid),
       ),
     );
+    await this.deleteCommentImagesOf(commentSnap.docs.map((d) => d.data()));
     commentSnap.forEach((d) => deleteDoc(d.ref));
     await this.deleteStudent(uid);
   }
@@ -493,7 +498,14 @@ export class FirestoreService {
         where('submissionId', '==', submissionId),
       ),
     );
+    await this.deleteCommentImagesOf(snap.docs.map((d) => d.data()));
     snap.forEach((d) => deleteDoc(d.ref));
+  }
+
+  /** Xóa Ảnh đính kèm của các bình luận sắp bị xóa. */
+  private async deleteCommentImagesOf(comments: any[]): Promise<void> {
+    const ids = comments.flatMap((c) => (c?.['imageIds'] as string[]) || []);
+    if (ids.length) await this.imageService.deleteCommentImages(ids);
   }
 
   // ==================== SUBMISSIONS ====================
@@ -740,8 +752,39 @@ export class FirestoreService {
   }
 
   async createSubmission(data: Partial<Submission>): Promise<string> {
+    const attempt = data.attemptNumber || 1;
+    // Dùng Document ID cố định: {assignmentId}_{studentId}_{attemptNumber}
+    // Đảm bảo tính duy nhất tuyệt đối (idempotency), 100% không thể sinh bản ghi thứ hai dù gặp race condition hay mạng chập chờn.
+    const submissionId =
+      data.assignmentId && data.studentId
+        ? `${data.assignmentId}_${data.studentId}_${attempt}`
+        : null;
+
+    if (submissionId) {
+      const subRef = doc(this.firestore, 'submissions', submissionId);
+      const existing = await getDoc(subRef);
+      if (existing.exists()) {
+        // Bản ghi Lần nộp này đã được lưu trước đó; trả về ID cũ và không gửi thông báo/email lặp lại
+        return submissionId;
+      }
+      await setDoc(subRef, {
+        ...data,
+        attemptNumber: attempt,
+        status: 'submitted',
+        submittedAt: new Date().toISOString(),
+      });
+      await this.notifyTeachersNewSubmission(
+        submissionId,
+        data.studentId || '',
+        data.assignmentId || '',
+      );
+      this.requestEmailNotice('submission', submissionId);
+      return submissionId;
+    }
+
     const ref = await addDoc(collection(this.firestore, 'submissions'), {
       ...data,
+      attemptNumber: attempt,
       status: 'submitted',
       submittedAt: new Date().toISOString(),
     });
@@ -751,8 +794,27 @@ export class FirestoreService {
         data.studentId || '',
         data.assignmentId,
       );
+      this.requestEmailNotice('submission', ref.id);
     }
     return ref.id;
+  }
+
+  /**
+   * Nhờ email-api gửi Email thông báo cho sự kiện vừa tạo. API tự đọc lại
+   * dữ liệu và bỏ qua nếu người viết không phải học sinh. Không chờ, không báo lỗi:
+   * gửi email thất bại thì Thông báo trên thanh vẫn còn (xem docs/adr/0003).
+   */
+  private requestEmailNotice(kind: EmailNoticeKind, id: string): void {
+    if (!environment.emailApiUrl) return;
+    try {
+      fetch(environment.emailApiUrl, {
+        method: 'POST',
+        // text/plain để tránh preflight CORS; keepalive để không bị hủy khi chuyển trang.
+        headers: { 'Content-Type': 'text/plain' },
+        body: JSON.stringify({ kind, id }),
+        keepalive: true,
+      }).catch(() => {});
+    } catch {}
   }
 
   private async notifyTeachersNewSubmission(
@@ -806,6 +868,34 @@ export class FirestoreService {
 
   async updateSubmissionStatus(id: string, status: string): Promise<void> {
     await updateDoc(doc(this.firestore, 'submissions', id), { status });
+  }
+
+  /**
+   * Đồng bộ trạng thái 'graded' cho tất cả bản ghi có cùng số lần nộp của học sinh,
+   * tránh tình trạng giáo viên đã chấm điểm nhưng bản ghi trùng khác vẫn mang status: 'submitted'.
+   */
+  async syncSubmissionsGraded(
+    assignmentId: string,
+    studentId: string,
+    attemptNumber: number,
+  ): Promise<void> {
+    try {
+      const q = query(
+        collection(this.firestore, 'submissions'),
+        where('assignmentId', '==', assignmentId),
+        where('studentId', '==', studentId),
+      );
+      const snap = await getDocs(q);
+      for (const d of snap.docs) {
+        const data = d.data();
+        if (
+          (data['attemptNumber'] || 1) === attemptNumber &&
+          data['status'] !== 'graded'
+        ) {
+          await updateDoc(d.ref, { status: 'graded' });
+        }
+      }
+    } catch {}
   }
 
   async updateSubmissionImageIds(
@@ -953,6 +1043,7 @@ export class FirestoreService {
         data.imageIndex,
         data.authorId,
       );
+      if (data.authorRole !== 'teacher') this.requestEmailNotice('comment', ref.id);
     }
     return ref.id;
   }
@@ -972,6 +1063,8 @@ export class FirestoreService {
       ),
     );
     snap.forEach((d) => deleteDoc(d.ref));
+    const comment = await getDoc(doc(this.firestore, 'comments', id));
+    await this.deleteCommentImagesOf([comment.data()]);
     await deleteDoc(doc(this.firestore, 'comments', id));
   }
 
@@ -1140,6 +1233,7 @@ export class FirestoreService {
       data.content || '',
       data.authorId,
     );
+    this.requestEmailNotice('discussion', ref.id);
     return ref.id;
   }
 
@@ -1205,6 +1299,7 @@ export class FirestoreService {
         data.content || '',
         data.authorId,
       );
+      this.requestEmailNotice('reply', ref.id);
     }
     return {
       id: ref.id,
