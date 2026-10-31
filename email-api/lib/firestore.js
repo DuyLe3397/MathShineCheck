@@ -60,7 +60,24 @@ export async function claimEmail(collection, id, updateTime) {
   return res.ok;
 }
 
-const encodeValue = (v) => (Array.isArray(v) ? { arrayValue: { values: v.map(encodeValue) } } : { stringValue: String(v) });
+function encodeValue(v) {
+  if (Array.isArray(v)) return { arrayValue: { values: v.map(encodeValue) } };
+  if (typeof v === 'number') return Number.isInteger(v) ? { integerValue: String(v) } : { doubleValue: v };
+  if (typeof v === 'boolean') return { booleanValue: v };
+  return { stringValue: String(v) };
+}
+
+/** Tạo document mới (mã tự sinh) với các trường chuỗi, số, boolean, mảng. Trả về mã document. */
+export async function createDoc(collection, data) {
+  const fields = Object.fromEntries(Object.entries(data).map(([k, v]) => [k, encodeValue(v)]));
+  const res = await fetch(`${baseUrl()}/${collection}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ fields }),
+  });
+  if (!res.ok) throw new Error(`Firestore create ${collection}: ${res.status}`);
+  return (await res.json()).name.split('/').pop();
+}
 
 /**
  * Truy vấn một collection. where: [field, 'EQUAL' | 'IN', value]; orderBy: [field, 'ASCENDING' | 'DESCENDING'].
@@ -80,6 +97,20 @@ export async function queryDocs(collection, { where, orderBy, limit } = {}) {
   if (!res.ok) throw new Error(`Firestore query ${collection}: ${res.status}`);
   const rows = await res.json();
   return rows.filter((r) => r.document).map((r) => ({ id: r.document.name.split('/').pop(), ...decodeFields(r.document.fields) }));
+}
+
+/**
+ * Ghi một trường chuỗi, chỉ thành công khi document chưa đổi kể từ lần đọc (precondition updateTime).
+ * Trả về true nếu đã ghi.
+ */
+export async function setStringField(collection, id, field, value, updateTime) {
+  const params = new URLSearchParams({ 'updateMask.fieldPaths': field, 'currentDocument.updateTime': updateTime });
+  const res = await fetch(`${baseUrl()}/${collection}/${encodeURIComponent(id)}?${params}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ fields: { [field]: { stringValue: value } } }),
+  });
+  return res.ok;
 }
 
 /** Gỡ `emailSentAt` khi gửi thất bại để lần gọi sau có thể gửi lại. */

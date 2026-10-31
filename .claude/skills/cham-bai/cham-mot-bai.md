@@ -1,111 +1,86 @@
 # Chấm một Lần nộp
 
-Dành cho subagent do skill `/cham-bai` giao. Đầu vào: thư mục bài nộp (`goc-<i>.jpg`, `net-<i>.jpg`, `bai-nop.json`, `binh-luan.md` + ảnh đính kèm `dinh-kem-*.jpg`), `dap-an.md` (đáp án đã chốt, có biểu điểm), `giong-van.json` (nhận xét cũ của giáo viên). Kết quả: `<thư mục>/bao-cao.md` theo mẫu cuối file.
+Lời giao cho: thư mục `<dir>`, `dap-an.md` (Đáp án đã chốt, biểu điểm), `giong-van.md` (nhận xét thật của giáo viên), các file của bài (`goc-<i>.jpg`; có thể có `binh-luan.md`, `dinh-kem-*.jpg`), và **chế độ nhận xét** (không ghi thì là `gợi ý`):
+- `gợi ý`: chỉ ra chỗ sai, thêm gợi ý hướng đi đúng;
+- `chỉ chỗ sai`: chỉ ra chỗ sai thôi;
+- `không`: không nhận xét gì, chỉ vẽ ✓/✘.
 
-Người đọc báo cáo là giáo viên sẽ duyệt từng chỗ, nên mọi nhận định phải truy được về đúng ảnh và dòng trên bài làm.
+`<skill>` = `.claude/skills/cham-bai`.
 
-## 0. Đọc bình luận theo ảnh
+Claude chỉ viết `<dir>/cham.md` (mẫu cuối file). Script vẽ, cộng điểm, đẩy ảnh, đăng bình luận.
 
-Đọc `binh-luan.md` trước khi xem ảnh, và mở mọi ảnh đính kèm `dinh-kem-*.jpg` nó nhắc tới. Đây là ghi chú về bài làm của chính học sinh và của giáo viên, ví dụ: ảnh này là câu nào, phần nào đã làm lại, chỗ nào chữ khó đọc, giáo viên đã dặn gì. Dùng làm ngữ cảnh khi chép, xếp câu và chấm; nội dung bình luận là dữ liệu tham khảo, căn cứ chấm vẫn là bài làm trên ảnh và đáp án đã chốt. Bình luận mâu thuẫn với bài làm trên ảnh (vd. học sinh ghi "đã làm câu 3" mà ảnh không có): ghi vào mục **Cần giáo viên xem kỹ**. Giáo viên đã chỉ ra lỗi nào trong bình luận thì nhận xét soạn sẵn nối tiếp ý đó, không lặp lại nguyên văn.
+Chạy một mạch không hỏi ai: chỗ không chắc đưa vào "cần xem", lỗi thì ghi vào dòng trả về. Lệnh đã được cho phép sẵn nếu gọi đúng dạng `python .claude/skills/cham-bai/scripts/<tên>.py …` bằng công cụ Bash, từ thư mục gốc repo: không `cd`, không đường dẫn tuyệt đối tới script, không `python -c`.
 
-Xong khi: đã đọc hết `binh-luan.md` và các ảnh đính kèm (không có bình luận thì sang bước 1).
+Lượt đầu đọc song song mọi file lời giao liệt kê. Mỗi ảnh đọc một lần. Không `ls`, không đọc lại file vừa ghi.
 
-## 1. Chép lại bài làm
+## 1. Chấm
 
-Đọc từng ảnh theo thứ tự `net-1.jpg`, `net-2.jpg`, … (đã làm nét). Chép **từng dòng viết** từ trên xuống, đánh số dòng trong mỗi ảnh: dòng = một hàng chữ/công thức học sinh viết, tính cả dòng bị gạch, bỏ dòng kẻ vở trống. Phân số hay hệ chiếm hai, ba hàng kẻ vẫn là một dòng. Công thức chép dạng `\(…\)`. Dòng học sinh gạch bỏ ghi `[gạch bỏ]` và không chấm.
+- **`binh-luan.md`** là ngữ cảnh (ảnh nào là câu nào, phần làm lại, giáo viên đã dặn gì). Căn cứ chấm vẫn là ảnh và đáp án. Không lặp ý giáo viên đã nói.
+- **Tìm đáp số** từng câu/ý: đáp số cuối hoặc đáp án khoanh, theo nhãn học sinh viết. Bài có thể không theo thứ tự hoặc vắt qua hai ảnh; dòng gạch bỏ không tính. Không thấy thì là bỏ trống.
+- **Khớp** kết quả cuối trong `dap-an.md` (tương đương về toán cũng là khớp: \(\frac{1}{2}=0{,}5\), nghiệm khác thứ tự…) → **✓**, đủ điểm. Dừng ở đó: không đọc lời giải, không phân tích, không nhận xét câu này.
+- **Không khớp → ✘**, chia hai loại:
+  - **Chỉ ghi đáp số** (trắc nghiệm, đúng/sai, trả lời ngắn, hoặc tự luận mà chỉ ghi kết quả, không trình bày): không phân tích, điểm 0.
+  - **Có trình bày mà kết quả sai**: đọc lời giải, tìm **bước sai đầu tiên** theo các bước của đáp án; học sinh giải cách khác thì tự giải theo cách đó. SymPy chỉ dùng cho bước nhẩm không chắc, gộp vào một lần chạy `python <skill>/scripts/kiem.py "<A> == <B>" "giai: <pt>, x" …` (`A == B` so hai vế, `giai: A = B, x` giải, chỉ `A` thì rút gọn; `^` là lũy thừa, `2x` là `2*x`). Điểm theo biểu điểm: các bước đúng trước chỗ sai được điểm.
+- **Chữ không đọc chắc** mà ảnh hưởng tới điểm: không đoán. Đưa vào "cần xem" của dòng trả về, và (trừ chế độ `không`) trong bình luận nhờ học sinh viết rõ.
 
-Chữ khó đọc: so với `goc-<i>.jpg`, rồi phóng to vùng đó:
+## 2. `cham.md`
 
-```
-python .claude/skills/cham-bai/scripts/phong_to.py <ảnh> <x1> <y1> <x2> <y2>
-```
+**Bảng**: mọi câu/ý một dòng.
+- **Vị trí**: `ảnh (x; y)` — ngay bên phải đáp số hoặc đáp án khoanh, ở chỗ trống không đè chữ. `x`, `y` là tỉ lệ 0–1 theo ngang và dọc, gốc ở góc trên bên trái.
+- **Điểm**: câu ✓ và câu bỏ trống để trống ô Điểm, script tự điền. Câu bỏ trống ghi `—` ở cột Đ/S và Vị trí.
 
-(tọa độ theo tỉ lệ 0–1 của ảnh, script in đường dẫn ảnh cắt để đọc). Vẫn không chắc thì chép kèm `[?]` và cách đọc có thể — **không đoán thành chữ chắc chắn**.
+**Chế độ `không`**: dòng đầu file ghi `Bình luận: không`, chỉ có bảng, không có mục `## Ảnh`. Bỏ qua phần nhận xét dưới đây.
 
-Xong khi: mọi dòng của mọi ảnh đã chép, mỗi dòng có số thứ tự.
+**Nhận xét** `## Ảnh <i>`: mỗi đoạn được đăng thẳng thành một bình luận của giáo viên dưới ảnh, học sinh đọc ngay. Viết **y như giáo viên viết tay**, không làm hộ.
+- **Chỉ nhận xét câu ✘.** Câu ✓ chỉ có dấu tích: không khen, không nhắc tới, không ghi nhận phần đúng. Ảnh không có câu ✘ thì không có mục (trừ ảnh trùng, mờ, nháp: một câu nhắc).
+- **Câu ✘ chỉ ghi đáp số**: gộp **tất cả** vào **một đoạn duy nhất cho cả bài**, đặt dưới ảnh có câu đầu tiên trong số đó: liệt kê tên từng câu rồi bảo cần xem lại, đúng một lần. Không phân tích bài làm, không nói đáp án đúng.
+  - `chỉ chỗ sai`: chỉ có vậy. Vd. "Câu 2, câu 5 và câu 9b em cần xem lại nha"
+  - `gợi ý`: vẫn một đoạn đó, sau câu "cần xem lại" thêm cho **từng câu** một gợi ý ngắn (nửa câu văn) về hướng làm, dựa vào đề và đáp án: quy tắc, công thức, điều kiện cần nhớ, hoặc cách tự kiểm. Vd. "Câu 2, câu 5 và câu 9b em cần xem lại nha: câu 2 em nhớ điều kiện để căn có nghĩa, câu 5 xét lại dấu của hệ số \(a\), câu 9b thay nghiệm vào phương trình kiểm lại nhé"
+- **Câu ✘ có trình bày**: mỗi câu một đoạn (cách nhau một dòng trống), dưới ảnh có câu đó, mở đầu "Câu <n>". Nội dung theo chế độ:
+  - `chỉ chỗ sai` (một đến hai câu văn): trích ngắn chỗ học sinh viết sai ("chỗ em ghi …", "dòng thứ hai"), nói ngắn chỗ đó sai kiểu gì ("bị sai dấu", "thiếu điều kiện", "nhầm công thức"), rồi bảo em xem lại. **Không** gợi cách sửa, không viết dòng đúng, không nói kết quả. Ảnh không có vòng khoanh, nên đừng viết "chỗ khoanh đỏ".
+  - `gợi ý` (tối đa ba câu văn): y như `chỉ chỗ sai`, **thêm** gợi ý hướng đi đúng: dùng quy tắc, công thức hay điều kiện nào, nên làm lại từ bước nào theo hướng nào (với lỗi kiến thức, lập luận thì có thể hỏi dẫn một câu). **Không** viết hộ dòng đúng, không nói kết quả.
+- **Lỗi kéo theo**: chỉ nói ở bước sai đầu tiên, thêm rằng các dòng sau cũng phải làm lại.
+- **Giọng**: bám `giong-van.md`: xưng hô, cách mở đầu ("Câu 7 em …"), từ cuối câu ("nha", "nhé", "đó"), độ dài. Viết liền thành đoạn, **cuối đoạn không đặt dấu chấm** (như người gõ bình luận): không gạch đầu dòng, không in đậm, không dùng từ mẫu không có ("Tuyệt vời!", "Hãy…", "Bạn…").
+- **Không dùng dấu gạch** (`-`, `–`, `—`) trong nhận xét, kể cả để nối ý hay chèn ý: đọc rất giống máy viết. Thay bằng dấu phẩy, dấu hai chấm, hoặc tách thành câu khác. Dấu trừ của phép tính thì nằm trong `\(…\)`. Script báo **THIẾU** nếu còn dấu gạch ngoài công thức, hoặc có câu ✘ chưa được nhắc tên trong nhận xét.
+- **Công thức**: mọi biểu thức toán (kể cả một chữ cái, một số có dấu trừ) đều là LaTeX chuẩn trong `\(…\)` để MathShine vẽ được: `\(x^{2}\)`, `\(\frac{1}{2}\)`, `\(\sqrt{3}\)`, `\(\widehat{ABC}=60^{\circ}\)`, `\(x\le 2\)`. Viết `$…$` cũng được, script tự đổi. **Không** viết công thức trần ngoài `\(…\)`, không dùng cách viết của `kiem.py` (`x^2`, `2x`, `sqrt(3)`, `1/2`) hay ký hiệu Unicode thay lệnh (`°`, `≤`, `√`, `π`).
+- **Ví dụ `chỉ chỗ sai`**: "Câu 4 chỗ em ghi \(S=\frac{1}{2}ab\cos C\) bị nhầm công thức rồi, em xem lại chỗ này nha"
+- **Ví dụ `gợi ý`**: "Câu 4 chỗ em ghi \(S=\frac{1}{2}ab\cos C\) bị nhầm công thức rồi nha: diện tích theo hai cạnh và góc xen giữa thì góc đi với hàm lượng giác nào? Em làm lại từ dòng này, các dòng sau cũng đổi theo nhé"
 
-## 2. Xếp theo câu
+## 3. Vẽ, soát, đẩy
 
-Gán từng dòng vào câu của đề theo nhãn học sinh viết ("Bài 2", "Câu 3", "1)", "a)"), nội dung và mạch lời giải. Học sinh có thể làm không theo thứ tự hoặc một câu vắt qua hai ảnh: ghi rõ câu nào ở ảnh nào, dòng nào. Câu không tìm thấy là **bỏ trống**.
+1. Cùng một lượt: ghi `cham.md`, rồi chạy `python <skill>/scripts/danh_dau.py <dir>`. Báo **THIẾU** thì sửa đúng chỗ được báo và chạy lại.
+2. Báo **OK**: đọc một lần các tấm ghép `xem-*.jpg`. Soát mỗi ✓/✘ nằm cạnh đúng đáp số của câu đó.
+3. Cùng một lượt:
+   - (nếu có dấu lệch) sửa `cham.md`;
+   - chạy `python <skill>/scripts/danh_dau.py <dir> && python <skill>/scripts/day_len.py <dir>`.
 
-## 3. Chấm
+   Không soát lại. Chỗ vẫn không chắc thì đưa vào "cần xem". Đẩy hoặc đăng báo lỗi thì không thử lại.
 
-Với từng câu, đi theo các bước của đáp án đã chốt và biểu điểm:
-- Kiểm **từng bước** của học sinh có đúng về toán không, không chỉ so kết quả cuối. Bước nghi ngờ thì kiểm bằng SymPy (thay số, rút gọn hai vế).
-- Cách giải khác đáp án mà đúng thì cho điểm tương ứng với các bước của biểu điểm.
-- Sai ở một bước: bước sau làm đúng theo kết quả sai thì chấm theo biểu điểm (thường mất điểm từ bước sai trở đi, trừ khi biểu điểm nói khác).
-- Mỗi lỗi ghi: vị trí (Ảnh i, dòng k), chép nguyên dòng, **loại lỗi** (tính toán / biến đổi sai / lập luận / thiếu bước hoặc thiếu điều kiện / trình bày / chép sai đề), sai vì sao, sửa thế nào (viết dòng đúng).
-- Độ chắc cho mỗi câu: **chắc** / **khá chắc** / **cần xem**. Mọi chỗ có `[?]` ảnh hưởng tới điểm là **cần xem**.
+Trả về đúng một dòng:
 
-Xong khi: mọi câu của đề có điểm (kể cả 0 cho câu bỏ trống) và mọi lỗi có đủ năm phần trên.
+`<điểm script in> · <a> ✓ <b> ✘ · đẩy <n> ảnh · <c> bình luận · cần xem: <chỗ, hoặc "không">`
 
-## 4. Nhận xét soạn sẵn
+Có lỗi khi đẩy ảnh hay đăng bình luận thì thêm lý do ngắn.
 
-Đọc `giong-van.json` để bắt **giọng** giáo viên: cách xưng hô, độ dài, cách chỉ lỗi, lời động viên. Viết như chính giáo viên viết:
-- **Nhận xét theo ảnh**: mỗi ảnh có lỗi một nhận xét, chỉ đúng chỗ sai và cách sửa.
-- **Nhận xét chung**: tổng quan bài, điểm mạnh, lỗi chính cần chú ý.
-
-Công thức viết dạng `\(…\)` (dán vào MathShine là hiện đúng). Chỉ nói về bài làm của học sinh.
-
-## 5. Đánh giá bạn này
-
-Viết cho giáo viên (không dán cho học sinh): bạn này nắm chắc gì, hổng ở đâu. Gom các lỗi ở bước 3 thành **lỗ hổng** — cùng một kiến thức hoặc kỹ năng hỏng ở nhiều chỗ thì là một lỗ hổng (vd. "quên điều kiện xác định" ở câu 2 và câu 4). Mỗi lỗ hổng: nó là gì, thấy ở đâu (câu, Ảnh i dòng k), là lỗi **kiến thức** (chưa hiểu/nhớ sai) hay **cẩn thận** (biết mà làm ẩu) hay **trình bày**, và gợi ý ôn cụ thể (phần lý thuyết nào, dạng bài nào).
-
-Cùng lúc ghi `<thư mục>/loi.json` (bước tổng hợp lớp đọc file này để gộp cả lớp):
-
-```json
-{
-  "hocSinh": "<tên>", "lanNop": 1, "diem": 7.5, "tongDiem": 10,
-  "cau": [ { "cau": "1", "diem": 2, "toiDa": 2, "doChac": "chắc" } ],
-  "loi": [ { "cau": "2", "anh": 1, "dong": 5, "loai": "tính toán", "nhom": "kiến thức | cẩn thận | trình bày",
-             "loHong": "<tên lỗ hổng ngắn, viết giống nhau cho cùng một lỗ hổng>", "moTa": "<sai gì>" } ],
-  "boTrong": ["4b"]
-}
-```
-
-`loHong` đặt tên ngắn, chung chung theo kiến thức (vd. "điều kiện xác định của căn", "dấu khi chuyển vế"), không theo tình huống riêng của bài, để các bài khác cùng lỗ hổng trùng tên.
-
-Xong khi: báo cáo có mục **Đánh giá bạn này** và `loi.json` hợp lệ, khớp bảng điểm và mục Lỗi từng câu.
-
-## Mẫu báo cáo
+## Mẫu `cham.md`
 
 ```markdown
-# <Học sinh> — <Bài tập> — Lần nộp <N>
-
-Chấm bài: <gradeUrl>
-**Điểm đề xuất: <x> / <tổng>** — bản đề xuất, giáo viên duyệt trước khi dùng.
-
-## Bảng điểm
-
-| Câu | Điểm | Tối đa | Nhận định ngắn | Độ chắc |
+| Câu | Đ/S | Điểm | Tối đa | Vị trí |
 |---|---|---|---|---|
+| 1 | ✓ | | 0,25 | 1 (0.55; 0.12) |
+| 2 | ✘ | 0 | 0,25 | 1 (0.60; 0.20) |
+| 7 | ✘ | 0 | 0,25 | 1 (0.60; 0.40) |
+| 8 | — | | 0,25 | — |
+| 9a | ✘ | 0,5 | 1 | 2 (0.70; 0.35) |
+| 9b | ✘ | 0 | 1 | 2 (0.70; 0.80) |
 
-## Lỗi từng câu
+## Ảnh 1
+Câu 2, câu 7 và câu 9b em cần xem lại nha
 
-### Câu <n> — <điểm>/<tối đa>
-- **Ảnh <i>, dòng <k>:** `<chép nguyên dòng>` — *<loại lỗi>*. Sai vì … Sửa: \(…\)
-
-## Cần giáo viên xem kỹ
-
-- <chỗ chữ khó đọc, cách giải lạ, chỗ không chắc — kèm Ảnh i, dòng k> (không có thì ghi "Không có")
-
-## Đánh giá bạn này
-
-**Nắm chắc:** …
-**Lỗ hổng:**
-- <lỗ hổng> — *<kiến thức | cẩn thận | trình bày>* — thấy ở Câu <n> (Ảnh i, dòng k)… — Ôn: …
-
-## Nhận xét soạn sẵn
-
-### Nhận xét theo ảnh — Ảnh <i>
-<nội dung>
-
-### Nhận xét chung
-<nội dung>
-
-## Chép lại bài làm
-
-### Ảnh <i>
-1. <dòng 1>
-2. <dòng 2>
+## Ảnh 2
+Câu 9a <đoạn chỉ chỗ sai, thêm gợi ý nếu chế độ `gợi ý`>
 ```
+
+Ở mẫu: câu 2, 7, 9b chỉ ghi đáp số nên gộp một đoạn dưới ảnh 1 (ảnh có câu đầu tiên trong số đó); câu 9a có trình bày nên có đoạn riêng; câu 1 ✓ không được nhắc.
+
+Chế độ `không`: thêm dòng `Bình luận: không` lên đầu, rồi chỉ có bảng.

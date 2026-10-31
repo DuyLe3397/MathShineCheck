@@ -630,7 +630,6 @@ import { FormulaPreviewComponent } from '../../shared/math/formula-preview.compo
                             </div>
                             @if (editingId() === c.id) {
                               <div class="edit-area" (click)="$event.stopPropagation()">
-                                <formula-preview [field]="editField" [text]="editContent()" />
                                 <div class="fx-row">
                                   <textarea
                                     #editField
@@ -644,6 +643,7 @@ import { FormulaPreviewComponent } from '../../shared/math/formula-preview.compo
                                   ></textarea>
                                   <formula-button [field]="editField" />
                                 </div>
+                                <formula-preview [field]="editField" [text]="editContent()" />
                                 <comment-attachments-editor
                                   #editEditor
                                   [(items)]="editAttachments"
@@ -690,7 +690,6 @@ import { FormulaPreviewComponent } from '../../shared/math/formula-preview.compo
                       }
                     </div>
 
-                    <formula-preview [field]="newCommentField" [text]="newComments()[$index]" />
                     <div class="comment-input-row">
                       <textarea
                         #newCommentField
@@ -716,6 +715,7 @@ import { FormulaPreviewComponent } from '../../shared/math/formula-preview.compo
                         {{ sendingIndex() === $index ? '...' : 'Gửi' }}
                       </button>
                     </div>
+                    <formula-preview [field]="newCommentField" [text]="newComments()[$index]" />
                     <comment-attachments-editor
                       #composer
                       [items]="commentDrafts()[$index] || []"

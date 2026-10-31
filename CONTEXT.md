@@ -55,20 +55,12 @@ Màn hình phóng to khi người dùng bấm vào một Ảnh đính kèm trong
 _Avoid_: lightbox, modal ảnh
 
 **Đáp án đã chốt**:
-Lời giải chuẩn từng câu của một bài tập, kèm biểu điểm từng bước, đã được giáo viên đồng ý. Đây là căn cứ duy nhất để chấm mọi Lần nộp của bài tập đó. Có thể bắt nguồn từ đáp án giáo viên đưa hoặc lời giải Claude đề xuất, nhưng chỉ thành Đáp án đã chốt khi giáo viên chốt.
+Kết quả cuối từng câu của một bài tập, kèm biểu điểm (và lời giải từng bước nếu có), đã được giáo viên đồng ý. Đây là căn cứ duy nhất để chấm mọi Lần nộp của bài tập đó: câu nào học sinh ra đúng kết quả cuối là đúng, chỉ câu sai mới xét lời giải. Có thể bắt nguồn từ đáp án giáo viên đưa (dùng nguyên, không giải lại) hoặc lời giải Claude đề xuất, nhưng chỉ thành Đáp án đã chốt khi giáo viên chốt.
 _Avoid_: đáp án (khi chưa được chốt), key
 
-**Báo cáo chấm**:
-Bản chấm đề xuất cho một Lần nộp: điểm từng câu, từng lỗi ở ảnh nào dòng nào, sai vì sao, sửa thế nào, các chỗ cần giáo viên xem kỹ, và nhận xét soạn sẵn theo giọng giáo viên. Chỉ giáo viên đọc. Học sinh chỉ thấy những gì giáo viên đã duyệt và tự đưa lên MathShine.
-_Avoid_: kết quả chấm, bài AI chấm
-
-**Lỗ hổng**:
-Một kiến thức hoặc kỹ năng học sinh làm hỏng, gom từ các lỗi cùng gốc (vd. quên điều kiện xác định ở hai câu là một Lỗ hổng). Thuộc một trong ba nhóm: kiến thức (chưa hiểu, nhớ sai), cẩn thận (biết mà làm ẩu), trình bày. Gọi tên theo kiến thức, không theo bài cụ thể, để so được giữa các bạn.
-_Avoid_: lỗi (khi nói về gốc chung của nhiều lỗi)
-
-**Tổng hợp lớp**:
-Bản tổng hợp mọi Báo cáo chấm của một bài tập: đánh giá từng bạn, Lỗ hổng chung của lớp, và đề xuất buổi chữa (chữa câu nào, chữa gì, ví dụ từ bài làm thật, bài luyện thêm). Chỉ giáo viên đọc.
-_Avoid_: báo cáo lớp, thống kê
+**Ảnh đã chấm**:
+Ảnh bài làm của học sinh có dấu ✓ (đúng) hoặc ✘ (sai) cạnh đáp số từng câu, có thể kèm vòng đỏ khoanh chỗ sai, đè lên ảnh gốc của Lần nộp. Giáo viên tạo bằng nút "Vẽ"/"Tải ảnh đã chấm" trên trang chấm bài, hoặc skill chấm bài tự vẽ và tải lên cùng nhận xét theo ảnh (bình luận dưới tên giáo viên ra bài). Học sinh thấy ngay. Ảnh gốc chỉ còn ở máy đã chạy skill (để khôi phục).
+_Avoid_: ảnh chữa, ảnh sửa, báo cáo chấm
 
 **Công thức**:
 Một biểu thức toán hiện dạng xếp chồng như sách giáo khoa hoặc máy Casio (phân số, căn trùm biểu thức, tích phân có cận, giới hạn, hệ/tuyển, vectơ có mũi tên…), chèn vào giữa chữ của một nhận xét, thảo luận hoặc mô tả. Một nội dung có thể chứa nhiều Công thức. Có hai cách tạo: soạn trong Bảng soạn công thức, hoặc dán vào ô chữ một lời giải viết sẵn có công thức đánh dấu kiểu LaTeX ($…$, $$…$$, \[…\]). Khi dán, các công thức đó tự thành Công thức; ký tự $ của tiền (giá $5) vẫn là chữ. Trong Email thông báo, Công thức hiện dạng một dòng, như (x+1)/(2x−3), kèm link mở trên MathShine.
@@ -104,6 +96,7 @@ _Avoid_: quyền, permission (khi nói chung chung)
 - Một **Học sinh** có không hoặc nhiều **Lần nộp** cho một **Bài tập**; mỗi **Lần nộp** có nhiều nhất một điểm kèm một **Nhận xét chung**, và không hoặc nhiều **Nhận xét theo ảnh**; với mỗi cặp (Bài tập, Học sinh), mỗi số thứ tự lần (Lần 1, Lần 2...) là **duy nhất** (không bao giờ có hai bản ghi trùng cùng số lần nộp).
 - Mỗi **Nhận xét theo ảnh** có từ 0 đến 3 **Ảnh đính kèm** có thứ tự
 - Mỗi bài trong **Phạm vi thống kê** là **Bài có điểm** hoặc **Bài thiếu điểm** đối với từng học sinh
+- Các danh sách **Bài tập** trên toàn hệ thống (Quản lý bài tập, Trang chủ học sinh, Thống kê, Phân quyền...) luôn được xếp theo **Thời gian tạo** (bài tạo mới nhất xếp trên cùng / bên trái), không phụ thuộc vào ngày buổi học.
 
 ## Example dialogue
 
@@ -118,3 +111,4 @@ _Avoid_: quyền, permission (khi nói chung chung)
 - "Cmt" — có thể là **Nhận xét theo ảnh** trên Lần nộp, hoặc thảo luận/trả lời thảo luận; khi nói về **Email thông báo** thì gồm cả hai.
 - "Có điểm trước" từng được hiểu theo thời gian hoàn thành — đã chốt: chỉ xét số lượng **Bài có điểm**, không xét thời gian.
 - "Học sinh bấm nộp nhiều lần bị trùng bài nộp" — đã chốt: hệ thống bảo đảm tính duy nhất của **Lần nộp** ở cả 3 tầng (khóa đồng bộ UI khi đang nén/tải ảnh, Document ID cố định trên Firestore `{assignmentId}_{studentId}_{attemptNumber}`, và tự động gom nhóm deduplicate trên UI theo số thứ tự lần nộp). Lần nộp tiếp theo luôn tính từ số lần nộp cao nhất hiện có + 1.
+- "Thứ tự bài tập hiển thị theo ngày học hay ngày tạo" — đã chốt: toàn bộ danh sách bài tập sắp xếp theo **Thời gian tạo** giảm dần (mới nhất lên đầu), không phụ thuộc vào ngày buổi học, để bài vừa giao luôn nổi bật ở đầu trang.

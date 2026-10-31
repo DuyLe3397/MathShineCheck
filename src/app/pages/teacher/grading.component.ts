@@ -734,7 +734,6 @@ import { firstValueFrom } from 'rxjs';
                 <div class="comment-author">{{ c.authorName }}</div>
                 @if (editingId() === c.id) {
                   <div class="edit-area" (click)="$event.stopPropagation()">
-                    <formula-preview [field]="editField" [text]="editContent()" />
                     <div class="fx-row">
                       <textarea
                         #editField
@@ -748,6 +747,7 @@ import { firstValueFrom } from 'rxjs';
                       ></textarea>
                       <formula-button [field]="editField" />
                     </div>
+                    <formula-preview [field]="editField" [text]="editContent()" />
                     <comment-attachments-editor
                       #editEditor
                       [(items)]="editAttachments"
@@ -795,7 +795,6 @@ import { firstValueFrom } from 'rxjs';
               Chưa có bình luận cho ảnh này
             </div>
           }
-          <formula-preview [field]="newCommentField" [text]="newCommentText" />
           <div class="comment-input-row">
             <textarea
               #newCommentField
@@ -819,6 +818,7 @@ import { firstValueFrom } from 'rxjs';
               {{ sendingComment() ? '...' : 'Gửi' }}
             </button>
           </div>
+          <formula-preview [field]="newCommentField" [text]="newCommentText" />
           <comment-attachments-editor #composer [(items)]="commentDrafts" />
         </div>
       </div>
@@ -839,7 +839,6 @@ import { firstValueFrom } from 'rxjs';
           </div>
           <div class="form-group" style="flex:2;">
             <label>Nhận xét chung</label>
-            <formula-preview [field]="overallField" [text]="overallComment" />
             <div class="fx-row">
               <textarea
                 #overallField
@@ -850,6 +849,7 @@ import { firstValueFrom } from 'rxjs';
               ></textarea>
               <formula-button [field]="overallField" />
             </div>
+            <formula-preview [field]="overallField" [text]="overallComment" />
           </div>
           <button
             class="btn-save"

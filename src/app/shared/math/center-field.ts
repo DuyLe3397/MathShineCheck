@@ -1,4 +1,4 @@
-// Đưa ô chữ (cùng Xem trước ngay trên nó) ra giữa phần màn hình còn nhìn thấy (docs/adr/0006).
+// Đưa ô chữ (cùng Xem trước ngay dưới nó) ra giữa phần màn hình còn nhìn thấy (docs/adr/0006).
 // Trên điện thoại bàn phím che nửa dưới nhưng trang không co lại (Chrome Android, Safari iPhone): phần nhìn thấy là
 // visualViewport, không phải cửa sổ.
 
@@ -13,10 +13,11 @@ function scrollParent(el: HTMLElement): HTMLElement | null {
 }
 
 /**
- * Cuộn để khối [đỉnh Xem trước … đáy ô chữ] nằm giữa phần nhìn thấy. Khối cao hơn phần nhìn thấy thì để ô chữ
- * sát đáy: luôn thấy chỗ đang gõ, Xem trước thấy được phần gần ô chữ nhất.
+ * Cuộn để khối [đỉnh ô chữ … đáy Xem trước] nằm giữa phần nhìn thấy. Khối cao hơn phần nhìn thấy thì để ô chữ
+ * sát đỉnh: Xem trước thấy được phần gần ô chữ nhất. Riêng ô chữ đã cao hơn phần nhìn thấy thì để đáy ô chữ sát đáy,
+ * để luôn thấy chỗ đang gõ.
  */
-export function centerField(field: HTMLElement, above: HTMLElement | null): void {
+export function centerField(field: HTMLElement, preview: HTMLElement | null): void {
   const vv = window.visualViewport;
   let top = vv ? vv.offsetTop : 0;
   let bottom = top + (vv ? vv.height : window.innerHeight);
@@ -27,12 +28,12 @@ export function centerField(field: HTMLElement, above: HTMLElement | null): void
     bottom = Math.min(bottom, r.bottom);
   }
   const f = field.getBoundingClientRect();
-  const a = above?.getBoundingClientRect();
-  const groupTop = a && a.height ? Math.min(a.top, f.top) : f.top;
+  const p = preview?.getBoundingClientRect();
+  const groupBottom = p && p.height ? Math.max(p.bottom, f.bottom) : f.bottom;
   const room = bottom - top - 2 * MARGIN;
-  const delta = f.bottom - groupTop <= room
-    ? (groupTop + f.bottom) / 2 - (top + bottom) / 2
-    : f.bottom - (bottom - MARGIN);
+  const delta = groupBottom - f.top <= room
+    ? (f.top + groupBottom) / 2 - (top + bottom) / 2
+    : f.height <= room ? f.top - (top + MARGIN) : f.bottom - (bottom - MARGIN);
   if (Math.abs(delta) < 2) return;
   if (box) box.scrollBy({ top: delta, behavior: 'instant' });
   else window.scrollBy({ top: delta, behavior: 'instant' });
@@ -42,8 +43,8 @@ export function centerField(field: HTMLElement, above: HTMLElement | null): void
  * Canh giữa ngay, rồi canh lại khi phần nhìn thấy ngừng đổi cỡ (bàn phím điện thoại đang bật lên) trong khoảng 1 giây.
  * Trả về hàm huỷ.
  */
-export function centerFieldSoon(field: HTMLElement, above: () => HTMLElement | null): () => void {
-  const run = () => centerField(field, above());
+export function centerFieldSoon(field: HTMLElement, preview: () => HTMLElement | null): () => void {
+  const run = () => centerField(field, preview());
   run();
   const vv = window.visualViewport;
   if (!vv) return () => {};

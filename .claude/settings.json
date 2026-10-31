@@ -1,6 +1,11 @@
 {
   "permissions": {
     "allow": [
+      "Bash(python .claude/skills/cham-bai/scripts/*)",
+      "Bash(pip install sympy pillow)",
+      "Edit(cham-bai/**)",
+      "Write(cham-bai/**)",
+      "Read(~/Downloads/**)",
       "Bash(node tc68-check.js)",
       "Bash(node list-tabs.js)",
       "Bash(node snap2.js RM44000)",

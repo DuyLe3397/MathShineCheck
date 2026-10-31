@@ -454,7 +454,6 @@ import { MathPlainPipe } from '../../shared/math/math-plain.pipe';
             </div>
             <div class="form-group" style="margin-top: 12px;">
               <label>Mô tả</label>
-              <formula-preview [field]="descField" [text]="newAssignment.description" />
               <div class="fx-row">
                 <textarea
                   #descField
@@ -465,6 +464,7 @@ import { MathPlainPipe } from '../../shared/math/math-plain.pipe';
                 ></textarea>
                 <formula-button [field]="descField" />
               </div>
+              <formula-preview [field]="descField" [text]="newAssignment.description" />
             </div>
             <div style="margin-top: 16px;">
               <button

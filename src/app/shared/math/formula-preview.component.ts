@@ -8,8 +8,8 @@ import { hasFormula } from './math-text';
 export const previewOf = new WeakMap<Element, HTMLElement>();
 
 /**
- * Phần "Xem trước" ngay trên ô chữ khi nội dung có Công thức; bấm vào công thức để sửa lại trong Bảng soạn.
- * Đặt ngay trước hàng chứa ô chữ. Tự canh trái và rộng đúng bằng ô chữ (không tính nút f(x), đính kèm, Gửi bên cạnh).
+ * Phần "Xem trước" ngay dưới ô chữ khi nội dung có Công thức; bấm vào công thức để sửa lại trong Bảng soạn.
+ * Đặt ngay sau hàng chứa ô chữ. Tự canh trái và rộng đúng bằng ô chữ (không tính nút f(x), đính kèm, Gửi bên cạnh).
  */
 @Component({
   selector: 'formula-preview',

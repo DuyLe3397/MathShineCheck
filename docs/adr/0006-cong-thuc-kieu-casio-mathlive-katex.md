@@ -39,7 +39,7 @@ Chọn mô hình lai:
 - Ô thảo luận chuyển từ `<input>` một dòng sang ô nhiều dòng tự giãn như ô bình luận. Phím Enter là xuống dòng, gửi bằng nút Gửi.
 - Ở mọi ô (ô chữ và Bảng soạn công thức, cả trên điện thoại lẫn máy tính), Enter chỉ xuống dòng. Chỉ nút Gửi mới gửi, và chỉ nút Chèn hoặc Lưu mới đưa công thức vào ô chữ. Các ô chữ đặt `enterkeyhint="enter"` để bàn phím điện thoại hiện phím ↵, không hiện "Gửi"/"Đi".
 - Email thông báo chuyển công thức thành dạng một dòng dễ đọc (`(x+1)/(2x−3)`, `√(x²+1)`, `vt AB`) kèm link mở đúng chỗ trên MathShine.
-- Khi một ô chữ có nút *f*(*x*) nhận con trỏ (bấm/chạm vào ô, hoặc đóng Bảng soạn), trang nhảy ngay để khối [Xem trước + ô chữ] nằm giữa phần màn hình còn nhìn thấy (`center-field.ts`). Khối cao hơn phần nhìn thấy thì ô chữ sát đáy, để luôn thấy chỗ đang gõ. Không tự cuộn khi Xem trước cao lên lúc đang gõ.
+- Khi một ô chữ có nút *f*(*x*) nhận con trỏ (bấm/chạm vào ô, hoặc đóng Bảng soạn), trang nhảy ngay để khối [ô chữ + Xem trước] nằm giữa phần màn hình còn nhìn thấy (`center-field.ts`). Khối cao hơn phần nhìn thấy thì ô chữ sát đỉnh, Xem trước hiện ngay dưới; riêng ô chữ đã cao hơn phần nhìn thấy thì đáy ô chữ sát đáy, để luôn thấy chỗ đang gõ. Không tự cuộn khi Xem trước cao lên lúc đang gõ.
   - Trên điện thoại, bàn phím che nửa dưới nhưng trang không co lại (Chrome Android từ bản 108, Safari iPhone). Vì vậy "giữa" tính theo `visualViewport`, và canh lại khi `visualViewport` ngừng đổi cỡ (bàn phím bật lên xong) trong khoảng 1 giây.
   - Nếu đang nhấn chuột/ngón tay thì đợi nhả tay mới cuộn. Ô chữ nhận con trỏ ngay lúc nhấn xuống; cuộn lúc đó thì chữ trượt dưới chuột và nhả ra sẽ bôi đen nhầm.
 - Dán lời giải viết sẵn có công thức LaTeX (`$…$`, `$$…$$`, `\[…\]`, ví dụ chép từ công cụ AI hoặc file LaTeX) vào ô chữ có nút *f*(*x*): ngay lúc dán, các công thức được đổi sang dạng lưu `\(…\)` (`paste-math.ts`, gắn ở `formula-button.component`).
@@ -56,7 +56,7 @@ Chọn mô hình lai:
 
 - Hiển thị công thức xếp chồng như sách giáo khoa/Casio, cả lúc soạn và lúc xem.
 - Không phải chuyển dữ liệu: nội dung cũ không chứa `\(` nên hiện như trước.
-- Trong ô nhập, công thức vẫn là mã `\(…\)`. Cần phần xem trước ngay trên ô nhập, rộng đúng bằng ô nhập (không tính nút *f*(*x*), đính kèm, Gửi bên cạnh; `formula-preview.component` tự đo và canh theo ô nhập), có viền xanh để dễ nhận ra. Bấm vào công thức trong phần xem trước để sửa lại.
+- Trong ô nhập, công thức vẫn là mã `\(…\)`. Cần phần xem trước ngay dưới ô nhập (trước đây ở trên; giáo viên đổi xuống dưới ngày 2026-10-28), rộng đúng bằng ô nhập (không tính nút *f*(*x*), đính kèm, Gửi bên cạnh; `formula-preview.component` tự đo và canh theo ô nhập), có viền xanh để dễ nhận ra. Bấm vào công thức trong phần xem trước để sửa lại.
 - Trong phần Xem trước, mỗi công thức có một ô nền trắng bấm được, cao và rộng theo đúng công thức (đệm 3px trên dưới, 5px hai bên). Công thức vẫn chảy tiếp sau chữ như một phần của câu. Công thức dài phải xuống dòng thì mỗi đoạn trên mỗi dòng có ô nền riêng, cao theo đoạn đó, không dồn cả công thức xuống dòng mới.
   - Không dùng nền của chính thẻ công thức: thẻ đó nằm trong dòng chữ (inline), nên nền chỉ cao bằng dòng chữ, và phân số, hệ, tích phân tràn ra ngoài.
   - Nếu đổi thẻ thành `inline-block` thì nền phủ kín, nhưng cả công thức sẽ thành một khối liền, không chảy tiếp sau chữ được.

@@ -357,11 +357,17 @@ export class FirestoreService {
     const ref = query(
       collection(this.firestore, 'assignments'),
       where('groupId', '==', groupId),
-      orderBy('sessionDate', 'desc'),
+      orderBy('createdAt', 'desc'),
     );
     return from(getDocs(ref)).pipe(
       map((snap) =>
-        snap.docs.map((d) => ({ id: d.id, ...d.data() }) as Assignment),
+        snap.docs
+          .map((d) => ({ id: d.id, ...d.data() }) as Assignment)
+          .sort((a, b) => {
+            const timeA = a.createdAt || a.sessionDate || '';
+            const timeB = b.createdAt || b.sessionDate || '';
+            return timeB.localeCompare(timeA);
+          }),
       ),
     );
   }
@@ -408,7 +414,7 @@ export class FirestoreService {
     );
   }
 
-  /** Một trang bài tập của nhóm, mới nhất trước; truyền `after` là cursor trang trước. */
+  /** Một trang bài tập của nhóm, tạo mới nhất trước; truyền `after` là cursor trang trước. */
   async getAssignmentsPage(
     groupId: string,
     pageSize: number,
@@ -416,7 +422,7 @@ export class FirestoreService {
   ): Promise<{ items: Assignment[]; cursor?: QueryDocumentSnapshot; hasMore: boolean }> {
     const constraints = [
       where('groupId', '==', groupId),
-      orderBy('sessionDate', 'desc'),
+      orderBy('createdAt', 'desc'),
       ...(after ? [startAfter(after)] : []),
       limit(pageSize),
     ];

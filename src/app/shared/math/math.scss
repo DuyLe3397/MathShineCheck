@@ -73,12 +73,12 @@ $fe-warn: #b45309;
   &.focus { box-shadow: 0 0 0 2px $fe-accent; }
 }
 
-// ---------- Xem trước ngay trên ô chữ (rộng bằng ô chữ: formula-preview.component tự canh) ----------
+// ---------- Xem trước ngay dưới ô chữ (rộng bằng ô chữ: formula-preview.component tự canh) ----------
 .formula-preview {
-  margin-bottom: 6px;
+  margin-top: 6px;
   padding: 8px 10px;
   background: #f1f5f9;
-  border: 1px solid $fe-accent; // viền xanh để dễ nhận ra khung Xem trước, khác với ô chữ phía trên
+  border: 1px solid $fe-accent; // viền xanh để dễ nhận ra khung Xem trước, khác với ô chữ phía trên nó
   border-radius: 8px;
   font-size: 0.92rem;
   line-height: 1.5;

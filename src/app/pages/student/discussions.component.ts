@@ -513,7 +513,6 @@ interface DiscussionWithReplies extends Discussion {
         <div class="create-form">
           <div class="form-group">
             <label>Nội dung câu hỏi</label>
-            <formula-preview [field]="newField" [text]="newContent" />
             <div class="fx-row">
               <textarea
                 #newField
@@ -524,6 +523,7 @@ interface DiscussionWithReplies extends Discussion {
               ></textarea>
               <formula-button [field]="newField" />
             </div>
+            <formula-preview [field]="newField" [text]="newContent" />
           </div>
           <div class="form-actions">
             <button class="form-btn btn-cancel" (click)="cancelNew()">
@@ -578,7 +578,6 @@ interface DiscussionWithReplies extends Discussion {
             <div class="discussion-header">
               @if (editingId() === d.id) {
                 <div class="edit-area" (click)="$event.stopPropagation()">
-                  <formula-preview [field]="editField" [text]="editContent()" />
                   <div class="fx-row">
                     <textarea
                       #editField
@@ -591,6 +590,7 @@ interface DiscussionWithReplies extends Discussion {
                     ></textarea>
                     <formula-button [field]="editField" />
                   </div>
+                  <formula-preview [field]="editField" [text]="editContent()" />
                   <label class="reply-img-btn">
                     🖇️
                     <input
@@ -718,7 +718,6 @@ interface DiscussionWithReplies extends Discussion {
                     </div>
                     @if (editingId() === reply.id) {
                       <div class="edit-area" (click)="$event.stopPropagation()">
-                        <formula-preview [field]="replyEditField" [text]="editContent()" />
                         <div class="fx-row">
                           <textarea
                             #replyEditField
@@ -731,6 +730,7 @@ interface DiscussionWithReplies extends Discussion {
                           ></textarea>
                           <formula-button [field]="replyEditField" />
                         </div>
+                        <formula-preview [field]="replyEditField" [text]="editContent()" />
                         <label class="reply-img-btn">
                           🖇️
                           <input
@@ -793,7 +793,6 @@ interface DiscussionWithReplies extends Discussion {
                 </div>
               }
 
-              <formula-preview [field]="replyField" [text]="replyTexts()[d.id]" />
               <div class="reply-form">
                 <textarea
                   #replyField
@@ -832,6 +831,7 @@ interface DiscussionWithReplies extends Discussion {
                   Gửi
                 </button>
               </div>
+              <formula-preview [field]="replyField" [text]="replyTexts()[d.id]" />
             </div>
           }
         </div>
