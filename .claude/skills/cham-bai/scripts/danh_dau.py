@@ -6,7 +6,8 @@ Không khoanh chỗ sai: giáo viên bỏ vòng khoanh, chỗ sai chỉ bằng l
 Với mỗi ảnh có dấu: vẽ lên ảnh gốc (goc-<i>.ban-dau.jpg nếu đã từng đẩy lên, không thì goc-<i>.jpg) →
   cham-<i>.jpg  cùng kích thước, JPEG vừa giới hạn 900KB của MathShine — bản sẽ đẩy lên;
   xem-<k>.jpg   tấm ghép 2×2 các ảnh đã vẽ (có nhãn "Ảnh i"), để soát vị trí bằng ít lần đọc ảnh nhất.
-cham.md sai mẫu: in THIẾU kèm chỗ phải sửa, mã thoát 1. Đúng: in điểm, số ✓/✘ và các tấm ghép cần xem.
+cham.md sai mẫu: in THIẾU kèm chỗ phải sửa, mã thoát 1. Đúng: in điểm, số ✓/✘, dòng "Lịch sử" (so với đề và với
+cham.md đã lưu của các Lần nộp trước, xem doc_cham.py) và các tấm ghép cần xem.
 """
 import base64
 import io
@@ -16,7 +17,7 @@ from pathlib import Path
 from PIL import Image, ImageDraw, ImageFont
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from doc_cham import fmt, load  # noqa: E402
+from doc_cham import fmt, history_line, load  # noqa: E402
 
 # Như bút "Vẽ" giáo viên vẫn dùng trên trang chấm bài: màu #ef4444, nét 6px trên ảnh gốc, đầu nét tròn
 RED = (239, 68, 68)
@@ -113,6 +114,7 @@ def main() -> None:
     if abs(data['toiDa'] - 10) > 1e-9 and data['toiDa']:
         score += f" (thang 10: {fmt(data['diem'] * 10 / data['toiDa'])})"
     print(f"OK điểm {score} · {data['dung']} ✓, {data['sai']} ✘, {data['boTrong']} bỏ trống")
+    print(history_line(data['lichSu']))
     print('Soát: ' + ', '.join(contact_sheets(d, thumbs)))
 
 
