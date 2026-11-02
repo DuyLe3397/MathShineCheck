@@ -42,19 +42,22 @@ Lượt đầu đọc song song mọi file lời giao liệt kê. Mỗi ảnh đ
 **Chế độ `không`**: dòng đầu file ghi `Bình luận: không`, chỉ có bảng, không có mục `## Ảnh`. Bỏ qua phần nhận xét dưới đây.
 
 **Nhận xét** `## Ảnh <i>`: mỗi đoạn được đăng thẳng thành một bình luận của giáo viên dưới ảnh, học sinh đọc ngay. Viết **y như giáo viên viết tay**, không làm hộ.
-- **Chỉ nhận xét câu ✘.** Câu ✓ chỉ có dấu tích: không khen, không nhắc tới, không ghi nhận phần đúng. Ảnh không có câu ✘ thì không có mục (trừ ảnh trùng, mờ, nháp: một câu nhắc).
-- **Câu ✘ chỉ ghi đáp số**: gộp **tất cả** vào **một đoạn duy nhất cho cả bài**, đặt dưới ảnh có câu đầu tiên trong số đó: liệt kê tên từng câu rồi bảo cần xem lại, đúng một lần. Không phân tích bài làm, không nói đáp án đúng.
-  - `chỉ chỗ sai`: chỉ có vậy. Vd. "Câu 2, câu 5 và câu 9b em cần xem lại nha"
-  - `gợi ý`: vẫn một đoạn đó, sau câu "cần xem lại" thêm cho **từng câu** một gợi ý ngắn (nửa câu văn) về hướng làm, dựa vào đề và đáp án: quy tắc, công thức, điều kiện cần nhớ, hoặc cách tự kiểm. Vd. "Câu 2, câu 5 và câu 9b em cần xem lại nha: câu 2 em nhớ điều kiện để căn có nghĩa, câu 5 xét lại dấu của hệ số \(a\), câu 9b thay nghiệm vào phương trình kiểm lại nhé"
-- **Câu ✘ có trình bày**: mỗi câu một đoạn (cách nhau một dòng trống), dưới ảnh có câu đó, mở đầu "Câu <n>". Nội dung theo chế độ:
-  - `chỉ chỗ sai` (một đến hai câu văn): trích ngắn chỗ học sinh viết sai ("chỗ em ghi …", "dòng thứ hai"), nói ngắn chỗ đó sai kiểu gì ("bị sai dấu", "thiếu điều kiện", "nhầm công thức"), rồi bảo em xem lại. **Không** gợi cách sửa, không viết dòng đúng, không nói kết quả. Ảnh không có vòng khoanh, nên đừng viết "chỗ khoanh đỏ".
-  - `gợi ý` (tối đa ba câu văn): y như `chỉ chỗ sai`, **thêm** gợi ý hướng đi đúng: dùng quy tắc, công thức hay điều kiện nào, nên làm lại từ bước nào theo hướng nào (với lỗi kiến thức, lập luận thì có thể hỏi dẫn một câu). **Không** viết hộ dòng đúng, không nói kết quả.
-- **Lỗi kéo theo**: chỉ nói ở bước sai đầu tiên, thêm rằng các dòng sau cũng phải làm lại.
+- **Chỉ nhận xét câu ✘.** Câu ✓ chỉ có dấu tích: không khen, không nhắc tới, không ghi nhận phần đúng.
+- **Mỗi ảnh có câu ✘ đúng một đoạn** (một bình luận, không có dòng trống bên trong), nói gộp mọi câu ✘ của ảnh đó **một lần**; xong ảnh này mới sang ảnh sau. Ảnh của một câu là ảnh ghi ở cột Vị trí. Ảnh không có câu ✘ thì không có mục (trừ ảnh trùng, mờ, nháp: một câu nhắc).
+- **Gọi tên câu cho học sinh dễ đọc**, không chép nhãn bảng: nhãn `P2.II.6b` viết là "Phần 2 câu 6b" (bỏ mục La Mã), nhãn không có phần (`7`, `9b`, `II.19a`) viết là "câu 7", "câu 9b", "câu 19a". Nhiều câu cùng phần trong một ảnh thì nêu phần một lần: "Phần 2 câu 6b, 8a và 8b em chưa đúng, em kiểm tra lại nhé". Cùng một phần có hai câu trùng số ở hai mục (câu 1 trả lời ngắn và câu 1 tự luận) thì thêm tên mục: "Phần 2 câu 1 trả lời ngắn", "câu 1 tự luận". Script báo **THIẾU** nếu còn chép nhãn kiểu `P2.II.6b`.
+- **Giọng nhẹ nhàng, đổi cách nói**: không viết "em sai rồi" hay lặp chữ "sai", dễ làm học sinh nản. Nói kiểu "câu này em chưa đúng, em kiểm tra lại nhé", "em kiểm tra kỹ lại câu này", "em đọc kỹ đề rồi làm lại câu này nhé", "câu này em có chỗ nhầm, em kiểm tra kỹ nhé". Các ảnh trong cùng một bài dùng cách nói khác nhau, không lặp một câu cho mọi ảnh.
+- **Trong đoạn của một ảnh**:
+  1. Các câu ✘ **chỉ ghi đáp số**: gọi tên hết rồi nhắc kiểm tra lại một lần, không phân tích, không nói đáp án. Vd. "Câu 1, câu 2 và câu 3 em chưa đúng, em kiểm tra lại nhé"
+  2. Các câu ✘ **có trình bày**: mỗi câu thêm một câu văn ngắn chỉ đúng chỗ sai: trích chỗ em viết sai ("chỗ em ghi …", "dòng thứ hai") và nói ngắn sai kiểu gì ("bị sai dấu", "thiếu điều kiện", "nhầm công thức"). Lỗi kéo theo thì chỉ nói ở bước sai đầu tiên. Ảnh không có vòng khoanh, nên đừng viết "chỗ khoanh đỏ".
+  3. Ảnh chỉ có một loại thì chỉ có phần đó.
+- **Theo chế độ**:
+  - `chỉ chỗ sai`: chỉ như trên. **Không** gợi cách sửa, không viết dòng đúng, không nói kết quả.
+  - `gợi ý`: như trên, **thêm** cho từng câu ✘ một gợi ý ngắn về hướng đi đúng: quy tắc, công thức, điều kiện cần nhớ, làm lại từ bước nào, hoặc cách tự kiểm (lỗi kiến thức, lập luận thì có thể hỏi dẫn một câu). Câu chỉ ghi đáp số thì gợi ý dựa vào đề và đáp án, mỗi câu nửa câu văn. **Không** viết hộ dòng đúng, không nói kết quả.
 - **Giọng**: bám `giong-van.md`: xưng hô, cách mở đầu ("Câu 7 em …"), từ cuối câu ("nha", "nhé", "đó"), độ dài. Viết liền thành đoạn, **cuối đoạn không đặt dấu chấm** (như người gõ bình luận): không gạch đầu dòng, không in đậm, không dùng từ mẫu không có ("Tuyệt vời!", "Hãy…", "Bạn…").
-- **Không dùng dấu gạch** (`-`, `–`, `—`) trong nhận xét, kể cả để nối ý hay chèn ý: đọc rất giống máy viết. Thay bằng dấu phẩy, dấu hai chấm, hoặc tách thành câu khác. Dấu trừ của phép tính thì nằm trong `\(…\)`. Script báo **THIẾU** nếu còn dấu gạch ngoài công thức, hoặc có câu ✘ chưa được nhắc tên trong nhận xét.
+- **Không dùng dấu gạch** (`-`, `–`, `—`) trong nhận xét, kể cả để nối ý hay chèn ý: đọc rất giống máy viết. Thay bằng dấu phẩy, dấu hai chấm, hoặc tách thành câu khác. Dấu trừ của phép tính thì nằm trong `\(…\)`. Script báo **THIẾU** nếu còn dấu gạch ngoài công thức, có câu ✘ chưa được nhắc tên trong đoạn của ảnh nó, hoặc một ảnh có hơn một đoạn.
 - **Công thức**: mọi biểu thức toán (kể cả một chữ cái, một số có dấu trừ) đều là LaTeX chuẩn trong `\(…\)` để MathShine vẽ được: `\(x^{2}\)`, `\(\frac{1}{2}\)`, `\(\sqrt{3}\)`, `\(\widehat{ABC}=60^{\circ}\)`, `\(x\le 2\)`. Viết `$…$` cũng được, script tự đổi. **Không** viết công thức trần ngoài `\(…\)`, không dùng cách viết của `kiem.py` (`x^2`, `2x`, `sqrt(3)`, `1/2`) hay ký hiệu Unicode thay lệnh (`°`, `≤`, `√`, `π`).
-- **Ví dụ `chỉ chỗ sai`**: "Câu 4 chỗ em ghi \(S=\frac{1}{2}ab\cos C\) bị nhầm công thức rồi, em xem lại chỗ này nha"
-- **Ví dụ `gợi ý`**: "Câu 4 chỗ em ghi \(S=\frac{1}{2}ab\cos C\) bị nhầm công thức rồi nha: diện tích theo hai cạnh và góc xen giữa thì góc đi với hàm lượng giác nào? Em làm lại từ dòng này, các dòng sau cũng đổi theo nhé"
+- **Ví dụ `chỉ chỗ sai`** (ảnh có câu 1, 2, 3 chỉ ghi đáp số và câu 4 có trình bày): "Câu 1, câu 2 và câu 3 em kiểm tra kỹ lại nhé. Câu 4 chỗ em ghi \(S=\frac{1}{2}ab\cos C\) có chỗ nhầm công thức, em xem lại chỗ này nha"
+- **Ví dụ `gợi ý`** (cùng ảnh đó): "Câu 1, câu 2 và câu 3 em kiểm tra kỹ lại nhé: câu 1 em nhớ điều kiện để căn có nghĩa, câu 2 xét lại dấu của hệ số \(a\), câu 3 thay nghiệm vào phương trình kiểm lại. Câu 4 chỗ em ghi \(S=\frac{1}{2}ab\cos C\) có chỗ nhầm công thức, diện tích theo hai cạnh và góc xen giữa thì góc đi với hàm lượng giác nào? Em làm lại từ dòng này nhé"
 
 ## 3. Vẽ, soát, đẩy
 
@@ -85,12 +88,12 @@ Có lỗi khi đẩy ảnh hay đăng bình luận thì thêm lý do ngắn.
 | 9b | ✘ | 0 | 1 | 2 (0.70; 0.80) |
 
 ## Ảnh 1
-Câu 2, câu 7 và câu 9b em cần xem lại nha
+Câu 2 và câu 7 em đọc kỹ đề rồi làm lại nhé
 
 ## Ảnh 2
-Câu 9a <đoạn chỉ chỗ sai, thêm gợi ý nếu chế độ `gợi ý`>
+Câu 9b em chưa đúng, em kiểm tra lại nha. Câu 9a <chỉ chỗ sai, thêm gợi ý nếu chế độ `gợi ý`>
 ```
 
-Ở mẫu: câu 2, 7, 9b chỉ ghi đáp số nên gộp một đoạn dưới ảnh 1 (ảnh có câu đầu tiên trong số đó); câu 9a có trình bày nên có đoạn riêng; câu 1 ✓ không được nhắc.
+Ở mẫu: câu 2, 7 (chỉ ghi đáp số) nằm ở ảnh 1 nên gộp một đoạn dưới ảnh 1; ảnh 2 có câu 9b chỉ ghi đáp số và câu 9a có trình bày, nói chung một đoạn; câu 1 ✓ không được nhắc.
 
 Chế độ `không`: thêm dòng `Bình luận: không` lên đầu, rồi chỉ có bảng.

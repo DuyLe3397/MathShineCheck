@@ -947,6 +947,15 @@ export class FirestoreService {
     );
   }
 
+  /** Mọi Lần nộp của các bài tập cho trước. */
+  getSubmissionsByAssignmentIds(assignmentIds: string[]): Observable<Submission[]> {
+    return from(Promise.all(this.chunkArray(assignmentIds, 30).map(chunk =>
+      getDocs(query(collection(this.firestore, 'submissions'), where('assignmentId', 'in', chunk))),
+    ))).pipe(
+      map(snaps => snaps.flatMap(s => s.docs.map(d => ({ id: d.id, ...d.data() }) as Submission))),
+    );
+  }
+
   // Batch query: Get grades for multiple assignments in one query
   getGradesByAssignmentIds(assignmentIds: string[]): Observable<Grade[]> {
     const chunks = this.chunkArray(assignmentIds, 30);

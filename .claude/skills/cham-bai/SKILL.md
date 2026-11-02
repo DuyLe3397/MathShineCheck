@@ -1,6 +1,6 @@
 ---
 name: cham-bai
-description: Chấm bài Toán viết tay trên MathShine. Luôn mở hộp thoại lấy đủ đầu vào (file đề, đáp án, đường dẫn bài nộp, có nhận xét không và kiểu nhận xét), kiểm tra xong là tự chạy đến hết không hỏi thêm; vẽ ✓/✘ lên ảnh bài làm, đăng nhận xét theo ảnh đúng giọng giáo viên, tất cả đẩy thẳng lên MathShine. Dùng khi giáo viên gọi /cham-bai.
+description: Chấm bài Toán viết tay trên MathShine. Luôn mở hộp thoại lấy đủ đầu vào (file đề, đáp án, đường dẫn bài nộp, đã xoay ảnh dọc chưa, có nhận xét không và kiểu nhận xét), kiểm tra xong là tự chạy đến hết không hỏi thêm; vẽ ✓/✘ lên ảnh bài làm, đăng nhận xét theo ảnh đúng giọng giáo viên, tất cả đẩy thẳng lên MathShine. Dùng khi giáo viên gọi /cham-bai.
 disable-model-invocation: true
 ---
 
@@ -25,7 +25,7 @@ Claude Desktop (skill đóng gói): `<skill>` là thư mục chứa file này.
 
 ## 0. Đầu vào: luôn hỏi bằng hộp thoại
 
-Mỗi lần skill được gọi, **luôn** lấy đầu vào bằng `AskUserQuestion`, kể cả khi giáo viên đã dán sẵn trong lời gọi hay trong phiên này đã chấm bài tập đó. **Chưa đủ và đúng mọi đầu vào (bốn, hoặc năm nếu có nhận xét) thì chưa chấm.**
+Mỗi lần skill được gọi, **luôn** lấy đầu vào bằng `AskUserQuestion`, kể cả khi giáo viên đã dán sẵn trong lời gọi hay trong phiên này đã chấm bài tập đó. **Chưa đủ và đúng mọi đầu vào (năm, hoặc sáu nếu có nhận xét) thì chưa chấm.**
 
 **Hộp thoại 1**: bốn câu hỏi trong một lần gọi.
 
@@ -36,7 +36,14 @@ Mỗi lần skill được gọi, **luôn** lấy đầu vào bằng `AskUserQue
 | 3 | `Bài nộp` | Đường dẫn bài cần chấm trên MathShine | các ứng viên |
 | 4 | `Nhận xét` | Có đăng nhận xét kèm không? | `Có nhận xét`, `Không cần nhận xét (chỉ ✓/✘)` |
 
-**Hộp thoại 2**: chỉ khi câu 4 chọn có nhận xét. Một câu hỏi, header `Kiểu nhận xét`, lựa chọn `Chỉ ra chỗ sai rồi gợi ý`, `Chỉ ra chỗ sai thôi`.
+**Hộp thoại 2**: luôn hỏi, ngay sau hộp thoại 1, trong một lần gọi:
+
+| # | header | Hỏi | Lựa chọn |
+|---|---|---|---|
+| 5 | `Xoay ảnh` | Bạn đã xoay toàn bộ ảnh bài làm đúng theo chiều dọc chưa? Đảm bảo không có ảnh nào bị nằm ngang chưa? | `Đã xoay hết, không ảnh nào nằm ngang`, `Chưa, tôi đi xoay rồi chạy tiếp` |
+| 6 | `Kiểu nhận xét` | Chỉ khi câu 4 chọn có nhận xét: nhận xét kiểu nào? | `Chỉ ra chỗ sai rồi gợi ý`, `Chỉ ra chỗ sai thôi` |
+
+**Xoay ảnh**: chưa chọn `Đã xoay hết…` thì chưa chạy bước 1 (bước 1 tải ảnh về, chạy trước khi xoay xong là chấm trên ảnh nằm ngang). Chọn `Chưa…` thì nhắn giáo viên xoay ảnh trên MathShine, rồi mở lại **chỉ câu 5** và dừng chờ.
 
 **Đã chốt trong phiên**: trong phiên này đã chốt `dap-an.md` (bước 2) thì câu 1 và câu 2 đều có lựa chọn này, đặt **đầu tiên**:
 - câu 1: label `Dùng đề đã chốt trong phiên (Recommended)`, description là đường dẫn đầy đủ file đề đã dùng;
@@ -56,15 +63,15 @@ Thiếu ứng viên để đủ hai lựa chọn thì thêm `Tôi gõ ở ô Oth
   - `…/teacher/grade/<mã>` (trang ảnh bài làm của một Lần nộp): chấm luôn bài đó, bất kể trạng thái;
   - `…/teacher/assignments/<mã>` (danh sách bài tập): chỉ chấm các dòng **vàng "Đã nộp"**; dòng xanh "Đã chấm" bỏ qua.
 
-  Đúng dạng thì chạy luôn bước 1. Script báo lỗi đường dẫn hay không tìm thấy bài thì câu 3 sai; báo thiếu khóa hay 401 thì làm theo `cai-dat.md`.
+  Đúng dạng và câu 5 đã chọn `Đã xoay hết…` thì chạy luôn bước 1. Script báo lỗi đường dẫn hay không tìm thấy bài thì câu 3 sai; báo thiếu khóa hay 401 thì làm theo `cai-dat.md`.
 - **Đề**: đọc được (bước 2). Chọn đề đã chốt thì vẫn kiểm tra file đó còn.
 - **Đáp án**: đọc ra được đáp án **từng câu** của đề (bước 2). Chọn đáp án đã chốt thì `dap-an.md` đó phải còn. `Đáp án nằm trong file đề` mà đề không có đáp án thì coi là thiếu.
 
-Câu nào thiếu hoặc sai thì mở lại hộp thoại **chỉ với các câu đó**, ghi rõ lý do trong câu hỏi (vd. "Không tìm thấy file D:\…\de.docx, kiểm tra lại đường dẫn", "Đáp án thiếu câu 7 và 9b, gõ đáp án hai câu này"), rồi **dừng chờ**. Đủ và đúng hết thì nhắc lại một dòng (đề, đáp án, số bài cần chấm, chế độ nhận xét) rồi sang bước 3 luôn, không hỏi xác nhận thêm.
+Câu nào thiếu hoặc sai thì mở lại hộp thoại **chỉ với các câu đó**, ghi rõ lý do trong câu hỏi (vd. "Không tìm thấy file D:\…\de.docx, kiểm tra lại đường dẫn", "Đáp án thiếu câu 7 và 9b, gõ đáp án hai câu này"), rồi **dừng chờ**. Đủ và đúng hết thì nhắc lại một dòng (đề, đáp án, số bài cần chấm, ảnh đã xoay, chế độ nhận xét) rồi sang bước 3 luôn, không hỏi xác nhận thêm.
 
 Không có `AskUserQuestion` (vd. Claude Desktop): hỏi các mục trong một tin nhắn đánh số, kiểm tra như trên, thiếu hay sai thì hỏi lại đúng mục đó.
 
-**Chế độ nhận xét** truyền cho người chấm: `gợi ý` (chỉ ra chỗ sai, thêm gợi ý hướng đi đúng), `chỉ chỗ sai`, hoặc `không`. Ở mọi chế độ, chỉ câu sai mới được nhận xét; các câu sai chỉ ghi đáp số được gộp vào một đoạn "cần xem lại" duy nhất, chế độ `gợi ý` thêm một gợi ý ngắn cho từng câu (chi tiết trong `cham-mot-bai.md`).
+**Chế độ nhận xét** truyền cho người chấm: `gợi ý` (chỉ ra chỗ sai, thêm gợi ý hướng đi đúng), `chỉ chỗ sai`, hoặc `không`. Ở mọi chế độ, chỉ câu sai mới được nhận xét, và mỗi ảnh có câu sai đúng một bình luận nói gộp các câu sai của ảnh đó (vd. "Câu 1, câu 2 và câu 3 em chưa đúng, em kiểm tra lại nhé"; giọng nhẹ nhàng, không viết "em sai rồi", mỗi ảnh một cách nói), gọi tên câu cho học sinh dễ đọc ("Phần 2 câu 6b, 8a và 8b", không chép nhãn `P2.II.6b`); chế độ `gợi ý` thêm một gợi ý ngắn cho từng câu (chi tiết trong `cham-mot-bai.md`).
 
 ## 1. Lấy bài
 

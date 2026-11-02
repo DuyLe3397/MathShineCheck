@@ -17,7 +17,18 @@ Một bài tập trong phạm vi đang xét mà học sinh chưa có điểm —
 _Avoid_: bài trống, bài chưa làm
 
 **Phạm vi thống kê**:
-Tập bài tập của một Nhóm đang được xét trên trang Thống kê: các bài có ngày buổi học nằm trong khoảng Từ ngày – Đến ngày; không chọn ngày thì là toàn bộ bài của nhóm.
+Tập bài tập đang được xét trên trang Thống kê: các bài của Nhóm có ngày buổi học nằm trong khoảng Từ ngày – Đến ngày (không chọn ngày thì là toàn bộ bài của nhóm). Ở **Bảng điểm học sinh**, phạm vi còn bỏ thêm các **Bài bị ẩn** của em đó; ở **Bảng điểm nhóm** thì không.
+
+**Bảng điểm nhóm**:
+Bảng trên trang Thống kê khi chọn "Tất cả học sinh": mỗi dòng là một học sinh của Nhóm, mỗi cột là một bài trong Phạm vi thống kê, xếp theo Độ đủ điểm. Không xét **Bài bị ẩn**: mọi em đều có đủ các cột, bài bị ẩn vẫn tính vào điểm trung bình và Độ đủ điểm.
+
+**Bảng điểm học sinh**:
+Bảng trên trang Thống kê khi chọn một học sinh: một dòng duy nhất của em đó, mỗi cột là một bài trong Phạm vi thống kê của riêng em (đã bỏ Bài bị ẩn, kể cả bài đã có điểm). Vì vậy điểm trung bình và Độ đủ điểm của cùng một em có thể khác ở Bảng điểm nhóm.
+_Avoid_: thống kê cá nhân, bảng chi tiết
+
+**Chế độ hiển thị điểm**:
+Công tắc trên trang Thống kê, áp dụng cho cả Bảng điểm nhóm và Bảng điểm học sinh: **Điểm cao nhất** (mỗi ô một điểm cao nhất của bài đó) hoặc **Mọi lần nộp** (mỗi ô liệt kê kết quả từng Lần nộp theo thứ tự lần, giữ đúng số lần thật kể cả khi có lần đã bị xóa; Lần nộp chờ chấm ghi "chờ", Chấm không điểm ghi "-"). Chỉ đổi phần hiển thị: điểm trung bình, Độ đủ điểm và thứ tự xếp hạng luôn tính theo điểm cao nhất mỗi bài.
+_Avoid_: xem chi tiết, lịch sử điểm
 
 **Độ đủ điểm**:
 Số **Bài có điểm** của một học sinh trong **Phạm vi thống kê**. Học sinh **đủ điểm** khi độ đủ điểm bằng số bài trong phạm vi.
@@ -71,7 +82,7 @@ Bảng trượt lên khi bấm nút *f*(*x*) cạnh các ô viết chữ (Nhận
 _Avoid_: bàn phím toán, MathLive, trình soạn, editor
 
 **Bài bị ẩn**:
-Một Bài tập mà giáo viên đã ẩn khỏi giao diện của một học sinh cụ thể: không hiện ở trang chủ và bảng điểm của em đó. Chỉ là ẩn hiển thị, không phải chặn truy cập; bài nộp và điểm vẫn giữ nguyên.
+Một Bài tập mà giáo viên đã ẩn khỏi giao diện của một học sinh cụ thể: không hiện ở trang chủ, bảng điểm của em đó và **Bảng điểm học sinh** của em trên trang Thống kê (nhưng vẫn hiện ở **Bảng điểm nhóm**). Chỉ là ẩn hiển thị, không phải chặn truy cập; bài nộp và điểm vẫn giữ nguyên.
 _Avoid_: quyền xem, phân quyền, bị khóa
 
 **Danh sách bài bị ẩn**:
@@ -111,4 +122,6 @@ _Avoid_: quyền, permission (khi nói chung chung)
 - "Cmt" — có thể là **Nhận xét theo ảnh** trên Lần nộp, hoặc thảo luận/trả lời thảo luận; khi nói về **Email thông báo** thì gồm cả hai.
 - "Có điểm trước" từng được hiểu theo thời gian hoàn thành — đã chốt: chỉ xét số lượng **Bài có điểm**, không xét thời gian.
 - "Học sinh bấm nộp nhiều lần bị trùng bài nộp" — đã chốt: hệ thống bảo đảm tính duy nhất của **Lần nộp** ở cả 3 tầng (khóa đồng bộ UI khi đang nén/tải ảnh, Document ID cố định trên Firestore `{assignmentId}_{studentId}_{attemptNumber}`, và tự động gom nhóm deduplicate trên UI theo số thứ tự lần nộp). Lần nộp tiếp theo luôn tính từ số lần nộp cao nhất hiện có + 1.
+- "Thống kê theo học sinh thì bài bị ẩn không hiển thị" — đã chốt: chỉ áp dụng cho **Bảng điểm học sinh**; **Bảng điểm nhóm** vẫn tính đủ mọi bài. Chấp nhận để số của cùng một em lệch giữa hai bảng, không ghi chú.
+- "Hiển thị cả danh sách điểm từng lần nộp" — đã chốt là chế độ **Mọi lần nộp** của **Chế độ hiển thị điểm**; chỉ đổi cách hiện, không đổi cách tính.
 - "Thứ tự bài tập hiển thị theo ngày học hay ngày tạo" — đã chốt: toàn bộ danh sách bài tập sắp xếp theo **Thời gian tạo** giảm dần (mới nhất lên đầu), không phụ thuộc vào ngày buổi học, để bài vừa giao luôn nổi bật ở đầu trang.

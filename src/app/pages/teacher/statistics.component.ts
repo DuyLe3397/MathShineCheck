@@ -7,11 +7,19 @@ import { AuthService } from '../../services/auth.service';
 import { NavbarComponent } from '../../shared/components/navbar.component';
 import { TeacherNotificationBellComponent } from '../../shared/components/teacher-notification-bell.component';
 import { RefreshButtonComponent } from '../../shared/components/refresh-button.component';
-import { SchoolClass, Group, Student, Assignment, Grade } from '../../models';
+import { SchoolClass, Group, Student, Assignment } from '../../models';
 import { firstValueFrom, forkJoin, map, switchMap, of } from 'rxjs';
 import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
-import { rankStudentRows, ScopedStudentRow, StudentGradeRow } from './statistics-ranking';
+import {
+  attemptsLine,
+  attemptsOf,
+  formatAttemptScore,
+  rankStudentRows,
+  ScopedStudentRow,
+  StudentGradeRow,
+  studentScope,
+} from './statistics-ranking';
 import { bestScore } from '../../shared/score';
 
 @Component({
@@ -379,6 +387,37 @@ import { bestScore } from '../../shared/score';
         font-style: italic;
       }
 
+      /* Khối các lần nộp nằm giữa ô, nhưng các dòng "Lần N" căn trái để thẳng hàng */
+      .attempt-list {
+        display: inline-block;
+        text-align: left;
+      }
+
+      .attempt-line {
+        font-weight: 500;
+        line-height: 1.5;
+      }
+
+      .attempt-best {
+        font-weight: 800;
+        color: #1e293b;
+      }
+
+      .mode-toggle {
+        display: flex;
+        gap: 20px;
+        flex-wrap: wrap;
+        font-size: 0.95rem;
+        color: #334155;
+
+        label {
+          display: inline-flex;
+          align-items: center;
+          gap: 6px;
+          cursor: pointer;
+        }
+      }
+
       .avg-cell {
         font-weight: 700;
         color: #2563eb;
@@ -509,6 +548,18 @@ import { bestScore } from '../../shared/score';
                   <option *ngFor="let g of filteredGroups" [value]="g.id">{{ g.name }}</option>
                 </select>
               </div>
+              <div class="form-group">
+                <label>Học sinh</label>
+                <select
+                  class="form-select"
+                  [(ngModel)]="selectedStudentId"
+                  (change)="onStudentChange()"
+                  [disabled]="!selectedGroupId"
+                >
+                  <option value="">Tất cả học sinh</option>
+                  <option *ngFor="let s of students" [value]="s.uid">{{ s.fullName }}</option>
+                </select>
+              </div>
             </div>
 
             <!-- Date range filter -->
@@ -542,23 +593,40 @@ import { bestScore } from '../../shared/score';
                   </button>
                 </div>
               </div>
+
+              <div class="filters-divider"></div>
+              <div class="filter-label-row">Hiển thị điểm</div>
+              <div class="mode-toggle">
+                <label>
+                  <input type="radio" name="scoreMode" [value]="false" [(ngModel)]="showAllAttempts" (change)="onModeChange()" />
+                  Điểm cao nhất
+                </label>
+                <label>
+                  <input type="radio" name="scoreMode" [value]="true" [(ngModel)]="showAllAttempts" (change)="onModeChange()" />
+                  Mọi lần nộp
+                </label>
+              </div>
             </div>
           </div>
 
           <div *ngIf="selectedGroupId && !loading">
             <!-- Summary -->
             <div class="summary-bar">
-              <div class="summary-item">
+              <div class="summary-item" *ngIf="!selectedStudentId">
                 <strong>{{ studentRows.length }}</strong>
                 Học sinh
               </div>
+              <div class="summary-item" *ngIf="selectedStudentId && tableRows[0] as row">
+                <strong>{{ row.gradedCount }}/{{ tableAssignments.length }}</strong>
+                Bài có điểm
+              </div>
               <div class="summary-item">
-                <strong>{{ filteredAssignments.length }}</strong>
+                <strong>{{ tableAssignments.length }}</strong>
                 Bài tập{{ filterFromDate || filterToDate ? ' (đã lọc)' : '' }}
               </div>
               <div class="summary-item">
                 <strong>{{ overallAverage }}</strong>
-                Điểm TB toàn nhóm
+                {{ selectedStudentId ? 'Điểm TB' : 'Điểm TB toàn nhóm' }}
               </div>
             </div>
 
@@ -593,6 +661,7 @@ import { bestScore } from '../../shared/score';
                 <div class="pdf-header">
                   <p class="pdf-title">
                     Bảng điểm chi tiết —
+                    <ng-container *ngIf="selectedStudentName">{{ selectedStudentName }} — </ng-container>
                     {{ selectedClassName }} / {{ selectedGroupName }}
                   </p>
                   <p class="pdf-subtitle" *ngIf="filterFromDate || filterToDate">
@@ -601,7 +670,7 @@ import { bestScore } from '../../shared/score';
                   </p>
                 </div>
 
-                <div class="table-wrapper" *ngIf="studentRows.length > 0" style="padding: 0 20px 20px;">
+                <div class="table-wrapper" *ngIf="tableRows.length > 0 && tableAssignments.length > 0" style="padding: 0 20px 20px;">
                   <table
                     class="table"
                     [style.width]="tableWidth + 'px'"
@@ -627,7 +696,7 @@ import { bestScore } from '../../shared/score';
                         </th>
                         <!-- Assignment columns -->
                         <th
-                          *ngFor="let a of filteredAssignments; let i = index"
+                          *ngFor="let a of tableAssignments; let i = index"
                           class="th-assignment"
                           [style.width]="columnWidths[i + 1] + 'px'"
                           [style.min-width]="columnWidths[i + 1] + 'px'"
@@ -641,21 +710,34 @@ import { bestScore } from '../../shared/score';
                           ></div>
                         </th>
                         <!-- Average column -->
-                        <th [style.width]="columnWidths[filteredAssignments.length + 1] + 'px'" [style.min-width]="columnWidths[filteredAssignments.length + 1] + 'px'">
+                        <th [style.width]="columnWidths[tableAssignments.length + 1] + 'px'" [style.min-width]="columnWidths[tableAssignments.length + 1] + 'px'">
                           Trung bình
                           <div
                             class="resize-handle"
-                            [class.active]="resizingColIndex === filteredAssignments.length + 1"
-                            (mousedown)="startResize($event, filteredAssignments.length + 1)"
+                            [class.active]="resizingColIndex === tableAssignments.length + 1"
+                            (mousedown)="startResize($event, tableAssignments.length + 1)"
                           ></div>
                         </th>
                       </tr>
                     </thead>
                     <tbody>
-                      <tr *ngFor="let row of filteredStudentRows">
+                      <tr *ngFor="let row of tableRows">
                         <td>{{ row.studentName }}</td>
-                        <td *ngFor="let g of row.filteredGrades" class="score-cell">
-                          <ng-container *ngIf="g.score !== null; else naTpl">
+                        <td *ngFor="let g of row.filteredGrades" class="score-cell" [title]="showAllAttempts ? attemptsLine(g.attempts) : ''">
+                          <ng-container *ngIf="showAllAttempts && selectedStudentId">
+                            <div *ngIf="g.attempts.length === 0" class="score-na">-</div>
+                            <div class="attempt-list" *ngIf="g.attempts.length > 0">
+                              <div
+                                *ngFor="let a of g.attempts"
+                                class="attempt-line"
+                                [class.attempt-best]="a.score !== null && a.score === g.score"
+                              >
+                                Lần {{ a.attempt }}: {{ formatAttemptScore(a.score) }}
+                              </div>
+                            </div>
+                          </ng-container>
+                          <ng-container *ngIf="showAllAttempts && !selectedStudentId">{{ attemptsLine(g.attempts) }}</ng-container>
+                          <ng-container *ngIf="!showAllAttempts && g.score !== null; else naTpl">
                             <span
                               [class.score-high]="g.score >= 8"
                               [class.score-mid]="g.score >= 5 && g.score < 8"
@@ -665,7 +747,7 @@ import { bestScore } from '../../shared/score';
                             </span>
                           </ng-container>
                           <ng-template #naTpl>
-                            <span class="score-na">-</span>
+                            <span class="score-na" *ngIf="!showAllAttempts">-</span>
                           </ng-template>
                         </td>
                         <td>
@@ -679,6 +761,13 @@ import { bestScore } from '../../shared/score';
 
                 <div class="empty-state" *ngIf="studentRows.length === 0" style="padding: 40px 20px;">
                   Không có dữ liệu điểm cho nhóm này.
+                </div>
+                <div
+                  class="empty-state"
+                  *ngIf="studentRows.length > 0 && tableAssignments.length === 0"
+                  style="padding: 40px 20px;"
+                >
+                  Không có bài nào trong phạm vi.
                 </div>
               </div>
             </div>
@@ -706,7 +795,18 @@ export class StatisticsComponent implements OnInit, OnDestroy {
   exporting = false;
 
   assignments: Assignment[] = [];
+  students: Student[] = [];
   studentRows: StudentGradeRow[] = [];
+
+  /** "" là Bảng điểm nhóm; uid một em là Bảng điểm học sinh của em đó. */
+  selectedStudentId = '';
+  /** Bài bị ẩn của học sinh đang chọn. */
+  private hiddenIds: string[] = [];
+  /** Chế độ hiển thị điểm: false là Điểm cao nhất, true là Mọi lần nộp. */
+  showAllAttempts = false;
+
+  readonly attemptsLine = attemptsLine;
+  readonly formatAttemptScore = formatAttemptScore;
 
   // Date filter
   filterFromDate = '';
@@ -741,6 +841,10 @@ export class StatisticsComponent implements OnInit, OnDestroy {
     return this.allGroups.find(g => g.id === this.selectedGroupId)?.name ?? '';
   }
 
+  get selectedStudentName(): string {
+    return this.students.find(s => s.uid === this.selectedStudentId)?.fullName ?? '';
+  }
+
   get filteredAssignments(): Assignment[] {
     if (!this.filterFromDate && !this.filterToDate) return this.assignments;
 
@@ -752,8 +856,18 @@ export class StatisticsComponent implements OnInit, OnDestroy {
     });
   }
 
-  get filteredStudentRows(): ScopedStudentRow[] {
-    return rankStudentRows(this.studentRows, this.filteredAssignments.map(a => a.id));
+  /** Cột của bảng đang hiện: Bảng điểm học sinh bỏ thêm các Bài bị ẩn của em đó. */
+  get tableAssignments(): Assignment[] {
+    if (!this.selectedStudentId) return this.filteredAssignments;
+    const scope = new Set(studentScope(this.filteredAssignments.map(a => a.id), this.hiddenIds));
+    return this.filteredAssignments.filter(a => scope.has(a.id));
+  }
+
+  get tableRows(): ScopedStudentRow[] {
+    const rows = this.selectedStudentId
+      ? this.studentRows.filter(r => r.studentId === this.selectedStudentId)
+      : this.studentRows;
+    return rankStudentRows(rows, this.tableAssignments.map(a => a.id));
   }
 
   get tableWidth(): number {
@@ -761,7 +875,7 @@ export class StatisticsComponent implements OnInit, OnDestroy {
   }
 
   get overallAverage(): string {
-    const rows = this.filteredStudentRows;
+    const rows = this.tableRows;
     const allScores = rows
       .filter(r => r.filteredAverage !== null)
       .map(r => r.filteredAverage as number);
@@ -797,6 +911,9 @@ export class StatisticsComponent implements OnInit, OnDestroy {
 
   onClassChange(): void {
     this.selectedGroupId = '';
+    this.selectedStudentId = '';
+    this.hiddenIds = [];
+    this.students = [];
     this.studentRows = [];
     this.assignments = [];
     this.filterFromDate = '';
@@ -809,7 +926,10 @@ export class StatisticsComponent implements OnInit, OnDestroy {
   }
 
   onGroupChange(): void {
+    this.selectedStudentId = '';
+    this.hiddenIds = [];
     if (!this.selectedGroupId) {
+      this.students = [];
       this.studentRows = [];
       this.assignments = [];
       return;
@@ -817,6 +937,22 @@ export class StatisticsComponent implements OnInit, OnDestroy {
     this.filterFromDate = '';
     this.filterToDate = '';
     this.loadStatistics();
+  }
+
+  onStudentChange(): void {
+    this.hiddenIds = [];
+    this.initColumnWidths();
+    const uid = this.selectedStudentId;
+    if (!uid) return;
+    this.firestoreService.getHiddenAssignmentIds(uid).subscribe(ids => {
+      if (this.selectedStudentId !== uid) return;
+      this.hiddenIds = ids;
+      this.initColumnWidths();
+    });
+  }
+
+  onModeChange(): void {
+    this.fitAttemptColumns();
   }
 
   applyDateFilter(): void {
@@ -849,52 +985,48 @@ export class StatisticsComponent implements OnInit, OnDestroy {
     return forkJoin([
       this.firestoreService.getAssignmentsByGroup(this.selectedGroupId),
       this.firestoreService.getStudentsByGroup(this.selectedGroupId),
+      this.firestoreService.getHiddenAssignmentIds(this.selectedStudentId),
     ])
       .pipe(
-        switchMap(([assignments, students]) => {
+        switchMap(([assignments, students, hiddenIds]) => {
           this.assignments = assignments;
+          this.students = students;
+          this.hiddenIds = hiddenIds;
+          if (!students.some(s => s.uid === this.selectedStudentId)) this.selectedStudentId = '';
 
           if (assignments.length === 0 || students.length === 0) {
             this.studentRows = students.map(s => ({
+              studentId: s.uid,
               studentName: s.fullName,
-              grades: assignments.map(a => ({
-                assignmentId: a.id,
-                score: null,
-              })),
+              grades: assignments.map(a => ({ assignmentId: a.id, score: null, attempts: [] })),
               average: null,
             }));
             this.initColumnWidths();
             return of(void 0);
           }
 
-          return this.firestoreService.getGradesByAssignmentIds(assignments.map(a => a.id)).pipe(
-            map(grades => assignments.map(a => grades.filter(g => g.assignmentId === a.id))),
-            map(allGradesByAssignment => {
-              const gradeMap = new Map<string, { assignmentId: string; score: number }[]>();
-              students.forEach(s => {
-                const studentGrades: { assignmentId: string; score: number }[] = [];
-                allGradesByAssignment.forEach((grades, idx) => {
-                  const sg = grades.filter(g => g.studentId === s.uid);
-                  const highest = bestScore(sg.map(g => g.scoreValue));
-                  if (highest !== null) {
-                    studentGrades.push({ assignmentId: assignments[idx].id, score: highest });
-                  }
-                });
-                gradeMap.set(s.uid, studentGrades);
-              });
+          const ids = assignments.map(a => a.id);
+          return forkJoin([
+            this.firestoreService.getGradesByAssignmentIds(ids),
+            this.firestoreService.getSubmissionsByAssignmentIds(ids),
+          ]).pipe(
+            map(([grades, submissions]) => {
+              const key = (studentId: string, assignmentId: string) => `${studentId}|${assignmentId}`;
+              const gradesByKey = groupBy(grades, g => key(g.studentId, g.assignmentId));
+              const submissionsByKey = groupBy(submissions, s => key(s.studentId, s.assignmentId));
 
               this.studentRows = students.map(s => {
-                const sg = gradeMap.get(s.uid) || [];
                 const grades = assignments.map(a => {
-                  const found = sg.find(g => g.assignmentId === a.id);
-                  return { assignmentId: a.id, score: found ? found.score : null };
+                  const sg = gradesByKey.get(key(s.uid, a.id)) ?? [];
+                  const ss = submissionsByKey.get(key(s.uid, a.id)) ?? [];
+                  return { assignmentId: a.id, score: bestScore(sg.map(g => g.scoreValue)), attempts: attemptsOf(ss, sg) };
                 });
                 const validScores = grades.filter(g => g.score !== null).map(g => g.score as number);
                 const average =
                   validScores.length > 0
                     ? +(validScores.reduce((sum, sc) => sum + sc, 0) / validScores.length).toFixed(1)
                     : null;
-                return { studentName: s.fullName, grades, average };
+                return { studentId: s.uid, studentName: s.fullName, grades, average };
               });
 
               this.initColumnWidths();
@@ -907,9 +1039,12 @@ export class StatisticsComponent implements OnInit, OnDestroy {
   // ── Column resize ────────────────────────────────────────────
 
   private initColumnWidths(): void {
-    const numCols = this.filteredAssignments.length + 2; // name + assignments + avg
+    const numCols = this.tableAssignments.length + 2; // name + assignments + avg
     const currentLen = this.columnWidths.length;
-    if (currentLen === numCols) return; // already correct size
+    if (currentLen === numCols) {
+      this.fitAttemptColumns();
+      return;
+    }
 
     const newWidths: number[] = [];
     newWidths.push(currentLen > 0 ? this.columnWidths[0] : 180); // student name
@@ -918,6 +1053,18 @@ export class StatisticsComponent implements OnInit, OnDestroy {
     }
     newWidths.push(currentLen > 0 ? this.columnWidths[currentLen - 1] : 100); // avg
     this.columnWidths = newWidths;
+    this.fitAttemptColumns();
+  }
+
+  /** Bảng điểm nhóm ở chế độ Mọi lần nộp: nới cột bài cho vừa chuỗi "6 → 8 → 9" dài nhất. */
+  private fitAttemptColumns(): void {
+    if (!this.showAllAttempts || this.selectedStudentId) return;
+    const rows = this.tableRows;
+    this.columnWidths = this.columnWidths.map((w, i) => {
+      if (i === 0 || i > this.tableAssignments.length) return w;
+      const longest = Math.max(0, ...rows.map(r => attemptsLine(r.filteredGrades[i - 1]?.attempts ?? []).length));
+      return Math.max(w, longest * 9 + 30);
+    });
   }
 
   startResize(event: MouseEvent, colIndex: number): void {
@@ -995,7 +1142,7 @@ export class StatisticsComponent implements OnInit, OnDestroy {
   }
 
   private buildFileName(ext: string): string {
-    const group = this.selectedGroupName.replace(/\s+/g, '_');
+    const group = (this.selectedStudentName || this.selectedGroupName).replace(/\s+/g, '_');
     const today = new Date().toISOString().slice(0, 10);
     return `bangdiem_${group}_${today}.${ext}`;
   }
@@ -1062,4 +1209,15 @@ export class StatisticsComponent implements OnInit, OnDestroy {
   logout(): void {
     this.authService.logout();
   }
+}
+
+function groupBy<T>(items: T[], keyOf: (item: T) => string): Map<string, T[]> {
+  const groups = new Map<string, T[]>();
+  for (const item of items) {
+    const key = keyOf(item);
+    const group = groups.get(key);
+    if (group) group.push(item);
+    else groups.set(key, [item]);
+  }
+  return groups;
 }

@@ -11,8 +11,10 @@ cham.md:
 Vị trí: ảnh (x; y) — chỗ vẽ ✓/✘, tỉ lệ 0–1 theo chiều rộng / chiều cao ảnh.
 cham.md cũ còn cột Khoanh thứ 6 thì cột đó bị bỏ qua (giáo viên đã bỏ vòng khoanh).
 Dòng "Bình luận: không" (giáo viên chọn không nhận xét): không có mục "## Ảnh", không đăng bình luận nào.
-Còn lại, mỗi câu ✘ phải được nhắc tên (vd. "Câu 7", "câu 2, 5, 9a") ở một đoạn nào đó, không bắt buộc dưới ảnh của câu
-đó: các câu chỉ ghi đáp số sai được gộp vào một đoạn "cần xem lại" duy nhất.
+Còn lại, mỗi ảnh có câu ✘ đúng một đoạn (một bình luận), nhắc tên mọi câu ✘ của ảnh đó (vd. "Câu 1, câu 2 và câu 3
+em chưa đúng, em kiểm tra lại nhé"); ảnh của một câu là ảnh ghi ở cột Vị trí.
+Nhãn nhiều tầng (P2.II.6b) không được chép nguyên vào bình luận: học sinh đọc "Phần 2 câu 6b" (bỏ mục La Mã),
+nhiều câu cùng phần thì "Phần 2 câu 6b, 8a và 8b".
 Bình luận không được có dấu gạch (-, –, —) ngoài công thức \\(…\\): đọc như máy viết.
 
 parse(text, n_images) → (data, problems); problems rỗng là đọc được hết.
@@ -52,9 +54,27 @@ def spots(cell: str, size: int, cau: str, what: str, n_images: int, problems: li
     return out
 
 
+def has_word(word: str, text: str) -> bool:
+    return bool(re.search(rf'(?<!\w){re.escape(word)}(?!\w)', text, re.I))
+
+
+def readable(label: str) -> str:
+    """Cách gọi câu cho học sinh đọc: P2.II.6b → "Phần 2 câu 6b", II.19a → "câu 19a", 7 → "câu 7"."""
+    parts = label.split('.')
+    part = re.fullmatch(r'P(\d+)', parts[0], re.I)
+    return (f'Phần {part[1]} ' if part and len(parts) > 1 else '') + f'câu {parts[-1]}'
+
+
+def mentioned(label: str, text: str) -> bool:
+    """Câu được nhắc trong đoạn: có số câu (6b), và có "Phần 2" nếu nhãn có phần; nhiều câu cùng phần gọi chung một lần."""
+    parts = label.split('.')
+    part = re.fullmatch(r'P(\d+)', parts[0], re.I)
+    return has_word(parts[-1], text) and (not part or len(parts) == 1 or has_word(f'phần {part[1]}', text))
+
+
 def parse(text: str, n_images: int) -> tuple[dict, list[str]]:
     problems: list[str] = []
-    marks, wrong = [], []
+    marks, wrong, labels = [], [], []
     total = max_total = 0.0
     count = {'✓': 0, '✘': 0, '—': 0}
     for line in text.splitlines():
@@ -65,6 +85,7 @@ def parse(text: str, n_images: int) -> tuple[dict, list[str]]:
             problems.append(f'dòng bảng cần 5 cột (Câu | Đ/S | Điểm | Tối đa | Vị trí): {line[:60]}')
             continue
         cau, ds, diem, toi_da, pos = cells[:5]
+        labels.append(cau)
         if ds not in count:
             problems.append(f'câu {cau}: Đ/S phải là ✓, ✘ hoặc —')
             continue
@@ -89,7 +110,7 @@ def parse(text: str, n_images: int) -> tuple[dict, list[str]]:
             continue
         marks.append({'anh': at[0][0], 'cau': cau, 'dung': ds == '✓', 'x': at[0][1], 'y': at[0][2]})
         if ds == '✘':
-            wrong.append(cau)
+            wrong.append((cau, at[0][0]))
     if not max_total:
         problems.append('chưa có bảng câu (| Câu | Đ/S | Điểm | Tối đa | Vị trí |)')
 
@@ -107,9 +128,15 @@ def parse(text: str, n_images: int) -> tuple[dict, list[str]]:
         if comments:
             problems.append('đã ghi "Bình luận: không" thì bỏ hết các mục ## Ảnh <i>')
     else:
-        said = FORMULA.sub('', '\n'.join(p for paras in comments.values() for p in paras))
-        if missing := [c for c in wrong if not re.search(rf'(?<![\w]){re.escape(c)}(?![\w])', said)]:
-            problems.append('câu ✘ chưa được nhắc trong nhận xét (## Ảnh <i>): ' + ', '.join(missing))
+        said = {i: FORMULA.sub('', '\n'.join(paras)) for i, paras in comments.items()}
+        if missing := [f'câu {c} (ảnh {i}, viết "{readable(c)}")' for c, i in wrong if not mentioned(c, said.get(i, ''))]:
+            problems.append('câu ✘ chưa được nhắc trong nhận xét của ảnh có dấu ✘ đó (## Ảnh <i>): ' + ', '.join(missing))
+        if raw := sorted({c for c in labels if '.' in c and any(has_word(c, s) for s in said.values())}):
+            problems.append('nhận xét còn chép nhãn bảng, học sinh khó đọc: '
+                            + ', '.join(f'{c} → "{readable(c)}"' for c in raw))
+        if many := sorted(i for i, paras in comments.items() if len(paras) > 1):
+            problems.append('mỗi ảnh chỉ một đoạn nhận xét (gộp các câu sai của ảnh vào một đoạn, không để dòng trống): ảnh '
+                            + ', '.join(map(str, many)))
     if dashed := sorted(i for i, paras in comments.items() if any(DASH.search(FORMULA.sub('', p)) for p in paras)):
         problems.append('nhận xét ảnh ' + ', '.join(map(str, dashed)) + ' có dấu gạch (-, –, —): viết lại bằng dấu phẩy, '
                         'dấu hai chấm hoặc tách câu; dấu trừ thì đặt trong \\(…\\)')
