@@ -109,5 +109,20 @@ service cloud.firestore {
     match /gradedImages/{id} {
       allow read, write: if true;
     }
+
+    // Thông báo Zalo Bot (email-api/lib/zalo.js). Server ghi qua REST không xác thực nên phải mở như các collection trên;
+    // siết luật thì chuyển email-api sang service account.
+    // Mã liên kết 6 số do trang học sinh tạo, webhook đổi thành zaloChats rồi xóa.
+    match /zaloLinks/{code} {
+      allow read, create, delete: if true;
+    }
+    // zaloChats/<studentId> = { chatId }: chatId chỉ dùng được cùng Bot Token (chỉ server giữ).
+    match /zaloChats/{studentId} {
+      allow read, write: if true;
+    }
+    // zaloState/<mã Lần nộp> = { score, sentAt }: lần gửi Thông báo Zalo trước, để chỉ báo phần mới.
+    match /zaloState/{submissionId} {
+      allow read, write: if true;
+    }
   }
 }

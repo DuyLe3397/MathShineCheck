@@ -122,3 +122,47 @@ export async function releaseEmail(collection, id) {
     body: JSON.stringify({ fields: {} }),
   }).catch(() => {});
 }
+
+const fieldsOf = (data) => Object.fromEntries(Object.entries(data).map(([k, v]) => [k, encodeValue(v)]));
+
+/** Ghi đè cả document (tạo mới nếu chưa có) với mã cho trước. */
+export async function putDoc(collection, id, data) {
+  const res = await fetch(`${baseUrl()}/${collection}/${encodeURIComponent(id)}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ fields: fieldsOf(data) }),
+  });
+  if (!res.ok) throw new Error(`Firestore put ${collection}/${id}: ${res.status}`);
+}
+
+/** Tạo document với mã cho trước, chỉ khi mã đó chưa có. Trả về false nếu đã có (dùng để chống gửi trùng). */
+export async function createDocWithId(collection, id, data) {
+  const res = await fetch(`${baseUrl()}/${collection}?documentId=${encodeURIComponent(id)}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ fields: fieldsOf(data) }),
+  });
+  if (res.status === 409) return false;
+  if (!res.ok) throw new Error(`Firestore create ${collection}/${id}: ${res.status}`);
+  return true;
+}
+
+export async function deleteDocument(collection, id) {
+  const res = await fetch(`${baseUrl()}/${collection}/${encodeURIComponent(id)}`, { method: 'DELETE' });
+  if (!res.ok && res.status !== 404) throw new Error(`Firestore delete ${collection}/${id}: ${res.status}`);
+}
+
+/**
+ * Ghi đè document chỉ khi nó chưa đổi kể từ lần đọc: updateTime = null nghĩa là phải chưa có document.
+ * Trả về false nếu có người ghi trước (chống hai yêu cầu cùng lúc).
+ */
+export async function writeDocIf(collection, id, data, updateTime) {
+  if (!updateTime) return createDocWithId(collection, id, data);
+  const params = new URLSearchParams({ 'currentDocument.updateTime': updateTime });
+  const res = await fetch(`${baseUrl()}/${collection}/${encodeURIComponent(id)}?${params}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ fields: fieldsOf(data) }),
+  });
+  return res.ok;
+}

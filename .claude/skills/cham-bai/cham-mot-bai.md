@@ -33,7 +33,7 @@ Trả về đúng một dòng: `<điểm script in> · <a> ✓ <b> ✘ · đẩy
 
 ## `cham.md`
 
-**Bảng**: mỗi câu trong `Danh sách câu` của `dap-an.md` một dòng, đúng nhãn đó, kể cả câu chưa làm.
+**Bảng**: mỗi câu trong `Danh sách câu` của `dap-an.md` một dòng, đúng nhãn đó, kể cả câu chưa làm. Câu ở dòng `Bỏ không chấm` thì không có dòng, không vẽ dấu, không nhận xét, kể cả khi học sinh có làm.
 - **Vị trí** `ảnh (x; y)`: ngay bên phải đáp số hoặc đáp án khoanh, chỗ trống không đè chữ; `x`, `y` tỉ lệ 0–1 tính từ góc trên trái.
 - **Điểm**: câu ✓ để trống. Câu không có trong ảnh: `—` ở Đ/S và Vị trí, Điểm để trống.
 

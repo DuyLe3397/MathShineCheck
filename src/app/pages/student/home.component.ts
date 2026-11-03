@@ -8,6 +8,7 @@ import { AuthService } from '../../services/auth.service';
 import { FirestoreService } from '../../services/firestore.service';
 import { StudentNotificationService } from '../../services/student-notification.service';
 import { StudentNavbarComponent } from './student-navbar.component';
+import { ZaloLinkCardComponent } from './zalo-link-card.component';
 import { MathPlainPipe } from '../../shared/math/math-plain.pipe';
 import {
   Assignment,
@@ -41,7 +42,7 @@ interface PendingRequest {
 @Component({
   selector: 'app-student-home',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterModule, StudentNavbarComponent, MathPlainPipe],
+  imports: [CommonModule, FormsModule, RouterModule, StudentNavbarComponent, MathPlainPipe, ZaloLinkCardComponent],
   styles: [
     `
       :host {
@@ -304,6 +305,8 @@ interface PendingRequest {
     </div>
 
     <div class="content">
+      <app-zalo-link-card />
+
       @if (loading()) {
         <div class="loading">Đang tải...</div>
       }

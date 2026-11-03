@@ -1,10 +1,12 @@
-import { Component, HostListener, input, model } from '@angular/core';
+import { Component, ElementRef, HostListener, input, model, ViewChild } from '@angular/core';
 import { MathTextComponent } from '../math/math-text.component';
 
 /**
  * Màn hình phóng to Ảnh đính kèm (cỡ thật, ảnh lớn hơn màn hình thì thu vừa): "Hình i/N", Ghi chú ảnh ở dưới, lật qua lại bằng
  * nút ‹ › hoặc phím ←/→; chỉ đóng khi bấm đúng nút ✕ tròn màu xanh (bấm nền ngoài không đóng).
- * Hỗ trợ 2 ngón tay vuốt zoom hoặc nhấn đúp ở bất kỳ đâu trên popup, lướt ảnh trơn mượt có quán tính (momentum).
+ * Hỗ trợ 2 ngón tay vuốt zoom hoặc nhấn đúp ở bất kỳ đâu trên popup (phóng 2,2x quanh đúng chỗ nhấn, nhấn đúp lần nữa về 1x),
+ * lướt ảnh trơn mượt có quán tính (momentum).
+ * Cũng là Màn hình xem ảnh bài làm (label="Ảnh") trên trang kết quả và trang xem bài bạn.
  * `index` = null là đang đóng.
  */
 @Component({
@@ -166,7 +168,7 @@ import { MathTextComponent } from '../math/math-text.component';
         (touchend)="onTouchEnd($event)"
         (touchcancel)="onTouchEnd($event)"
       >
-        <div class="att-lb-title">Hình {{ index()! + 1 }}/{{ urls().length }}</div>
+        <div class="att-lb-title">{{ label() }} {{ index()! + 1 }}/{{ urls().length }}</div>
         <button
           class="att-lb-close"
           (click)="close(); $event.stopPropagation()"
@@ -185,6 +187,7 @@ import { MathTextComponent } from '../math/math-text.component';
         }
         <div class="att-lb-body">
           <img
+            #lbImg
             [src]="urls()[index()!]"
             alt=""
             [style.transform]="
@@ -213,7 +216,13 @@ import { MathTextComponent } from '../math/math-text.component';
 export class AttachmentLightboxComponent {
   urls = input<string[]>([]);
   notes = input<string[]>([]);
+  /** Chữ đứng trước số thứ tự trên tiêu đề: "Hình" cho Ảnh đính kèm, "Ảnh" cho ảnh bài làm của Lần nộp. */
+  label = input('Hình');
   index = model<number | null>(null);
+  @ViewChild('lbImg') private imgRef?: ElementRef<HTMLImageElement>;
+
+  /** Mức phóng khi nhấn đúp / bấm đúp chuột. */
+  static readonly DOUBLE_TAP_SCALE = 2.2;
 
   scale = 1;
   panX = 0;
@@ -259,14 +268,27 @@ export class AttachmentLightboxComponent {
     this.index.set((i + delta + n) % n);
   }
 
-  toggleZoom(): void {
+  /** Nhấn đúp: đang thường thì phóng quanh đúng điểm (x, y) vừa nhấn, đang phóng thì trở về cỡ thường. */
+  toggleZoom(x?: number, y?: number): void {
     this.stopMomentum();
     if (this.isZoomed) {
       this.resetZoom();
-    } else {
-      this.scale = 2.2;
-      this.panX = 0;
-      this.panY = 0;
+      return;
+    }
+    const s = AttachmentLightboxComponent.DOUBLE_TAP_SCALE;
+    this.scale = s;
+    this.panX = 0;
+    this.panY = 0;
+    const rect = this.imgRef?.nativeElement.getBoundingClientRect();
+    if (rect && x !== undefined && y !== undefined) {
+      // Ảnh phóng quanh tâm (transform-origin mặc định): giữ điểm vừa nhấn đứng yên dưới ngón tay
+      // thì cần dịch (1 − s)·(điểm nhấn − tâm ảnh). Nhấn ra ngoài ảnh thì lấy điểm gần nhất trên ảnh.
+      const px = Math.min(rect.right, Math.max(rect.left, x));
+      const py = Math.min(rect.bottom, Math.max(rect.top, y));
+      const maxPanX = window.innerWidth * (s - 0.2);
+      const maxPanY = window.innerHeight * (s - 0.2);
+      this.panX = Math.max(-maxPanX, Math.min(maxPanX, (1 - s) * (px - (rect.left + rect.width / 2))));
+      this.panY = Math.max(-maxPanY, Math.min(maxPanY, (1 - s) * (py - (rect.top + rect.height / 2))));
     }
   }
 
@@ -281,7 +303,7 @@ export class AttachmentLightboxComponent {
 
   onDoubleClick(e: MouseEvent): void {
     e.stopPropagation();
-    this.toggleZoom();
+    this.toggleZoom(e.clientX, e.clientY);
   }
 
   onMouseDown(e: MouseEvent): void {
@@ -358,7 +380,7 @@ export class AttachmentLightboxComponent {
 
     if (now - this.lastTapTime < 320 && dx < 35 && dy < 35) {
       // Nhấn đúp 2 lần: chuyển đổi trạng thái phóng to
-      this.toggleZoom();
+      this.toggleZoom(touch.clientX, touch.clientY);
       this.lastTapTime = 0;
       e.preventDefault();
       return;

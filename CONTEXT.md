@@ -62,8 +62,12 @@ Lời giải thích không bắt buộc mà người viết gắn với một �
 _Avoid_: nhãn ảnh, caption
 
 **Màn hình xem ảnh đính kèm**:
-Màn hình phóng to khi người dùng bấm vào một Ảnh đính kèm trong nhận xét. Cho phép xem ảnh cỡ lớn kèm Ghi chú ảnh, chuyển ảnh bằng nút ‹ và › (hoặc phím mũi tên); hỗ trợ 2 ngón tay vuốt zoom hoặc nhấn đúp ở bất kỳ đâu trên màn hình, lướt ảnh trơn mượt có quán tính; chỉ đóng khi bấm đúng nút ✕ hình tròn màu xanh (bấm ra nền ngoài không đóng). Khi đóng (hoặc khi đổi ảnh), khung Ảnh đính kèm tương ứng trong bình luận được khoanh viền bo màu xanh (#2563eb) để đánh dấu vị trí vừa xem.
+Màn hình phóng to khi người dùng bấm vào một Ảnh đính kèm trong nhận xét. Cho phép xem ảnh cỡ lớn kèm Ghi chú ảnh, chuyển ảnh bằng nút ‹ và › (hoặc phím mũi tên); hỗ trợ 2 ngón tay vuốt zoom hoặc nhấn đúp ở bất kỳ đâu trên màn hình (phóng 2,2 lần quanh đúng chỗ vừa nhấn), lướt ảnh trơn mượt có quán tính; chỉ đóng khi bấm đúng nút ✕ hình tròn màu xanh (bấm ra nền ngoài không đóng). Khi đóng (hoặc khi đổi ảnh), khung Ảnh đính kèm tương ứng trong bình luận được khoanh viền bo màu xanh (#2563eb) để đánh dấu vị trí vừa xem.
 _Avoid_: lightbox, modal ảnh
+
+**Màn hình xem ảnh bài làm**:
+Màn hình phóng to khi học sinh bấm vào một ảnh của Lần nộp, trên trang kết quả của mình hoặc trang xem bài bạn (chỉ khi được phép xem). Hoạt động như Màn hình xem ảnh đính kèm: nhấn đúp (điện thoại) hoặc bấm đúp chuột (máy tính) phóng ảnh lên 2,2 lần quanh đúng chỗ vừa nhấn, nhấn đúp lần nữa trở về cỡ thường; 2 ngón tay vuốt zoom; chỉ đóng bằng nút ✕. Nút ‹ › chuyển giữa các ảnh của cùng một Lần nộp. Khi đóng, trang cuộn tới ảnh vừa xem cuối cùng, không khoanh viền.
+_Avoid_: lightbox, ảnh zoom
 
 **Đáp án đã chốt**:
 Kết quả cuối từng câu của một bài tập, kèm biểu điểm (và lời giải từng bước nếu có), đã được giáo viên đồng ý. Đây là căn cứ duy nhất để chấm mọi Lần nộp của bài tập đó: câu nào học sinh ra đúng kết quả cuối là đúng, chỉ câu sai mới xét lời giải. Có thể bắt nguồn từ đáp án giáo viên đưa (dùng nguyên, không giải lại) hoặc lời giải Claude đề xuất, nhưng chỉ thành Đáp án đã chốt khi giáo viên chốt.
@@ -94,6 +98,10 @@ Một mục trong tab Thông báo của giáo viên, sinh ra khi có Lần nộp
 **Email thông báo**:
 Một email gửi tới hộp thư cố định của giáo viên mỗi khi **học sinh** tạo một Lần nộp, một Nhận xét theo ảnh, hoặc một thảo luận/trả lời thảo luận. Mỗi sự kiện đúng một email, dù có bao nhiêu giáo viên; giáo viên tự viết thì không gửi. Email kèm tên học sinh, nhóm/lớp, bài tập, toàn văn nội dung và một link mở đúng chỗ như khi bấm Thông báo. Không thay thế Thông báo: gửi email thất bại thì Thông báo vẫn còn.
 _Avoid_: mail cmt, thông báo email
+
+**Thông báo Zalo**:
+Tin nhắn Zalo Bot gửi cho học sinh đã bật thông báo Zalo (trên trang chủ học sinh), về một Lần nộp của em. Chỉ gửi khi giáo viên bấm nút đỏ "Lưu, Chấm điểm & Gửi Zalo cho HS" trên trang chấm bài (trên máy tính, nhấn Enter trong ô Điểm cũng là bấm nút này); nút xanh "Lưu & Chấm điểm", viết Nhận xét theo ảnh hay skill chấm bài đẩy nhận xét đều không gửi. Mỗi lần bấm nút đỏ gửi tối đa hai tin, theo thứ tự: tin điểm (điểm, lần nộp, Nhận xét chung, link) khi Lần nộp chưa từng được báo điểm qua Zalo hoặc điểm khác lần báo trước; rồi tin nhận xét (tên từng giáo viên đã viết, số Nhận xét theo ảnh, link) khi có Nhận xét theo ảnh của giáo viên viết sau lần gửi Zalo trước. Chỉ sửa Nhận xét chung thì không gửi. Không có gì mới thì không gửi gì. Lần nộp Chấm không điểm thì tin điểm báo "đã được chấm", không ghi điểm. Tin không chép nội dung Nhận xét theo ảnh.
+_Avoid_: thông báo (đứng một mình, dễ lẫn với Thông báo của giáo viên), tin bot
 
 **Yêu cầu xem bài bạn**:
 Học sinh xin một học sinh khác cho xem bài làm của mình ở một Bài tập; người được xin chấp nhận hoặc từ chối. Không liên quan tới Bài bị ẩn.

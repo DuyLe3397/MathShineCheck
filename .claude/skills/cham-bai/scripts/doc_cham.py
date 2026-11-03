@@ -17,8 +17,9 @@ Nhãn nhiều tầng (P2.II.6b) không được chép nguyên vào bình luận:
 nhiều câu cùng phần thì "Phần 2 câu 6b, 8a và 8b".
 Bình luận không được có dấu gạch (-, –, —) ngoài công thức \\(…\\): đọc như máy viết.
 
-Đối chiếu đề: dòng "Danh sách câu: I.1, I.2, …" của <bài tập>/dap-an.md là mọi câu của đề; bảng phải có đủ và
-đúng các nhãn đó (câu không làm ghi —).
+Đối chiếu đề: dòng "Danh sách câu: I.1, I.2, …" của <bài tập>/dap-an.md là mọi câu được chấm (câu ở dòng
+"Bỏ không chấm" không có trong đó); bảng phải có đủ và đúng các nhãn đó (câu không làm ghi —), nên câu bị bỏ
+không có dấu, không tính điểm, không bị nhắc là còn thiếu.
 Lịch sử: Lần nộp <học sinh>-lan<N> được so với cham.md đã lưu của các Lần nộp trước cùng học sinh (lan1 … lan<N-1>),
 không chấm lại lần nào: câu đã sửa, chưa sửa, chưa làm lại, mới sai, và câu chưa làm lần nào (còn thiếu).
 Có nhận xét thì script tự thêm câu nhắc câu còn thiếu và câu chưa làm lại vào cuối bình luận của ảnh cuối

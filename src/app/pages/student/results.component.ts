@@ -7,6 +7,7 @@ import { FirestoreService } from '../../services/firestore.service';
 import { ImageService } from '../../services/image.service';
 import { Grade, Submission, SubmissionComment } from '../../models';
 import { AttachmentDraft, notesOf } from '../../services/image.service';
+import { AttachmentLightboxComponent } from '../../shared/components/attachment-lightbox.component';
 import { CommentAttachmentsComponent } from '../../shared/components/comment-attachments.component';
 import { CommentAttachmentsEditorComponent } from '../../shared/components/comment-attachments-editor.component';
 import { AutoGrowDirective } from '../../shared/auto-grow.directive';
@@ -24,6 +25,7 @@ import { FormulaPreviewComponent } from '../../shared/math/formula-preview.compo
     RouterModule,
     CommentAttachmentsComponent,
     CommentAttachmentsEditorComponent,
+    AttachmentLightboxComponent,
     AutoGrowDirective,
     MathTextComponent,
     FormulaButtonComponent,
@@ -370,27 +372,6 @@ import { FormulaPreviewComponent } from '../../shared/math/formula-preview.compo
         cursor: pointer;
       }
 
-      .lightbox {
-        position: fixed;
-        top: 0;
-        left: 0;
-        right: 0;
-        bottom: 0;
-        background: rgba(0, 0, 0, 0.92);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        z-index: 9999;
-        cursor: zoom-out;
-        padding: 1rem;
-      }
-      .lightbox img {
-        max-width: 100%;
-        max-height: 100%;
-        object-fit: contain;
-        border-radius: 4px;
-        box-shadow: 0 4px 30px rgba(0, 0, 0, 0.5);
-      }
       .reply-image {
         max-width: 200px;
         max-height: 200px;
@@ -563,11 +544,11 @@ import { FormulaPreviewComponent } from '../../shared/math/formula-preview.compo
         @if (!imagesLoading() && submittedImages().length > 0) {
           <div class="submission-images">
             @for (url of submittedImages(); track $index; let i = $index) {
-              <div class="submission-image-card">
+              <div class="submission-image-card" [id]="'sub-img-' + i">
                 <img
                   [src]="url"
                   alt="Submitted image"
-                  (click)="openZoom(url)"
+                  (click)="openZoom(i)"
                 />
 
                 <div class="comments-section">
@@ -734,15 +715,13 @@ import { FormulaPreviewComponent } from '../../shared/math/formula-preview.compo
       <div class="menu-overlay" (click)="openMenuId.set('')"></div>
     }
 
-    @if (zoomedImage()) {
-      <div class="lightbox" (click)="closeZoom()">
-        <img
-          [src]="zoomedImage()"
-          alt="Phóng to"
-          (click)="$event.stopPropagation()"
-        />
-      </div>
-    }
+    <!-- Màn hình xem ảnh bài làm (CONTEXT.md) -->
+    <attachment-lightbox
+      [urls]="submittedImages()"
+      label="Ảnh"
+      [index]="zoomIndex()"
+      (indexChange)="onZoomIndexChange($event)"
+    />
 
     @if (selectedProfile()) {
       <div class="profile-overlay" (click)="closeProfile()">
@@ -791,7 +770,7 @@ export class ResultsComponent implements OnInit {
   commentsMap = signal<Record<number, SubmissionComment[]>>({});
   newComments = signal<Record<number, string>>({});
   loading = signal(true);
-  zoomedImage = signal<string | null>(null);
+  zoomIndex = signal<number | null>(null);
   highlightedAuthor = signal<string | null>(null);
   avatarCache = signal<Record<string, string>>({});
   selectedProfile = signal<{
@@ -1004,12 +983,17 @@ export class ResultsComponent implements OnInit {
     this.selectedProfile.set(null);
   }
 
-  openZoom(url: string): void {
-    this.zoomedImage.set(url);
+  openZoom(i: number): void {
+    this.zoomIndex.set(i);
   }
 
-  closeZoom(): void {
-    this.zoomedImage.set(null);
+  /** Đóng màn hình xem ảnh thì cuộn tới ảnh vừa xem cuối cùng (không khoanh viền). */
+  onZoomIndexChange(i: number | null): void {
+    const last = this.zoomIndex();
+    this.zoomIndex.set(i);
+    if (i === null && last !== null) {
+      setTimeout(() => document.getElementById('sub-img-' + last)?.scrollIntoView({ behavior: 'smooth', block: 'start' }));
+    }
   }
 
   goBack(): void {

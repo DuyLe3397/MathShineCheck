@@ -1,6 +1,6 @@
 ---
 name: cham-bai
-description: Chấm bài Toán viết tay trên MathShine. Luôn mở hộp thoại lấy đủ đầu vào (file đề, đáp án, đường dẫn bài nộp, đã xoay ảnh dọc chưa, có nhận xét không và kiểu nhận xét), kiểm tra xong là tự chạy đến hết không hỏi thêm; vẽ ✓/✘ lên ảnh bài làm, đăng nhận xét theo ảnh đúng giọng giáo viên, tất cả đẩy thẳng lên MathShine. Lần nộp 1 thì báo câu nào của đề còn chưa làm; lần 2 trở đi thì so với kết quả đã lưu của các lần trước để báo lỗi nào đã sửa, chưa sửa, câu nào còn thiếu. Dùng khi giáo viên gọi /cham-bai.
+description: Chấm bài Toán viết tay trên MathShine. Luôn mở hộp thoại lấy đủ đầu vào (file đề, đáp án, đường dẫn bài nộp, đã xoay ảnh dọc chưa, chấm toàn bộ đề hay bỏ phần nào, có nhận xét không và kiểu nhận xét), kiểm tra xong là tự chạy đến hết không hỏi thêm; vẽ ✓/✘ lên ảnh bài làm, đăng nhận xét theo ảnh đúng giọng giáo viên, tất cả đẩy thẳng lên MathShine. Lần nộp 1 thì báo câu nào của đề còn chưa làm; lần 2 trở đi thì so với kết quả đã lưu của các lần trước để báo lỗi nào đã sửa, chưa sửa, câu nào còn thiếu. Dùng khi giáo viên gọi /cham-bai.
 disable-model-invocation: true
 ---
 
@@ -34,18 +34,23 @@ Lấy ứng viên file: `python .claude/skills/cham-bai/scripts/ung_vien.py` (in
 | header | Hỏi | Lựa chọn |
 |---|---|---|
 | `Xoay ảnh` | Bạn đã xoay toàn bộ ảnh bài làm đúng chiều dọc chưa? Không ảnh nào nằm ngang? | `Đã xoay hết, không ảnh nào nằm ngang`, `Chưa, tôi đi xoay rồi chạy tiếp` |
+| `Phạm vi` | Chấm toàn bộ đề hay bỏ phần nào? (gõ câu cần bỏ ở ô Other cũng được) | `Bỏ như đã chốt: <các câu> (Recommended)` nếu có, `Chấm toàn bộ đề`, `Bỏ một số phần: tôi dán ảnh hoặc gõ vào chat` |
 | `Kiểu nhận xét` | Chỉ khi có nhận xét: kiểu nào? | `Chỉ ra chỗ sai rồi gợi ý`, `Chỉ ra chỗ sai thôi` |
 
 - "Đã chốt trong phiên": chỉ có khi phiên này đã chốt `dap-an.md`; description là đường dẫn file đề và `dap-an.md` đã dùng.
+- **Phạm vi** (bắt buộc, không suy từ lần trước):
+  - `Bỏ như đã chốt` chỉ có khi đáp án chọn là `dap-an.md` có sẵn và dòng `Bỏ không chấm:` của nó (Grep `^Bỏ không chấm:` trong file đó, không đọc cả file) khác `không`; label ghi gọn các câu đó.
+  - Chọn `Bỏ một số phần` mà chưa có ảnh hay chữ: nhắn "Dán ảnh phần đề cần bỏ (Ctrl+V) hoặc gõ các câu cần bỏ, vd. Phần 1 trả lời ngắn câu 1, 2", rồi dừng chờ.
+  - Ảnh dán vào: chỉ nhìn để ghi ra đó là những câu, ý nào của đề (phần, mục, số câu); không đọc nội dung khác. Chữ đó là `<bỏ>` truyền cho bước 2.
 - Ứng viên: label `Dùng: <tên ngắn>`, đường dẫn đầy đủ ở description, tối đa 4 lựa chọn. Thiếu thì thêm `Tôi gõ ở ô Other`; chọn nó mà không gõ thì coi là thiếu.
 - Chưa chọn `Đã xoay hết…` thì không chạy bước 1 (sẽ tải ảnh nằm ngang): nhắn giáo viên xoay trên MathShine, mở lại chỉ câu xoay ảnh, dừng chờ.
 - Không có `AskUserQuestion` (Claude Desktop): hỏi trong một tin nhắn đánh số.
 
 **Kiểm tra** bằng chính bước 1 và 2:
 - Bài nộp: mỗi đường dẫn có dạng `…/teacher/grade/<mã>` (một Lần nộp, chấm luôn bất kể trạng thái) hoặc `…/teacher/assignments/<mã>` (chỉ chấm dòng vàng "Đã nộp"). `lay_bai.py` báo lỗi đường dẫn thì câu này sai.
-- Đề, đáp án: bước 2 trả `OK`. Chọn đã chốt thì file đó phải còn.
+- Đề, đáp án, phạm vi: bước 2 trả `OK`. Chọn đã chốt thì file đó phải còn.
 
-Câu nào thiếu hoặc sai thì hỏi lại **chỉ câu đó**, nêu lý do trong câu hỏi (vd. "Đáp án thiếu câu 7 và 9b, gõ đáp án hai câu này"), rồi dừng chờ. Đủ hết thì nhắc lại một dòng (đề, đáp án, số bài, ảnh đã xoay, chế độ nhận xét) rồi chạy tiếp, không xin xác nhận.
+Câu nào thiếu hoặc sai thì hỏi lại **chỉ câu đó**, nêu lý do trong câu hỏi (vd. "Đáp án thiếu câu 7 và 9b, gõ đáp án hai câu này"), rồi dừng chờ. Đủ hết thì nhắc lại một dòng (đề, đáp án, phạm vi chấm, số bài, ảnh đã xoay, chế độ nhận xét) rồi chạy tiếp, không xin xác nhận.
 
 Chế độ nhận xét truyền cho người chấm: `gợi ý`, `chỉ chỗ sai` hoặc `không`.
 
@@ -61,13 +66,13 @@ Script đã lọc theo trạng thái, không lọc thêm. `todo` và `dayLai` đ
 
 ## 2. Chốt đáp án: `<assignmentDir>/dap-an.md`
 
-- Chọn `Dùng đáp án đã chốt trong phiên`: dùng luôn; khác `assignmentDir` thì chép sang `<assignmentDir>/dap-an.md`.
+- Chọn `Dùng đáp án đã chốt trong phiên`: khác `assignmentDir` thì chép sang `<assignmentDir>/dap-an.md`. Grep `^(Danh sách câu|Bỏ không chấm):` trong file đó: có `Danh sách câu` và `Bỏ không chấm` khớp phạm vi vừa chọn (chấm toàn bộ ứng với `không` hoặc thiếu dòng) thì dùng luôn; không thì giao `chot-dap-an` như dưới, báo `Đã có dap-an.md cũ`.
 - Còn lại: giao một subagent loại **`chot-dap-an`**:
 
-  > Chốt đáp án. Đề: `<file đề>`. Đáp án: `<file | trong file đề | "chữ giáo viên gõ">`. assignmentDir: `<assignmentDir>`. `<Đã có dap-an.md cũ | Chưa có dap-an.md>`.
+  > Chốt đáp án. Đề: `<file đề>`. Đáp án: `<file | trong file đề | "chữ giáo viên gõ">`. Bỏ không chấm: `<không | <bỏ>>`. assignmentDir: `<assignmentDir>`. `<Đã có dap-an.md cũ | Chưa có dap-an.md>`.
 
   Không có loại này: subagent mặc định `model: "sonnet"`, thêm "Đọc trước `.claude/skills/cham-bai/chot-dap-an.md`". Không có Agent tool: tự làm theo file đó.
-- Trả `THIẾU · …`: hỏi giáo viên đúng các câu đó (bước 0); có câu trả lời thì tự sửa các dòng `?` trong `dap-an.md` bằng Edit. Trả `LỖI · …`: hỏi lại file đó.
+- Trả `THIẾU · …`: hỏi giáo viên đúng các câu đó (bước 0); có câu trả lời thì tự sửa các dòng `?` trong `dap-an.md` bằng Edit. `THIẾU · bỏ: …` (câu cần bỏ không khớp câu nào của đề): hỏi lại chỉ phạm vi, rồi giao lại `chot-dap-an`. Trả `LỖI · …`: hỏi lại file đó.
 
 ## 3. Chấm và đẩy
 
@@ -85,4 +90,4 @@ Mỗi bài một dòng từ dòng người chấm trả về:
 
 Dưới mỗi dòng, thụt vào, phần `Lịch sử` (nhãn viết dễ đọc): lần 1 thì `còn thiếu`; lần 2 trở đi thì `đã sửa`, `chưa sửa`, `chưa làm lại`, `mới sai`, `còn thiếu` và lần nào không so được. Bài `dayLai` không có lịch sử.
 
-Cuối cùng nhắc: dấu (và nhận xét nếu có) đã lên MathShine; điểm giáo viên tự nhập; biểu điểm do skill tự định (nếu bước 2 báo vậy); trả ảnh gốc: `python .claude/skills/cham-bai/scripts/day_anh.py <dir> --khoi-phuc`.
+Cuối cùng nhắc: dấu (và nhận xét nếu có) đã lên MathShine; phần bỏ không chấm (nếu có, viết dễ đọc) không có dấu, không tính điểm, không bị nhắc là còn thiếu; điểm giáo viên tự nhập; biểu điểm do skill tự định (nếu bước 2 báo vậy); trả ảnh gốc: `python .claude/skills/cham-bai/scripts/day_anh.py <dir> --khoi-phuc`.

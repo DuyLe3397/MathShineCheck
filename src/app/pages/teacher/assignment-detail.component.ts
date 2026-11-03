@@ -426,7 +426,10 @@ interface StudentSubmissionRow {
                 </tr>
               </thead>
               <tbody>
-                <tr *ngFor="let row of rows">
+                <tr
+                  *ngFor="let row of rows"
+                  [attr.id]="row.submission ? 'row-' + row.submission.id : null"
+                >
                   <td>
                     <strong>{{ row.student.fullName }}</strong>
                   </td>
@@ -571,6 +574,14 @@ export class AssignmentDetailComponent implements OnInit {
     } finally {
       this.loading = false;
     }
+    this.scrollToFocus();
+  }
+
+  /** Vừa chấm xong ở trang chấm bài (?focus=<mã Lần nộp>): cuộn tới dòng đó. */
+  private scrollToFocus(): void {
+    const focus = this.route.snapshot.queryParamMap.get('focus');
+    if (!focus) return;
+    setTimeout(() => document.getElementById('row-' + focus)?.scrollIntoView({ block: 'center' }));
   }
 
   /** Tải bài tập cùng học sinh, Lần nộp và điểm của bài (3 query song song); giữ bảng cũ trong lúc tải. */

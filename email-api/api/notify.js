@@ -4,12 +4,7 @@ import nodemailer from 'nodemailer';
 import { buildEmail } from '../lib/build-email.js';
 import { getDoc, claimEmail, releaseEmail } from '../lib/firestore.js';
 import { loadEvent } from '../lib/load-event.js';
-
-const DEFAULT_ORIGINS = [
-  'https://mathshine-check-274.web.app',
-  'https://mathshine-check-274.firebaseapp.com',
-  'http://localhost:4200',
-];
+import { applyCors, parseBody } from '../lib/http.js';
 
 let transporter;
 function getTransporter() {
@@ -18,28 +13,6 @@ function getTransporter() {
     auth: { user: process.env.GMAIL_USER, pass: process.env.GMAIL_APP_PASSWORD },
   });
   return transporter;
-}
-
-function applyCors(req, res) {
-  const allowed = process.env.ALLOWED_ORIGINS?.split(',').map((s) => s.trim()) || DEFAULT_ORIGINS;
-  const origin = req.headers.origin;
-  if (origin && allowed.includes(origin)) {
-    res.setHeader('Access-Control-Allow-Origin', origin);
-    res.setHeader('Vary', 'Origin');
-    res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
-    res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
-  }
-}
-
-function parseBody(body) {
-  if (typeof body === 'string') {
-    try {
-      return JSON.parse(body);
-    } catch {
-      return null;
-    }
-  }
-  return body && typeof body === 'object' ? body : null;
 }
 
 export default async function handler(req, res) {

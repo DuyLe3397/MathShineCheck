@@ -823,6 +823,44 @@ export class FirestoreService {
     } catch {}
   }
 
+  /**
+   * Thông báo Zalo (CONTEXT.md): chỉ gọi khi giáo viên bấm nút đỏ "Lưu, Chấm điểm & Gửi Zalo cho HS".
+   * API tự đọc lại điểm và Nhận xét theo ảnh, chỉ gửi phần mới so với lần gửi trước; không chờ, không báo lỗi
+   * (xem email-api/lib/zalo.js).
+   */
+  requestZaloNotice(submissionId: string): void {
+    if (!environment.zaloNotifyUrl || !submissionId) return;
+    try {
+      fetch(environment.zaloNotifyUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain' },
+        body: JSON.stringify({ submissionId }),
+        keepalive: true,
+      }).catch(() => {});
+    } catch {}
+  }
+
+  // ==================== ZALO BOT ====================
+  /** Tạo mã liên kết 6 số (hết hạn sau 30 phút) để học sinh nhắn cho Zalo Bot. */
+  async createZaloLinkCode(studentId: string): Promise<string> {
+    const code = String(Math.floor(100000 + Math.random() * 900000));
+    await setDoc(doc(this.firestore, 'zaloLinks', code), {
+      studentId,
+      createdAt: new Date().toISOString(),
+    });
+    return code;
+  }
+
+  /** Thông tin liên kết Zalo của học sinh, null nếu chưa bật. */
+  async getZaloChat(studentId: string): Promise<{ zaloName?: string; linkedAt?: string } | null> {
+    const snap = await getDoc(doc(this.firestore, 'zaloChats', studentId));
+    return snap.exists() ? (snap.data() as { zaloName?: string; linkedAt?: string }) : null;
+  }
+
+  async unlinkZalo(studentId: string): Promise<void> {
+    await deleteDoc(doc(this.firestore, 'zaloChats', studentId));
+  }
+
   private async notifyTeachersNewSubmission(
     submissionId: string,
     studentId: string,

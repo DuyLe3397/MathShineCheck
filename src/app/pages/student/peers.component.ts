@@ -5,6 +5,7 @@ import { RouterModule, ActivatedRoute, Router } from '@angular/router';
 import { AuthService } from '../../services/auth.service';
 import { FirestoreService } from '../../services/firestore.service';
 import { ImageService } from '../../services/image.service';
+import { AttachmentLightboxComponent } from '../../shared/components/attachment-lightbox.component';
 import {
   Assignment,
   Submission,
@@ -29,7 +30,7 @@ interface PeerInfo {
 @Component({
   selector: 'app-peers',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterModule],
+  imports: [CommonModule, FormsModule, RouterModule, AttachmentLightboxComponent],
   styles: [
     `
       :host {
@@ -261,29 +262,6 @@ interface PeerInfo {
       .nav-link .icon {
         font-size: 1.2rem;
       }
-
-      .lightbox {
-        position: fixed;
-        top: 0;
-        left: 0;
-        right: 0;
-        bottom: 0;
-        background: rgba(0, 0, 0, 0.92);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        z-index: 9999;
-        cursor: zoom-out;
-        padding: 1rem;
-      }
-
-      .lightbox img {
-        max-width: 100%;
-        max-height: 100%;
-        object-fit: contain;
-        border-radius: 4px;
-        box-shadow: 0 4px 30px rgba(0, 0, 0, 0.5);
-      }
     `,
   ],
   template: `
@@ -356,15 +334,16 @@ interface PeerInfo {
                 </span>
               </div>
               <div class="attempt-images">
-                @for (url of a.imageUrls; track $index) {
+                @for (url of a.imageUrls; track $index; let i = $index) {
                   <div
                     class="peer-thumb"
+                    [id]="'peer-img-' + a.submissionId + '-' + i"
                     [class.blurred]="
                       peer.student.uid !== profile?.uid &&
                       peer.permissionStatus !== 'granted'
                     "
                     (click)="
-                      openZoom(url, peer.student.uid, peer.permissionStatus)
+                      openZoom(a, i, peer.student.uid, peer.permissionStatus)
                     "
                   >
                     <img [src]="url" alt="Bài làm" />
@@ -377,15 +356,13 @@ interface PeerInfo {
       }
     </div>
 
-    @if (zoomedImage()) {
-      <div class="lightbox" (click)="closeZoom()">
-        <img
-          [src]="zoomedImage()"
-          alt="Phóng to"
-          (click)="$event.stopPropagation()"
-        />
-      </div>
-    }
+    <!-- Màn hình xem ảnh bài làm (CONTEXT.md): ‹ › chỉ trong ảnh của một Lần nộp -->
+    <attachment-lightbox
+      [urls]="zoomAttempt()?.imageUrls || []"
+      label="Ảnh"
+      [index]="zoomIndex()"
+      (indexChange)="onZoomIndexChange($event)"
+    />
 
     <div class="student-nav">
       <a class="nav-link" routerLink="/student/home" routerLinkActive="active">
@@ -422,7 +399,8 @@ export class PeersComponent implements OnInit {
   groupName = '';
   loading = signal(true);
   peers = signal<PeerInfo[]>([]);
-  zoomedImage = signal<string | null>(null);
+  zoomAttempt = signal<PeerAttempt | null>(null);
+  zoomIndex = signal<number | null>(null);
 
   ngOnInit(): void {
     this.assignmentId = this.route.snapshot.paramMap.get('assignmentId') || '';
@@ -579,14 +557,25 @@ export class PeersComponent implements OnInit {
     }
   }
 
-  openZoom(url: string, studentUid: string, permissionStatus: string): void {
+  openZoom(attempt: PeerAttempt, i: number, studentUid: string, permissionStatus: string): void {
     if (studentUid === this.profile?.uid || permissionStatus === 'granted') {
-      this.zoomedImage.set(url);
+      this.zoomAttempt.set(attempt);
+      this.zoomIndex.set(i);
     }
   }
 
-  closeZoom(): void {
-    this.zoomedImage.set(null);
+  /** Đóng màn hình xem ảnh thì cuộn tới ảnh vừa xem cuối cùng (không khoanh viền). */
+  onZoomIndexChange(i: number | null): void {
+    const last = this.zoomIndex();
+    const attempt = this.zoomAttempt();
+    this.zoomIndex.set(i);
+    if (i === null) {
+      this.zoomAttempt.set(null);
+      if (attempt && last !== null) {
+        const id = 'peer-img-' + attempt.submissionId + '-' + last;
+        setTimeout(() => document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'nearest' }));
+      }
+    }
   }
 
   goBack(): void {

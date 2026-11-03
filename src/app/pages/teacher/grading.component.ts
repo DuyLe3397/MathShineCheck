@@ -17,6 +17,7 @@ import { AttachmentDraft, notesOf } from '../../services/image.service';
 import { CommentAttachmentsComponent } from '../../shared/components/comment-attachments.component';
 import { CommentAttachmentsEditorComponent } from '../../shared/components/comment-attachments-editor.component';
 import { AutoGrowDirective } from '../../shared/auto-grow.directive';
+import { EnterSendDirective, isDesktop } from '../../shared/enter-send.directive';
 import { RefreshButtonComponent } from '../../shared/components/refresh-button.component';
 import { MathTextComponent } from '../../shared/math/math-text.component';
 import { FormulaButtonComponent } from '../../shared/math/formula-button.component';
@@ -34,6 +35,7 @@ import { firstValueFrom } from 'rxjs';
     CommentAttachmentsComponent,
     CommentAttachmentsEditorComponent,
     AutoGrowDirective,
+    EnterSendDirective,
     MathTextComponent,
     FormulaButtonComponent,
     FormulaPreviewComponent,
@@ -356,49 +358,24 @@ import { firstValueFrom } from 'rxjs';
         background: #94a3b8;
         cursor: not-allowed;
       }
+      .save-actions {
+        display: inline-flex;
+        flex-direction: column;
+        gap: 0.5rem;
+        max-width: 100%;
+      }
+      .btn-save-zalo {
+        background: #dc2626;
+      }
+      .btn-save-zalo:hover:not(:disabled) {
+        background: #b91c1c;
+      }
       .loading-state {
         text-align: center;
         padding: 3rem;
         color: #64748b;
       }
 
-      .success-overlay {
-        position: fixed;
-        top: 0;
-        left: 0;
-        right: 0;
-        bottom: 0;
-        background: rgba(0, 0, 0, 0.5);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        z-index: 1000;
-      }
-      .success-dialog {
-        background: #fff;
-        border-radius: 16px;
-        padding: 2rem;
-        text-align: center;
-        max-width: 360px;
-        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.2);
-      }
-      .success-dialog h3 {
-        margin: 0 0 8px;
-        color: #1e293b;
-      }
-      .success-dialog p {
-        color: #64748b;
-        margin: 0 0 20px;
-      }
-      .btn-back {
-        padding: 0.5rem 1.5rem;
-        background: #2563eb;
-        color: #fff;
-        border: none;
-        border-radius: 8px;
-        cursor: pointer;
-        font-weight: 600;
-      }
       .reply-image {
         max-width: 200px;
         max-height: 200px;
@@ -741,6 +718,8 @@ import { firstValueFrom } from 'rxjs';
                         rows="1"
                         autoGrow
                         enterkeyhint="enter"
+                        enterSend
+                        (enterSend)="saveEdit(c)"
                         [(ngModel)]="editContent"
                         placeholder="Nội dung... (Ctrl+V để dán ảnh)"
                         (paste)="editEditor.onPaste($event)"
@@ -804,6 +783,8 @@ import { firstValueFrom } from 'rxjs';
               rows="1"
               autoGrow
               enterkeyhint="enter"
+              enterSend
+              (enterSend)="sendComment()"
               (paste)="composer.onPaste($event)"
             ></textarea>
             <formula-button [field]="newCommentField" />
@@ -835,6 +816,7 @@ import { firstValueFrom } from 'rxjs';
               max="10"
               step="0.5"
               placeholder="0-10"
+              (keydown.enter)="onScoreEnter($event)"
             />
           </div>
           <div class="form-group" style="flex:2;">
@@ -851,26 +833,29 @@ import { firstValueFrom } from 'rxjs';
             </div>
             <formula-preview [field]="overallField" [text]="overallComment" />
           </div>
-          <button
-            class="btn-save"
-            (click)="saveGrade()"
-            [disabled]="saving || scoreValue === null"
-          >
-            {{ saving ? 'Đang lưu...' : 'Lưu & Chấm điểm' }}
-          </button>
+          <div class="save-actions">
+            <button
+              class="btn-save"
+              (click)="saveGrade()"
+              [disabled]="saving || scoreValue === null"
+            >
+              {{ saving ? 'Đang lưu...' : 'Lưu & Chấm điểm' }}
+            </button>
+            <!-- Thông báo Zalo (CONTEXT.md): chỉ nút này gửi Zalo cho học sinh -->
+            <button
+              class="btn-save btn-save-zalo"
+              (click)="saveGrade(true)"
+              [disabled]="saving || scoreValue === null"
+            >
+              {{ saving ? 'Đang lưu...' : 'Lưu, Chấm điểm & Gửi Zalo cho HS' }}
+            </button>
+          </div>
         </div>
       </div>
     </div>
 
     <div class="loading-state" *ngIf="loading">Đang tải dữ liệu...</div>
 
-    <div class="success-overlay" *ngIf="showSuccess" (click)="goBack()">
-      <div class="success-dialog" (click)="$event.stopPropagation()">
-        <h3>Chấm điểm thành công!</h3>
-        <p>Điểm và nhận xét đã được lưu.</p>
-        <button class="btn-back" (click)="goBack()">Quay lại</button>
-      </div>
-    </div>
 
     @if (openMenuId()) {
       <div class="menu-overlay" (click)="openMenuId.set('')"></div>
@@ -949,7 +934,6 @@ export class GradingComponent implements OnInit {
   totalPages = 0;
   loading = true;
   saving = false;
-  showSuccess = false;
 
   scoreValue: number | null = null;
   overallComment = '';
@@ -1511,11 +1495,29 @@ studentName = '';
     input.value = '';
   }
 
-  async saveGrade(): Promise<void> {
+  /** Máy tính: Enter trong ô Điểm = nút đỏ "Lưu, Chấm điểm & Gửi Zalo cho HS" (ngoại lệ ADR 0006). */
+  onScoreEnter(e: Event): void {
+    const k = e as KeyboardEvent;
+    if (!isDesktop() || k.isComposing) return;
+    k.preventDefault();
+    if (this.saving || this.scoreValue === null || this.scoreValue === undefined) return;
+    this.saveGrade(true);
+  }
+
+  /** sendZalo: nút đỏ, lưu y như nút xanh rồi gửi Thông báo Zalo cho học sinh. */
+  async saveGrade(sendZalo = false): Promise<void> {
     if (this.scoreValue === null || this.scoreValue === undefined) return;
+    const score = Number(this.scoreValue);
+    if (!Number.isFinite(score) || score < 0 || score > 10) {
+      alert('Điểm phải từ 0 đến 10');
+      return;
+    }
     this.saving = true;
 
     try {
+      // Nhận xét theo ảnh đang gõ dở thì gửi trước (lỗi thì dừng, ở lại trang), để không mất khi chuyển trang
+      // và để tin Zalo tính cả nhận xét đó.
+      if (this.newCommentText.trim() || this.commentDrafts().length) await this.sendComment();
       const profile = this.authService.currentProfile;
       const gradeData: any = {
         scoreValue: this.scoreValue,
@@ -1545,9 +1547,11 @@ studentName = '';
           );
         }
       }
+      if (sendZalo && this.submission?.id) this.firestoreService.requestZaloNotice(this.submission.id);
       this.savedScore = this.scoreValue;
       this.savedComment = this.overallComment;
-      this.showSuccess = true;
+      // Lưu xong về thẳng Chi tiết bài tập, cuộn tới dòng Lần nộp vừa chấm
+      this.goBack(this.submission?.id);
     } catch (err: any) {
       alert('Lỗi khi lưu: ' + (err.message || 'Không xác định'));
     } finally {
@@ -1555,12 +1559,13 @@ studentName = '';
     }
   }
 
-  goBack(): void {
+  /** focusSubmissionId: Chi tiết bài tập tự cuộn tới dòng Lần nộp đó. */
+  goBack(focusSubmissionId?: string): void {
     if (this.submission) {
-      this.router.navigate([
-        '/teacher/assignments',
-        this.submission.assignmentId,
-      ]);
+      this.router.navigate(
+        ['/teacher/assignments', this.submission.assignmentId],
+        focusSubmissionId ? { queryParams: { focus: focusSubmissionId } } : {},
+      );
     } else {
       this.router.navigate(['/teacher/assignments']);
     }
