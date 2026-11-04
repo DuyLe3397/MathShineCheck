@@ -2,6 +2,7 @@ import { Component, inject, OnDestroy, OnInit, signal } from '@angular/core';
 import { AuthService } from '../../services/auth.service';
 import { FirestoreService } from '../../services/firestore.service';
 import { environment } from '../../../environments/environment';
+import { VerifiedBadgeComponent } from '../../shared/components/verified-badge.component';
 
 type State = 'loading' | 'off' | 'code' | 'on';
 
@@ -12,6 +13,7 @@ type State = 'loading' | 'off' | 'code' | 'on';
 @Component({
   selector: 'app-zalo-link-card',
   standalone: true,
+  imports: [VerifiedBadgeComponent],
   styles: [
     `
       .card {
@@ -132,19 +134,7 @@ type State = 'loading' | 'off' | 'code' | 'on';
         <div class="card card-on">
           <div class="row">
             <span class="on">
-              <!-- Huy hiệu răng cưa xanh dương tự vẽ (kiểu tích xanh, không dùng hình của Meta) -->
-              <svg class="check" viewBox="0 0 24 24" aria-hidden="true">
-                <g fill="#1877f2">
-                  <circle cx="12" cy="12" r="8.6" />
-                  <circle cx="20.40" cy="12.00" r="3.2" /><circle cx="19.27" cy="16.20" r="3.2" />
-                  <circle cx="16.20" cy="19.27" r="3.2" /><circle cx="12.00" cy="20.40" r="3.2" />
-                  <circle cx="7.80" cy="19.27" r="3.2" /><circle cx="4.73" cy="16.20" r="3.2" />
-                  <circle cx="3.60" cy="12.00" r="3.2" /><circle cx="4.73" cy="7.80" r="3.2" />
-                  <circle cx="7.80" cy="4.73" r="3.2" /><circle cx="12.00" cy="3.60" r="3.2" />
-                  <circle cx="16.20" cy="4.73" r="3.2" /><circle cx="19.27" cy="7.80" r="3.2" />
-                </g>
-                <path d="M7.6 12.3l3 3 5.8-6" fill="none" stroke="#fff" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round" />
-              </svg>
+              <verified-badge [size]="28" />
               Đã bật
             </span>
           </div>

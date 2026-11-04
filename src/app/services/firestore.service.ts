@@ -857,6 +857,12 @@ export class FirestoreService {
     return snap.exists() ? (snap.data() as { zaloName?: string; linkedAt?: string }) : null;
   }
 
+  /** Mọi học sinh đã Bật thông báo Zalo: mã học sinh → tên Zalo đã liên kết. */
+  async getZaloChats(): Promise<Map<string, { zaloName: string }>> {
+    const snap = await getDocs(collection(this.firestore, 'zaloChats'));
+    return new Map(snap.docs.map((d) => [d.id, { zaloName: (d.data()['zaloName'] as string) || '' }]));
+  }
+
   async unlinkZalo(studentId: string): Promise<void> {
     await deleteDoc(doc(this.firestore, 'zaloChats', studentId));
   }

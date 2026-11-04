@@ -8,6 +8,7 @@ import { NavbarComponent } from '../../shared/components/navbar.component';
 import { TeacherNotificationBellComponent } from '../../shared/components/teacher-notification-bell.component';
 import { RefreshButtonComponent } from '../../shared/components/refresh-button.component';
 import { firstValueFrom } from 'rxjs';
+import { VerifiedBadgeComponent } from '../../shared/components/verified-badge.component';
 import { SchoolClass, Group, Student } from '../../models';
 
 @Component({
@@ -18,7 +19,7 @@ import { SchoolClass, Group, Student } from '../../models';
     FormsModule,
     RouterModule,
     NavbarComponent,
-    TeacherNotificationBellComponent, RefreshButtonComponent,
+    TeacherNotificationBellComponent, RefreshButtonComponent, VerifiedBadgeComponent,
   ],
   styles: [
     `
@@ -285,6 +286,35 @@ import { SchoolClass, Group, Student } from '../../models';
         }
       }
 
+      .zalo-summary {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px 18px;
+        align-items: baseline;
+        margin: -4px 0 12px;
+        font-size: 0.88rem;
+        color: #334155;
+      }
+      .zalo-near-full {
+        color: #ea580c;
+      }
+      .zalo-on {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        color: #1d4ed8;
+        font-weight: 600;
+      }
+      .zalo-off {
+        border: none;
+        background: none;
+        color: #64748b;
+        text-decoration: underline;
+        cursor: pointer;
+        font-size: 0.8rem;
+        padding: 0 0 0 4px;
+      }
+
       .td-actions {
         display: flex;
         gap: 8px;
@@ -507,6 +537,13 @@ import { SchoolClass, Group, Student } from '../../models';
             <h3 class="card-title">
               Danh sách học sinh ({{ students.length }})
             </h3>
+            <div class="zalo-summary" *ngIf="!loading && students.length > 0">
+              <span>Nhóm này: <strong>{{ groupZaloCount }}/{{ students.length }}</strong> em đã bật Zalo</span>
+              <span [class.zalo-near-full]="zaloChats.size >= 45">
+                Đã bật (mọi lớp): <strong>{{ zaloChats.size }}/50</strong>
+              </span>
+              <small class="text-muted">Gói miễn phí của Zalo Bot: tối đa khoảng 50 người</small>
+            </div>
 
             <div *ngIf="loading" class="loading-state">Đang tải...</div>
 
@@ -517,6 +554,7 @@ import { SchoolClass, Group, Student } from '../../models';
                   <th>Số điện thoại</th>
                   <th>Lớp</th>
                   <th>Nhóm</th>
+                  <th>Zalo</th>
                   <th>Thao tác</th>
                 </tr>
               </thead>
@@ -531,6 +569,15 @@ import { SchoolClass, Group, Student } from '../../models';
                   </td>
                   <td>{{ s.className }}</td>
                   <td>{{ getGroupName(s.groupId) }}</td>
+                  <td>
+                    <!-- Bật thông báo Zalo (CONTEXT.md) -->
+                    <span *ngIf="zaloChats.get(s.uid) as z; else noZalo" class="zalo-on">
+                      <verified-badge [size]="20" />
+                      <span class="zalo-name">{{ z.zaloName || 'Đã bật' }}</span>
+                      <button class="zalo-off" (click)="unlinkZalo(s)" [disabled]="unlinkingId === s.uid">Tắt</button>
+                    </span>
+                    <ng-template #noZalo><span class="text-muted">–</span></ng-template>
+                  </td>
                   <td>
                     <div class="td-actions">
                       <button
@@ -712,9 +759,41 @@ export class StudentManagementComponent implements OnInit {
     this.students = await firstValueFrom(
       this.firestoreService.getStudentsByGroup(this.selectedGroupId),
     );
+    await this.loadZaloChats();
   };
 
+  /** Học sinh đã Bật thông báo Zalo (mọi lớp): mã học sinh → tên Zalo. */
+  zaloChats = new Map<string, { zaloName: string }>();
+  unlinkingId = '';
+
+  get groupZaloCount(): number {
+    return this.students.filter((s) => this.zaloChats.has(s.uid)).length;
+  }
+
+  async loadZaloChats(): Promise<void> {
+    try {
+      this.zaloChats = await this.firestoreService.getZaloChats();
+    } catch {
+      // không đọc được thì coi như chưa ai bật
+    }
+  }
+
+  /** Giáo viên tắt hộ thông báo Zalo của một em (im lặng, bot không nhắn). */
+  async unlinkZalo(s: Student): Promise<void> {
+    if (!confirm(`Tắt thông báo Zalo của ${s.fullName}?`)) return;
+    this.unlinkingId = s.uid;
+    try {
+      await this.firestoreService.unlinkZalo(s.uid);
+      await this.loadZaloChats();
+    } catch (err: any) {
+      alert('Lỗi khi tắt: ' + (err?.message || ''));
+    } finally {
+      this.unlinkingId = '';
+    }
+  }
+
   loadStudents(): void {
+    this.loadZaloChats();
     this.loading = true;
     this.firestoreService.getStudentsByGroup(this.selectedGroupId).subscribe({
       next: (data) => {

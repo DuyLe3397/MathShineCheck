@@ -99,6 +99,10 @@ Một mục trong tab Thông báo của giáo viên, sinh ra khi có Lần nộp
 Một email gửi tới hộp thư cố định của giáo viên mỗi khi **học sinh** tạo một Lần nộp, một Nhận xét theo ảnh, hoặc một thảo luận/trả lời thảo luận. Mỗi sự kiện đúng một email, dù có bao nhiêu giáo viên; giáo viên tự viết thì không gửi. Email kèm tên học sinh, nhóm/lớp, bài tập, toàn văn nội dung và một link mở đúng chỗ như khi bấm Thông báo. Không thay thế Thông báo: gửi email thất bại thì Thông báo vẫn còn.
 _Avoid_: mail cmt, thông báo email
 
+**Bật thông báo Zalo**:
+Việc một học sinh liên kết một tài khoản Zalo với mình để nhận Thông báo Zalo: bấm "Nhận thông báo qua Zalo" trên trang chủ học sinh rồi gửi mã cho Zalo Bot. Mỗi học sinh liên kết nhiều nhất một Zalo; giáo viên thấy em nào đã bật và tên Zalo đã liên kết trên trang Học sinh, và tắt hộ được (tắt im lặng, bot không nhắn). Học sinh tự tắt bằng cách nhắn "tắt" cho bot.
+_Avoid_: đăng ký Zalo, kết nối bot
+
 **Thông báo Zalo**:
 Tin nhắn Zalo Bot gửi cho học sinh đã bật thông báo Zalo (trên trang chủ học sinh), về một Lần nộp của em. Chỉ gửi khi giáo viên bấm nút đỏ "Lưu, Chấm điểm & Gửi Zalo cho HS" trên trang chấm bài (trên máy tính, nhấn Enter trong ô Điểm cũng là bấm nút này); nút xanh "Lưu & Chấm điểm", viết Nhận xét theo ảnh hay skill chấm bài đẩy nhận xét đều không gửi. Mỗi lần bấm nút đỏ gửi tối đa hai tin, theo thứ tự: tin điểm (điểm, lần nộp, Nhận xét chung, link) khi Lần nộp chưa từng được báo điểm qua Zalo hoặc điểm khác lần báo trước; rồi tin nhận xét (tên từng giáo viên đã viết, số Nhận xét theo ảnh, link) khi có Nhận xét theo ảnh của giáo viên viết sau lần gửi Zalo trước. Chỉ sửa Nhận xét chung thì không gửi. Không có gì mới thì không gửi gì. Lần nộp Chấm không điểm thì tin điểm báo "đã được chấm", không ghi điểm. Tin không chép nội dung Nhận xét theo ảnh.
 _Avoid_: thông báo (đứng một mình, dễ lẫn với Thông báo của giáo viên), tin bot
